@@ -1,4 +1,5 @@
 export interface AIAnalysisRequest {
+  userId: number;
   content: string;
   analysisType: string;
   parameters?: Record<string, any>;

@@ -33,6 +33,7 @@ const AIServicesPage: React.FC = () => {
 
     try {
       const request: AIAnalysisRequest = {
+        userId: user?.id,
         content: analysisForm.content,
         analysisType: analysisForm.analysisType
       };

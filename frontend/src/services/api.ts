@@ -13,12 +13,16 @@ const api = axios.create({
 });
 
 // Add token to requests if it exists
-api.interceptors.request.use((config) => {
+api.interceptors.request.use((requestConfig) => {
   const token = localStorage.getItem(config.tokenKey);
+  console.log('🔑 Token from localStorage:', token ? 'Present' : 'Missing');
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    requestConfig.headers.Authorization = `Bearer ${token}`;
+    console.log('🔑 Authorization header set:', `Bearer ${token.substring(0, 20)}...`);
+  } else {
+    console.log('⚠️ No token found in localStorage');
   }
-  return config;
+  return requestConfig;
 });
 
 // Add response interceptor for error handling

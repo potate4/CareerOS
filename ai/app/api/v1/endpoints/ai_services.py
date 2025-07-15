@@ -8,14 +8,14 @@ router = APIRouter()
 
 # Pydantic models for request/response
 class AIAnalysisRequest(BaseModel):
-    user_id: int
+    userId: int
     content: str
     analysis_type: str = "general"
     parameters: Optional[Dict] = None
 
 class AIAnalysisResponse(BaseModel):
     analysis_id: str
-    user_id: int
+    userId: int
     content: str
     analysis_type: str
     result: Dict
@@ -25,7 +25,7 @@ class AIAnalysisResponse(BaseModel):
     status: str
 
 class CareerRecommendationRequest(BaseModel):
-    user_id: int
+    userId: int
     skills: List[str]
     experience_years: int
     interests: List[str]
@@ -33,7 +33,7 @@ class CareerRecommendationRequest(BaseModel):
 
 class CareerRecommendationResponse(BaseModel):
     recommendation_id: str
-    user_id: int
+    userId: int
     recommendations: List[Dict]
     skill_gaps: List[str]
     suggested_courses: List[Dict]
@@ -65,7 +65,7 @@ def generate_dummy_analysis_result(content: str, analysis_type: str) -> Dict:
             "summary": "Content analyzed successfully"
         }
 
-def generate_dummy_career_recommendations(user_id: int, skills: List[str], experience_years: int) -> Dict:
+def generate_dummy_career_recommendations(userId: int, skills: List[str], experience_years: int) -> Dict:
     """Generate dummy career recommendations"""
     return {
         "recommendations": [
@@ -132,7 +132,7 @@ async def analyze_content(request: AIAnalysisRequest):
         
         response = AIAnalysisResponse(
             analysis_id=str(uuid.uuid4()),
-            user_id=request.user_id,
+            userId=request.userId,
             content=request.content,
             analysis_type=request.analysis_type,
             result=result,
@@ -153,14 +153,14 @@ async def get_career_recommendations(request: CareerRecommendationRequest):
     try:
         # Generate dummy recommendations
         recommendations_data = generate_dummy_career_recommendations(
-            request.user_id, 
+            request.userId, 
             request.skills, 
             request.experience_years
         )
         
         response = CareerRecommendationResponse(
             recommendation_id=str(uuid.uuid4()),
-            user_id=request.user_id,
+            userId=request.userId,
             recommendations=recommendations_data["recommendations"],
             skill_gaps=recommendations_data["skill_gaps"],
             suggested_courses=recommendations_data["suggested_courses"],

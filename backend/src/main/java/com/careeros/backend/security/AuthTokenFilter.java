@@ -30,18 +30,28 @@ public class AuthTokenFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         try {
             String jwt = parseJwt(request);
-            if (jwt != null && jwtUtils.validateJwtToken(jwt)) {
-                String username = jwtUtils.getUserNameFromJwtToken(jwt);
+            logger.info("🔑 JWT Token parsed: {}", jwt != null ? "Present" : "Missing");
+            
+            if (jwt != null) {
+                logger.info("🔑 JWT Token validation: {}", jwtUtils.validateJwtToken(jwt) ? "Valid" : "Invalid");
+                
+                if (jwtUtils.validateJwtToken(jwt)) {
+                    String username = jwtUtils.getUserNameFromJwtToken(jwt);
+                    logger.info("🔑 Username from JWT: {}", username);
 
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                null,
-                                userDetails.getAuthorities());
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities());
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    logger.info("🔑 Authentication set successfully for user: {}", username);
+                }
+            } else {
+                logger.warn("⚠️ No JWT token found in request");
             }
         } catch (Exception e) {
             logger.error("Cannot set user authentication: {}", e);
@@ -52,9 +62,12 @@ public class AuthTokenFilter extends OncePerRequestFilter {
 
     private String parseJwt(HttpServletRequest request) {
         String headerAuth = request.getHeader("Authorization");
+        logger.info("🔑 Authorization header: {}", headerAuth != null ? "Present" : "Missing");
 
         if (StringUtils.hasText(headerAuth) && headerAuth.startsWith("Bearer ")) {
-            return headerAuth.substring(7);
+            String token = headerAuth.substring(7);
+            logger.info("🔑 Extracted JWT token: {}", token.substring(0, Math.min(20, token.length())) + "...");
+            return token;
         }
 
         return null;
