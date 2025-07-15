@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useNavigate } from 'react-router-dom';
 import { AuthContextType, User, SignupRequest } from '../types/auth';
 import { authAPI } from '../services/api';
+import { config } from '../config/env';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -24,8 +25,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     // Check if user is logged in on app start
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
+    const token = localStorage.getItem(config.tokenKey);
+    const userData = localStorage.getItem(config.userKey);
     
     if (token && userData) {
       try {
@@ -33,8 +34,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(user);
       } catch (error) {
         console.error('Error parsing user data:', error);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        localStorage.removeItem(config.tokenKey);
+        localStorage.removeItem(config.userKey);
       }
     }
     setIsLoading(false);
@@ -53,8 +54,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         roles: response.roles,
       };
 
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem(config.tokenKey, response.token);
+      localStorage.setItem(config.userKey, JSON.stringify(userData));
       setUser(userData);
       navigate('/dashboard');
     } catch (error) {
@@ -73,8 +74,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    localStorage.removeItem(config.tokenKey);
+    localStorage.removeItem(config.userKey);
     setUser(null);
     navigate('/auth');
   };

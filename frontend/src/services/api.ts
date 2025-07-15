@@ -1,11 +1,11 @@
 import axios from 'axios';
 import { LoginRequest, SignupRequest, AuthResponse } from '../types/auth';
 import { handleApiError } from '../utils/apiErrorHandler';
-
-const API_URL = 'http://localhost:8080/api';
+import { config } from '../config/env';
 
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: config.apiUrl,
+  timeout: config.requestTimeout,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -13,7 +13,7 @@ const api = axios.create({
 
 // Add token to requests if it exists
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem(config.tokenKey);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

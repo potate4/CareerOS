@@ -155,6 +155,8 @@ CareerOS/
     │   │       └── Navigation.tsx
     │   ├── contexts/
     │   │   └── AuthContext.tsx
+    │   ├── config/
+    │   │   └── env.ts
     │   ├── services/
     │   │   └── api.ts
     │   ├── types/
@@ -179,10 +181,39 @@ app.jwt.expiration=86400000
 ```
 
 ### Frontend Configuration
-Update the API URL in `src/services/api.ts` if your backend runs on a different port:
+Set up environment variables using the provided script:
 
-```typescript
-const API_URL = 'http://localhost:8080/api';
+```bash
+cd frontend
+chmod +x setup-env.sh
+./setup-env.sh
+```
+
+Or manually copy the example environment file:
+
+```bash
+cd frontend
+cp env.example .env
+```
+
+Then edit `.env` with your configuration:
+
+```env
+# API Configuration
+VITE_API_URL=http://localhost:8080/api
+
+# App Configuration
+VITE_APP_NAME=CareerOS
+VITE_APP_VERSION=1.0.0
+
+# Development Configuration
+VITE_DEV_MODE=true
+
+# Feature Flags
+VITE_DEBUG_LOGGING=false
+
+# Request Timeout (in milliseconds)
+VITE_REQUEST_TIMEOUT=10000
 ```
 
 ## Security Features
