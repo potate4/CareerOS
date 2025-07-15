@@ -9,9 +9,7 @@ app.include_router(api_router_v1, prefix="/api/v1")
 origins = [
     # "*"
     "http://localhost:5173",
-    "http://localhost:5174",
-    "https://shrobon-audio.web.app",
-    "https://audio.shrobon.com",
+    "http://localhost:8080",
 ]
 
 allow_credentials = True
@@ -30,7 +28,7 @@ app.add_middleware(
 # Dummy Endpoint
 @app.get("/")
 async def get_welcome_message():
-   return "DEV Server Audio analytics"
+   return "DEV Server AI"
 
 
 # gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app -b 0.0.0.0:8000

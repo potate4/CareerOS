@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+// import { useAuth } from '../../contexts/AuthContext';
 import Alert from '../common/Alert';
 import LoadingSpinner from '../common/LoadingSpinner';
-
+import { useAuthStore } from '../../stores/authStore';
 const UserProfile: React.FC = () => {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);

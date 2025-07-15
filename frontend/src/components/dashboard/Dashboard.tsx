@@ -1,10 +1,10 @@
 import React from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+// import { useAuth } from '../../contexts/AuthContext';
 import Navigation from '../navigation/Navigation';
 import { LogOut } from 'lucide-react';
-
+import { useAuthStore } from '../../stores/authStore';
 const Dashboard: React.FC = () => {
-  const { user, isLoading, logout } = useAuth();
+  const { user, isLoading, logout } = useAuthStore();
 
   if (isLoading) {
     return (

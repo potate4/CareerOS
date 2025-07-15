@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+// import { useAuth } from '../../contexts/AuthContext';
 import { SignupRequest } from '../../types/auth';
-
+import { useAuthStore } from '../../stores/authStore';
 interface SignupFormProps {
   onSwitchToLogin: () => void;
 }
@@ -20,7 +20,7 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  const { signup } = useAuth();
+  const { signup } = useAuthStore();
   const navigate = useNavigate();
 
   const validateForm = () => {
