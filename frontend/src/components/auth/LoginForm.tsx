@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 // import { useAuth } from '../../contexts/AuthContext';
 import { useAuthStore } from '../../stores/authStore';
 interface LoginFormProps {
@@ -13,6 +14,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup }) => {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuthStore();
+  const navigate = useNavigate();
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
@@ -39,6 +41,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup }) => {
     setIsLoading(true);
     try {
       await login(formData.username, formData.password);
+      navigate('/dashboard');
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Login failed. Please try again.';
       setErrors({ general: errorMessage });
