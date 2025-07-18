@@ -28,40 +28,70 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
       description: 'Overview and analytics'
     },
     {
+      name: 'LifeScript',
+      href: '/lifescript',
+      icon: Home,
+      description: 'AI Journaling and Reflection'
+    },
+    {
       name: 'AI Services',
       href: '/ai-services',
       icon: Brain,
       description: 'AI-powered career tools'
     },
     {
-      name: 'Career Assessment',
-      href: '/career-assessment',
+      name: 'Interview Simulator',
+      href: '/interview',
       icon: Target,
-      description: 'Evaluate your career path'
+      description: 'AI Interview Simulator'
     },
     {
-      name: 'Job Matching',
-      href: '/job-matching',
+      name: 'Learning Flow',
+      href: '/learning',
       icon: Briefcase,
-      description: 'Find your perfect job'
+      description: 'AI Learning Path Generator'
     },
     {
-      name: 'Career Growth',
-      href: '/career-growth',
+      name: 'FutureCast',
+      href: '/futurecast',
       icon: TrendingUp,
-      description: 'Plan your career advancement'
+      description: 'AI Career Path Simulator'
     },
     {
-      name: 'Resume Builder',
-      href: '/resume-builder',
+      name: 'SkillForge',
+      href: '/skillforge',
       icon: FileText,
-      description: 'Create professional resumes'
+      description: 'Gamified AI Skill Development'
     },
     {
-      name: 'Networking',
-      href: '/networking',
+      name: 'MindFlow',
+      href: '/mindflow',
       icon: Users,
-      description: 'Connect with professionals'
+      description: 'AI Softskill Development Coach'
+    },
+    {
+      name: 'Job Posting',
+      href: '/posting',
+      icon: FileText,
+      description: 'Gamified AI Skill Development'
+    },
+    {
+      name: 'Candidate Matching',
+      href: '/matching',
+      icon: Users,
+      description: 'AI Softskill Development Coach'
+    },
+    {
+      name: 'Assesment Creator',
+      href: '/assesment',
+      icon: FileText,
+      description: 'Sets up interview questions and sends them to candidates'
+    },
+    {
+      name: 'Interview Evaluation',
+      href: '/evaluation',
+      icon: Users,
+      description: 'Evaluates interview performance and provides feedback'
     }
   ];
 

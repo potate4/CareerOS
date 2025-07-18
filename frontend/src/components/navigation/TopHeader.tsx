@@ -29,25 +29,13 @@ const TopHeader: React.FC = () => {
   }, []);
 
   return (
-    <header className="h-16 flex items-center justify-between px-6 shadow-sm bg-slate-600">
-      {/* Left side - Search */}
-      <div className="flex items-center flex-1 max-w-md">
-        <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white" size={20} />
-          <input
-            type="text"
-            placeholder="Search..."
-            className="w-full pl-10 pr-4 py-2 border border-white border-opacity-30 rounded-lg focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent bg-white bg-opacity-10 text-white placeholder-white placeholder-opacity-70"
-          />
-        </div>
-      </div>
-
-      {/* Right side - Notifications and Profile */}
-      <div className="flex items-center space-x-4">
-        {/* Notifications */}
-        <button className="p-2 text-white hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors">
-          <Bell size={20} />
-        </button>
+<header className="h-16 flex items-center justify-end px-6 shadow-sm bg-slate-600">
+  {/* Right side - Notifications and Profile */}
+  <div className="flex items-center space-x-4">
+    {/* Notifications */}
+    <button className="p-2 text-white hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors">
+      <Bell size={20} />
+    </button>
 
         {/* Profile Dropdown */}
         <div className="relative" ref={profileRef}>

@@ -111,8 +111,9 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
     <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-white">
       <div className="max-w-md w-full space-y-8">
         <div>
+     
           <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-800">
-            Create your account
+            Create an account on CareerOS
           </h2>
           <p className="mt-2 text-center text-sm text-slate-600">
             Or{' '}
