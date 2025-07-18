@@ -159,7 +159,7 @@ const AIServicesPage: React.FC = () => {
 
           {/* Tabs */}
           <div className="mb-6">
-            <div className="border-b" style={{ borderColor: '#BDDDFC' }}>
+            <div className="border-b" style={{ borderColor: '#6A89A7 ' }}>
               <nav className="-mb-px flex space-x-8">
                 <button
                   onClick={() => setActiveTab('analysis')}
@@ -208,7 +208,7 @@ const AIServicesPage: React.FC = () => {
                     onChange={(e) => setAnalysisForm(prev => ({ ...prev, content: e.target.value }))}
                     className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50"
                     style={{ 
-                      borderColor: '#BDDDFC',
+                      borderColor: '#6A89A7 ',
                       focusRing: '#88BDF2'
                     }}
                     rows={4}
@@ -226,7 +226,7 @@ const AIServicesPage: React.FC = () => {
                     onChange={(e) => setAnalysisForm(prev => ({ ...prev, analysisType: e.target.value }))}
                     className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50"
                     style={{ 
-                      borderColor: '#BDDDFC',
+                      borderColor: '#6A89A7 ',
                       focusRing: '#88BDF2'
                     }}
                   >
@@ -277,7 +277,7 @@ const AIServicesPage: React.FC = () => {
                           onChange={(e) => updateSkill(index, e.target.value)}
                           className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50"
                           style={{ 
-                            borderColor: '#BDDDFC',
+                            borderColor: '#6A89A7 ',
                             focusRing: '#88BDF2'
                           }}
                           placeholder="Enter a skill"
@@ -314,7 +314,7 @@ const AIServicesPage: React.FC = () => {
                       onChange={(e) => setRecommendationsForm(prev => ({ ...prev, experienceYears: parseInt(e.target.value) }))}
                       className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50"
                       style={{ 
-                        borderColor: '#BDDDFC',
+                        borderColor: '#6A89A7 ',
                         focusRing: '#88BDF2'
                       }}
                       min="0"
@@ -335,7 +335,7 @@ const AIServicesPage: React.FC = () => {
                       }))}
                       className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50"
                       style={{ 
-                        borderColor: '#BDDDFC',
+                        borderColor: '#6A89A7 ',
                         focusRing: '#88BDF2'
                       }}
                       placeholder="Web Development, AI/ML, Cloud Computing"
@@ -351,7 +351,7 @@ const AIServicesPage: React.FC = () => {
                       onChange={(e) => setRecommendationsForm(prev => ({ ...prev, location: e.target.value }))}
                       className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50"
                       style={{ 
-                        borderColor: '#BDDDFC',
+                        borderColor: '#6A89A7 ',
                         focusRing: '#88BDF2'
                       }}
                     >

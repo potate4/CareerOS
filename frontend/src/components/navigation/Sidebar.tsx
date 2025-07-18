@@ -83,7 +83,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
         )}
         <button
           onClick={onToggle}
-          className="p-2 rounded-md text-white hover:bg-white hover:bg-opacity-20 transition-colors"
+          className="p-2 rounded-md text-white hover:384959 hover:bg-opacity-20 transition-colors"
         >
           {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
         </button>
@@ -106,7 +106,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
                     : 'text-gray-300 hover:text-white hover:bg-white hover:bg-opacity-10'
                 }`}
                 style={{
-                  backgroundColor: active ? '#88BDF2' : 'transparent'
+                  backgroundColor: active ? '#567088' : 'transparent'
                 }}
               >
                 <Icon 
