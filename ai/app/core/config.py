@@ -10,5 +10,8 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = os.getenv("SUPABASE_URL")
     SUPABASE_ANON_KEY:str = os.getenv("SUPABASE_ANON_KEY")
     GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY")
+    UPLOAD_DIR: str = os.getenv("UPLOAD_DIR")
+    FRAME_DIR: str = os.getenv("FRAME_DIR")
+    AUDIO_SEG_DIR: str = os.getenv("AUDIO_SEG_DIR")
 
 settings = Settings()
