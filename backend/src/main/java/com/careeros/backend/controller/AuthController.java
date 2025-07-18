@@ -97,6 +97,14 @@ public class AuthController {
                         Role adminRole = Role.ROLE_ADMIN;
                         roles.add(adminRole);
                         break;
+                    case "candidate":
+                        Role candidateRole = Role.ROLE_CANDIDATE;
+                        roles.add(candidateRole);
+                        break;
+                    case "recruiter":
+                        Role recruiterRole = Role.ROLE_RECRUITER;
+                        roles.add(recruiterRole);
+                        break;
                     default:
                         Role userRole = Role.ROLE_USER;
                         roles.add(userRole);
