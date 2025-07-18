@@ -15,7 +15,7 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
     lastName: '',
     password: '',
     confirmPassword: '',
-    role: ['user'],
+    role: ['admin'],
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isLoading, setIsLoading] = useState(false);
