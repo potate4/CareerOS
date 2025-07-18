@@ -29,7 +29,7 @@ const TopHeader: React.FC = () => {
   }, []);
 
   return (
-    <header className="h-16 flex items-center justify-between px-6 shadow-sm" style={{ backgroundColor: '#6A89A7' }}>
+    <header className="h-16 flex items-center justify-between px-6 shadow-sm bg-slate-600">
       {/* Left side - Search */}
       <div className="flex items-center flex-1 max-w-md">
         <div className="relative w-full">
@@ -38,7 +38,6 @@ const TopHeader: React.FC = () => {
             type="text"
             placeholder="Search..."
             className="w-full pl-10 pr-4 py-2 border border-white border-opacity-30 rounded-lg focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent bg-white bg-opacity-10 text-white placeholder-white placeholder-opacity-70"
-            style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
           />
         </div>
       </div>
@@ -57,8 +56,7 @@ const TopHeader: React.FC = () => {
             className="flex items-center space-x-3 p-2 rounded-lg hover:bg-white hover:bg-opacity-20 transition-colors"
           >
             <div 
-              className="h-8 w-8 rounded-full flex items-center justify-center text-white font-medium"
-              style={{ backgroundColor: '#384959' }}
+              className="h-8 w-8 rounded-full flex items-center justify-center text-white font-medium bg-slate-800"
             >
               {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
             </div>
@@ -78,10 +76,10 @@ const TopHeader: React.FC = () => {
 
           {/* Profile Menu Dropdown */}
           {showProfileMenu && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-50">
               <Link
                 to="/profile"
-                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                className="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
                 onClick={() => setShowProfileMenu(false)}
               >
                 <User size={16} className="mr-3" />
@@ -89,7 +87,7 @@ const TopHeader: React.FC = () => {
               </Link>
               <Link
                 to="/settings"
-                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                className="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
                 onClick={() => setShowProfileMenu(false)}
               >
                 <Settings size={16} className="mr-3" />
@@ -101,7 +99,7 @@ const TopHeader: React.FC = () => {
                   logout();
                   setShowProfileMenu(false);
                 }}
-                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                className="flex items-center w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
               >
                 <LogOut size={16} className="mr-3" />
                 Logout

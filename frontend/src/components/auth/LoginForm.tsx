@@ -61,17 +61,20 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-white py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h1 className='mt-6 text-center text-xl font-extrabold text-slate-800'>
+            CareerOS
+          </h1>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-800">
             Sign in to your account
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm text-slate-600">
             Or{' '}
             <button
               onClick={onSwitchToSignup}
-              className="font-medium text-indigo-600 hover:text-indigo-500"
+              className="font-medium text-slate-800 hover:text-slate-600 underline"
             >
               create a new account
             </button>
@@ -80,14 +83,14 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup }) => {
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {errors.general && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+            <div className="bg-red-100 border border-red-300 text-red-800 px-4 py-3 rounded-md">
               {errors.general}
             </div>
           )}
           
           <div className="space-y-4">
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="username" className="block text-sm font-medium text-slate-700">
                 Username
               </label>
               <input
@@ -98,8 +101,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup }) => {
                 value={formData.username}
                 onChange={handleChange}
                 className={`mt-1 appearance-none relative block w-full px-3 py-2 border ${
-                  errors.username ? 'border-red-300' : 'border-gray-300'
-                } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm`}
+                  errors.username ? 'border-red-300' : 'border-slate-300'
+                } placeholder-slate-500 text-slate-900 rounded-md focus:outline-none focus:ring-slate-600 focus:border-slate-600 focus:z-10 sm:text-sm bg-white`}
                 placeholder="Enter your username"
               />
               {errors.username && (
@@ -108,7 +111,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup }) => {
             </div>
             
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className="block text-sm font-medium text-slate-700">
                 Password
               </label>
               <input
@@ -119,8 +122,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup }) => {
                 value={formData.password}
                 onChange={handleChange}
                 className={`mt-1 appearance-none relative block w-full px-3 py-2 border ${
-                  errors.password ? 'border-red-300' : 'border-gray-300'
-                } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm`}
+                  errors.password ? 'border-red-300' : 'border-slate-300'
+                } placeholder-slate-500 text-slate-900 rounded-md focus:outline-none focus:ring-slate-600 focus:border-slate-600 focus:z-10 sm:text-sm bg-white`}
                 placeholder="Enter your password"
               />
               {errors.password && (
@@ -133,7 +136,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup }) => {
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-slate-800 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

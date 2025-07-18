@@ -71,19 +71,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
 
   return (
     <div 
-      className={`h-screen fixed left-0 top-0 z-50 transition-all duration-300 ease-in-out ${
+      className={`h-screen fixed left-0 top-0 z-50 transition-all duration-300 ease-in-out bg-slate-800 ${
         isCollapsed ? 'w-16' : 'w-64'
       }`}
-      style={{ backgroundColor: '#384959' }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between h-16 px-4" style={{ backgroundColor: '#6A89A7' }}>
+      <div className="flex items-center justify-between h-16 px-4 bg-slate-600">
         {!isCollapsed && (
           <h1 className="text-xl font-bold text-white">CareerOS</h1>
         )}
         <button
           onClick={onToggle}
-          className="p-2 rounded-md text-white hover:384959 hover:bg-opacity-20 transition-colors"
+          className="p-2 rounded-md text-white hover:bg-white hover:bg-opacity-20 transition-colors"
         >
           {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
         </button>
@@ -102,12 +101,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
                 to={item.href}
                 className={`group flex items-center px-3 py-3 text-sm font-medium rounded-md transition-all duration-200 ${
                   active
-                    ? 'text-white'
+                    ? 'text-white bg-slate-600'
                     : 'text-gray-300 hover:text-white hover:bg-white hover:bg-opacity-10'
                 }`}
-                style={{
-                  backgroundColor: active ? '#567088' : 'transparent'
-                }}
               >
                 <Icon 
                   size={20} 
