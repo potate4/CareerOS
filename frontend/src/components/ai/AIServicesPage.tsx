@@ -207,10 +207,7 @@ const AIServicesPage: React.FC = () => {
                     value={analysisForm.content}
                     onChange={(e) => setAnalysisForm(prev => ({ ...prev, content: e.target.value }))}
                     className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50"
-                    style={{ 
-                      borderColor: '#6A89A7 ',
-                      focusRing: '#88BDF2'
-                    }}
+                
                     rows={4}
                     placeholder="Enter content to analyze..."
                     required
@@ -225,10 +222,7 @@ const AIServicesPage: React.FC = () => {
                     value={analysisForm.analysisType}
                     onChange={(e) => setAnalysisForm(prev => ({ ...prev, analysisType: e.target.value }))}
                     className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50"
-                    style={{ 
-                      borderColor: '#6A89A7 ',
-                      focusRing: '#88BDF2'
-                    }}
+               
                   >
                     <option value="general">General Analysis</option>
                     <option value="sentiment">Sentiment Analysis</option>
@@ -276,10 +270,7 @@ const AIServicesPage: React.FC = () => {
                           value={skill}
                           onChange={(e) => updateSkill(index, e.target.value)}
                           className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50"
-                          style={{ 
-                            borderColor: '#6A89A7 ',
-                            focusRing: '#88BDF2'
-                          }}
+                     
                           placeholder="Enter a skill"
                         />
                         <button
@@ -313,10 +304,7 @@ const AIServicesPage: React.FC = () => {
                       value={recommendationsForm.experienceYears}
                       onChange={(e) => setRecommendationsForm(prev => ({ ...prev, experienceYears: parseInt(e.target.value) }))}
                       className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50"
-                      style={{ 
-                        borderColor: '#6A89A7 ',
-                        focusRing: '#88BDF2'
-                      }}
+                    
                       min="0"
                       max="50"
                     />
@@ -334,10 +322,7 @@ const AIServicesPage: React.FC = () => {
                         interests: e.target.value.split(',').map(i => i.trim()).filter(i => i)
                       }))}
                       className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50"
-                      style={{ 
-                        borderColor: '#6A89A7 ',
-                        focusRing: '#88BDF2'
-                      }}
+                    
                       placeholder="Web Development, AI/ML, Cloud Computing"
                     />
                   </div>
@@ -350,10 +335,7 @@ const AIServicesPage: React.FC = () => {
                       value={recommendationsForm.location}
                       onChange={(e) => setRecommendationsForm(prev => ({ ...prev, location: e.target.value }))}
                       className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50"
-                      style={{ 
-                        borderColor: '#6A89A7 ',
-                        focusRing: '#88BDF2'
-                      }}
+                    
                     >
                       <option value="Remote">Remote</option>
                       <option value="On-site">On-site</option>
