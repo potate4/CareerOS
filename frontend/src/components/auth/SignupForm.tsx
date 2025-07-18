@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 // import { useAuth } from '../../contexts/AuthContext';
 import { SignupRequest } from '../../types/auth';
 import { useAuthStore } from '../../stores/authStore';
@@ -15,13 +14,12 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
     lastName: '',
     password: '',
     confirmPassword: '',
-    role: ['user'],
+    role: ['admin'],
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const { signup } = useAuthStore();
-  const navigate = useNavigate();
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
@@ -78,11 +76,18 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
     setSuccessMessage('');
     
     try {
-      const { confirmPassword, ...signupData } = formData;
+      const signupData = {
+        username: formData.username,
+        email: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        password: formData.password,
+        role: formData.role,
+      };
       await signup(signupData);
       setSuccessMessage('Account created successfully! Redirecting to login...');
       setTimeout(() => {
-        navigate('/auth');
+        onSwitchToLogin();
       }, 2000);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Signup failed. Please try again.';
@@ -103,17 +108,18 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-white">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Create your account
+     
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-800">
+            Create an account on CareerOS
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm text-slate-600">
             Or{' '}
             <button
               onClick={onSwitchToLogin}
-              className="font-medium text-indigo-600 hover:text-indigo-500"
+              className="font-medium text-slate-800 hover:text-slate-600 underline"
             >
               sign in to your existing account
             </button>
@@ -122,13 +128,13 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {errors.general && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+            <div className="bg-red-100 border border-red-300 text-red-800 px-4 py-3 rounded-md">
               {errors.general}
             </div>
           )}
           
           {successMessage && (
-            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md">
+            <div className="bg-green-100 border border-green-300 text-green-800 px-4 py-3 rounded-md">
               {successMessage}
             </div>
           )}
@@ -136,7 +142,7 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="firstName" className="block text-sm font-medium text-slate-700">
                   First Name
                 </label>
                 <input
@@ -147,8 +153,8 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
                   value={formData.firstName}
                   onChange={handleChange}
                   className={`mt-1 appearance-none relative block w-full px-3 py-2 border ${
-                    errors.firstName ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm`}
+                    errors.firstName ? 'border-red-300' : 'border-slate-300'
+                  } placeholder-slate-500 text-slate-900 rounded-md focus:outline-none focus:ring-slate-600 focus:border-slate-600 focus:z-10 sm:text-sm bg-white`}
                   placeholder="First name"
                 />
                 {errors.firstName && (
@@ -157,7 +163,7 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
               </div>
               
               <div>
-                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="lastName" className="block text-sm font-medium text-slate-700">
                   Last Name
                 </label>
                 <input
@@ -168,8 +174,8 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
                   value={formData.lastName}
                   onChange={handleChange}
                   className={`mt-1 appearance-none relative block w-full px-3 py-2 border ${
-                    errors.lastName ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm`}
+                    errors.lastName ? 'border-red-300' : 'border-slate-300'
+                  } placeholder-slate-500 text-slate-900 rounded-md focus:outline-none focus:ring-slate-600 focus:border-slate-600 focus:z-10 sm:text-sm bg-white`}
                   placeholder="Last name"
                 />
                 {errors.lastName && (
@@ -178,8 +184,8 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
               </div>
             </div>
             
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+                        <div>
+              <label htmlFor="username" className="block text-sm font-medium text-slate-700">
                 Username
               </label>
               <input
@@ -190,8 +196,8 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
                 value={formData.username}
                 onChange={handleChange}
                 className={`mt-1 appearance-none relative block w-full px-3 py-2 border ${
-                  errors.username ? 'border-red-300' : 'border-gray-300'
-                } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm`}
+                  errors.username ? 'border-red-300' : 'border-slate-300'
+                } placeholder-slate-500 text-slate-900 rounded-md focus:outline-none focus:ring-slate-600 focus:border-slate-600 focus:z-10 sm:text-sm bg-white`}
                 placeholder="Choose a username"
               />
               {errors.username && (
@@ -200,7 +206,7 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
             </div>
             
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="email" className="block text-sm font-medium text-slate-700">
                 Email
               </label>
               <input
@@ -211,8 +217,8 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
                 value={formData.email}
                 onChange={handleChange}
                 className={`mt-1 appearance-none relative block w-full px-3 py-2 border ${
-                  errors.email ? 'border-red-300' : 'border-gray-300'
-                } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm`}
+                  errors.email ? 'border-red-300' : 'border-slate-300'
+                } placeholder-slate-500 text-slate-900 rounded-md focus:outline-none focus:ring-slate-600 focus:border-slate-600 focus:z-10 sm:text-sm bg-white`}
                 placeholder="Enter your email"
               />
               {errors.email && (
@@ -221,7 +227,7 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
             </div>
             
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className="block text-sm font-medium text-slate-700">
                 Password
               </label>
               <input
@@ -232,8 +238,8 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
                 value={formData.password}
                 onChange={handleChange}
                 className={`mt-1 appearance-none relative block w-full px-3 py-2 border ${
-                  errors.password ? 'border-red-300' : 'border-gray-300'
-                } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm`}
+                  errors.password ? 'border-red-300' : 'border-slate-300'
+                } placeholder-slate-500 text-slate-900 rounded-md focus:outline-none focus:ring-slate-600 focus:border-slate-600 focus:z-10 sm:text-sm bg-white`}
                 placeholder="Create a password"
               />
               {errors.password && (
@@ -242,32 +248,32 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
             </div>
             
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                Confirm Password
-              </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                required
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                className={`mt-1 appearance-none relative block w-full px-3 py-2 border ${
-                  errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
-                } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm`}
-                placeholder="Confirm your password"
-              />
-              {errors.confirmPassword && (
-                <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
-              )}
-            </div>
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-700">
+                  Confirm Password
+                </label>
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  required
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className={`mt-1 appearance-none relative block w-full px-3 py-2 border ${
+                    errors.confirmPassword ? 'border-red-300' : 'border-slate-300'
+                  } placeholder-slate-500 text-slate-900 rounded-md focus:outline-none focus:ring-slate-600 focus:border-slate-600 focus:z-10 sm:text-sm bg-white`}
+                  placeholder="Confirm your password"
+                />
+                {errors.confirmPassword && (
+                  <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
+                )}
+              </div>
           </div>
 
           <div>
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-slate-800 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
