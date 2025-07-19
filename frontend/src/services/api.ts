@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { LoginRequest, SignupRequest, AuthResponse } from '../types/auth';
-import { AIAnalysisRequest, AIAnalysisResponse, CareerRecommendationRequest, CareerRecommendationResponse, AIHealthResponse } from '../types/ai';
+import { AIAnalysisRequest, AIAnalysisResponse, CareerRecommendationRequest, CareerRecommendationResponse, AIHealthResponse, FileUploadRequest, FileUploadResponse, FileUpload } from '../types/ai';
 import { handleApiError } from '../utils/apiErrorHandler';
 import { config } from '../config/env';
 
@@ -109,6 +109,56 @@ export const aiAPI = {
   getStatus: async (): Promise<AIHealthResponse> => {
     try {
       const response = await api.get('/ai/status');
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  // File upload methods
+  uploadFile: async (request: FileUploadRequest): Promise<FileUploadResponse> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', request.file);
+      if (request.description) {
+        formData.append('description', request.description);
+      }
+      if (request.category) {
+        formData.append('category', request.category);
+      }
+
+      const response = await api.post('/files/file-upload-and-get-url', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  getMyUploads: async (): Promise<FileUpload[]> => {
+    try {
+      const response = await api.get('/files/my-uploads');
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  getMyUploadsByCategory: async (category: string): Promise<FileUpload[]> => {
+    try {
+      const response = await api.get(`/files/my-uploads/${category}`);
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  getFileUploadById: async (fileId: number): Promise<FileUpload> => {
+    try {
+      const response = await api.get(`/files/upload/${fileId}`);
       return response.data;
     } catch (error) {
       throw handleApiError(error);

@@ -62,4 +62,32 @@ export interface AIHealthResponse {
   service: string;
   timestamp: string;
   version: string;
+}
+
+export interface FileUploadRequest {
+  file: File;
+  description?: string;
+  category?: string;
+}
+
+export interface FileUploadResponse {
+  success: boolean;
+  message: string;
+  fileId?: number;
+  fileName?: string;
+  fileUrl?: string;
+  uploadDate?: string;
+  category?: string;
+  description?: string;
+}
+
+export interface FileUpload {
+  id: number;
+  fileName: string;
+  originalFileName: string;
+  fileUrl: string;
+  uploadDate: string;
+  category: string;
+  description: string;
+  userId: number;
 } 
