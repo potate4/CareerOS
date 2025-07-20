@@ -62,17 +62,23 @@ public class WebSecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        System.out.println("🔧 Configuring Spring Security...");
+        
         http.csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> 
+            .authorizeHttpRequests(auth -> {
+                System.out.println("🔧 Setting up request authorization...");
                 auth.requestMatchers("/api/auth/**").permitAll()
                     .requestMatchers("/api/test/**").permitAll()
                     .requestMatchers("/api/ai/health").permitAll()
                     .requestMatchers("/api/ai/status").permitAll()
                     .requestMatchers("/api/ai/test-auth").permitAll()
-                    .anyRequest().authenticated()
-            );
+                    .requestMatchers("/api/interview/health").permitAll()
+                    .requestMatchers("/api/interview/test-auth").permitAll()
+                    .anyRequest().authenticated();
+                System.out.println("🔧 Authorization configured - /api/interview/analyze requires authentication");
+            });
         
         http.authenticationProvider(authenticationProvider());
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);

@@ -26,8 +26,8 @@ async def analyze(request: VideoAnalysisRequest):
     video_path = None
     try:
         # Download video from URL
-        print(f"[+] Downloading video from: {request.video_url}")
-        response = requests.get(request.video_url)
+        print(f"[+] Downloading video from: {request.videoUrl}")
+        response = requests.get(request.videoUrl)
         response.raise_for_status()
         
         # Create upload directory if it doesn't exist
@@ -54,6 +54,7 @@ async def analyze(request: VideoAnalysisRequest):
         # cleanup_temp_files()
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
     finally:
+        cleanup_temp_files()
         # Clean up the downloaded video file
         if video_path and os.path.exists(video_path):
             os.remove(video_path)

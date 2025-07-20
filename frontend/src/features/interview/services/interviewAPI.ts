@@ -14,8 +14,12 @@ const api = axios.create({
 // Add token to requests if it exists
 api.interceptors.request.use((requestConfig) => {
   const token = localStorage.getItem(config.tokenKey);
+  console.log('🔑 Token from localStorage:', token ? 'Present' : 'Missing');
   if (token) {
     requestConfig.headers.Authorization = `Bearer ${token}`;
+    console.log('🔑 Authorization header set:', `Bearer ${token.substring(0, 20)}...`);
+  } else {
+    console.log('⚠️ No token found in localStorage');
   }
   
   // Don't override Content-Type for multipart requests
@@ -85,6 +89,36 @@ export const interviewAPI = {
   deleteRecording: async (recordingId: number): Promise<{ message: string }> => {
     try {
       const response = await api.delete(`/files/upload/${recordingId}`);
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  // Analyze interview recording
+  analyzeInterview: async (videoUrl: string, analysisType: string = 'comprehensive'): Promise<any> => {
+    try {
+      console.log('🔍 Calling interview analysis API...');
+      console.log('📡 Request URL:', config.apiUrl + '/interview/analyze');
+      console.log('📦 Request payload:', { videoUrl, analysisType });
+      
+      const response = await api.post('/interview/analyze', {
+        videoUrl,
+        analysisType
+      });
+      
+      console.log('✅ Interview analysis response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Interview analysis error:', error);
+      throw handleApiError(error);
+    }
+  },
+
+  // Check interview service health
+  checkInterviewHealth: async (): Promise<any> => {
+    try {
+      const response = await api.get('/interview/health');
       return response.data;
     } catch (error) {
       throw handleApiError(error);

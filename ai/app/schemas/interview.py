@@ -5,7 +5,9 @@ from typing import Optional, List, Dict, Any
 
 
 class VideoAnalysisRequest(BaseModel):
-    video_url: str
+    videoUrl: str
+    analysisType: str
+    userId: str
     
 class Pause(BaseModel):
     start: float

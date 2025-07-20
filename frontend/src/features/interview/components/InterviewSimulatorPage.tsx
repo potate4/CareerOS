@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Video, Save, Play, Download, Trash2, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuthStore } from '../../../stores/authStore';
 import AuthenticatedLayout from '../../../components/layout/AuthenticatedLayout';
-import VideoRecorder from './AudioRecorder';
+import VideoRecorder from './VideoRecorder';
 import { interviewAPI } from '../services/interviewAPI';
 import { InterviewRecording, InterviewRecordingRequest } from '../types';
 
@@ -15,6 +15,9 @@ const InterviewSimulatorPage: React.FC = () => {
   const [sessionTitle, setSessionTitle] = useState('');
   const [description, setDescription] = useState('');
   const [uploadedRecordings, setUploadedRecordings] = useState<InterviewRecording[]>([]);
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [result, setResult] = useState<any>(null);
 
   useEffect(() => {
     loadUploadedRecordings();
@@ -105,6 +108,28 @@ const InterviewSimulatorPage: React.FC = () => {
     }
   };
 
+  const handleAnalyzeRecording = async (recording: InterviewRecording) => {
+    setIsAnalyzing(true);
+    setError(null);
+    setSuccess(null);
+    setAnalysisResult(null);
+
+    try {
+      console.log('🔍 Starting interview analysis for recording:', recording.fileUrl);
+      console.log('🔑 Current token:', localStorage.getItem('token'));
+      
+      const result = await interviewAPI.analyzeInterview(recording.fileUrl);
+      setAnalysisResult(result);
+      setSuccess('Interview analysis completed successfully!');
+    } catch (err: unknown) {
+      console.error('❌ Analysis error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to analyze recording';
+      setError(errorMessage);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   return (
     <AuthenticatedLayout>
       <div className="p-6">
@@ -115,9 +140,29 @@ const InterviewSimulatorPage: React.FC = () => {
             <Video className="h-8 w-8" style={{ color: '#88BDF2' }} />
             Interview Simulator
           </h1>
-          <p className="mt-2" style={{ color: '#6A89A7' }}>
-            Record your video interview practice sessions and save them for later review
-          </p>
+                      <p className="mt-2" style={{ color: '#6A89A7' }}>
+              Record your video interview practice sessions and save them for later review
+            </p>
+            <div className="mt-4 space-x-4">
+              <button
+                onClick={async () => {
+                  try {
+                    const result = await interviewAPI.checkInterviewHealth();
+                    console.log('🏥 Interview service health:', result);
+                    setResult({
+                      message: 'Interview service health check',
+                      result
+                    });
+                  } catch (err: any) {
+                    setError(err.message || 'Health check failed');
+                  }
+                }}
+                className="px-4 py-2 rounded-md text-sm font-medium text-white transition-colors"
+                style={{ backgroundColor: '#88BDF2' }}
+              >
+                Test Interview Service
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -229,16 +274,31 @@ const InterviewSimulatorPage: React.FC = () => {
                         
                         <div className="flex items-center justify-between text-sm" style={{ color: '#6A89A7' }}>
                           <span>{new Date(recording.uploadDate).toLocaleDateString()}</span>
-                          <a
-                            href={recording.fileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 px-2 py-1 rounded-md transition-colors"
-                            style={{ backgroundColor: '#88BDF2', color: 'white' }}
-                          >
-                            <Download className="h-3 w-3" />
-                            Download
-                          </a>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleAnalyzeRecording(recording)}
+                              disabled={isAnalyzing}
+                              className="flex items-center gap-1 px-2 py-1 rounded-md transition-colors disabled:opacity-50"
+                              style={{ backgroundColor: '#88BDF2', color: 'white' }}
+                            >
+                              {isAnalyzing ? (
+                                <div className="animate-spin h-3 w-3 border border-white border-t-transparent rounded-full"></div>
+                              ) : (
+                                <Play className="h-3 w-3" />
+                              )}
+                              {isAnalyzing ? 'Analyzing...' : 'Analyze'}
+                            </button>
+                            <a
+                              href={recording.fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 px-2 py-1 rounded-md transition-colors"
+                              style={{ backgroundColor: '#6A89A7', color: 'white' }}
+                            >
+                              <Download className="h-3 w-3" />
+                              Download
+                            </a>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -247,6 +307,49 @@ const InterviewSimulatorPage: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Analysis Results */}
+          {analysisResult && (
+            <div className="mt-6 bg-white rounded-lg p-6 shadow-lg">
+              <h3 className="text-lg font-semibold mb-4" style={{ color: '#384959' }}>
+                Interview Analysis Results
+              </h3>
+              
+              <div className="space-y-4">
+                {analysisResult.analysisText && (
+                  <div>
+                    <h4 className="font-medium mb-2" style={{ color: '#384959' }}>
+                      Analysis Summary
+                    </h4>
+                    <div className="bg-gray-50 p-4 rounded-md">
+                      <p className="text-sm leading-relaxed" style={{ color: '#384959' }}>
+                        {analysisResult.analysisText}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                {analysisResult.detailedAnalysis && (
+                  <div>
+                    <h4 className="font-medium mb-2" style={{ color: '#384959' }}>
+                      Detailed Analysis
+                    </h4>
+                    <div className="bg-gray-50 p-4 rounded-md">
+                      <pre className="text-sm overflow-auto" style={{ color: '#384959' }}>
+                        {JSON.stringify(analysisResult.detailedAnalysis, null, 2)}
+                      </pre>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="flex items-center justify-between text-sm" style={{ color: '#6A89A7' }}>
+                  <span>Analysis ID: {analysisResult.analysisId}</span>
+                  <span>Confidence: {analysisResult.confidenceScore || 'N/A'}</span>
+                  <span>Processing Time: {analysisResult.processingTimeMs || 'N/A'}ms</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Alerts */}
           {(error || success) && (
