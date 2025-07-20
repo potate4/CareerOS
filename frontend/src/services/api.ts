@@ -22,6 +22,12 @@ api.interceptors.request.use((requestConfig) => {
   } else {
     console.log('⚠️ No token found in localStorage');
   }
+  
+  // Don't override Content-Type for multipart requests
+  if (requestConfig.data instanceof FormData) {
+    delete requestConfig.headers['Content-Type'];
+  }
+  
   return requestConfig;
 });
 

@@ -34,6 +34,19 @@ public class FileUploadService {
     @Value("${supabase.bucket}")
     private String bucketName;
     
+    // Getter methods for Supabase configuration
+    public String getSupabaseUrl() {
+        return supabaseUrl;
+    }
+    
+    public String getSupabaseKey() {
+        return supabaseKey;
+    }
+    
+    public String getBucketName() {
+        return bucketName;
+    }
+    
     public FileUploadResponse uploadFile(FileUploadRequest request) {
         try {
             MultipartFile file = request.getFile();
@@ -55,9 +68,19 @@ public class FileUploadService {
             
             // Generate unique filename with timestamp
             String originalFilename = file.getOriginalFilename();
-            String fileExtension = getFileExtension(originalFilename);
+            if (originalFilename == null || originalFilename.trim().isEmpty()) {
+                originalFilename = "unknown_file";
+            }
+            
+            // Clean the filename to remove special characters
+            String cleanFilename = originalFilename.replaceAll("[^a-zA-Z0-9.-]", "_");
+            
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-            String uniqueFilename = originalFilename + "_" + timestamp;
+            String uniqueFilename = cleanFilename + "_" + timestamp;
+            
+            System.out.println("Original filename: " + originalFilename);
+            System.out.println("Clean filename: " + cleanFilename);
+            System.out.println("Unique filename: " + uniqueFilename);
             
             // Upload to Supabase
             String publicUrl = uploadToSupabase(file, uniqueFilename);
@@ -75,11 +98,14 @@ public class FileUploadService {
                 bucketName
             );
             
-            fileUploadRepository.save(fileUpload);
+            FileUpload savedFileUpload = fileUploadRepository.save(fileUpload);
             
-            return FileUploadResponse.success(publicUrl);
+            // Return complete response with file upload data
+            return FileUploadResponse.success(savedFileUpload);
             
         } catch (Exception e) {
+            System.err.println("File upload error: " + e.getMessage());
+            e.printStackTrace();
             return FileUploadResponse.error("File upload failed: " + e.getMessage());
         }
     }
@@ -105,11 +131,12 @@ public class FileUploadService {
         try {
             RestTemplate restTemplate = new RestTemplate();
             
-            // Prepare headers for Supabase API
+            // Prepare headers for Supabase Storage API
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
             headers.set("Authorization", "Bearer " + supabaseKey);
             headers.set("apikey", supabaseKey);
+            headers.set("Cache-Control", "3600");
             
             // Read file bytes
             byte[] fileBytes = file.getBytes();
@@ -117,8 +144,14 @@ public class FileUploadService {
             // Create HTTP entity with file data
             HttpEntity<byte[]> requestEntity = new HttpEntity<>(fileBytes, headers);
             
-            // Construct Supabase storage upload URL
+            // Construct Supabase storage upload URL - using the correct endpoint
             String uploadUrl = supabaseUrl + "/storage/v1/object/" + bucketName + "/" + filename;
+            
+            System.out.println("Uploading to Supabase URL: " + uploadUrl);
+            System.out.println("File size: " + fileBytes.length + " bytes");
+            System.out.println("Supabase URL: " + supabaseUrl);
+            System.out.println("Bucket: " + bucketName);
+            System.out.println("API Key length: " + supabaseKey.length());
             
             // Upload file to Supabase
             ResponseEntity<String> response = restTemplate.exchange(
@@ -128,15 +161,24 @@ public class FileUploadService {
                 String.class
             );
             
+            System.out.println("Supabase response status: " + response.getStatusCode());
+            System.out.println("Supabase response body: " + response.getBody());
+            
             if (response.getStatusCode() == HttpStatus.OK || response.getStatusCode() == HttpStatus.CREATED) {
-                // Get public URL
+                // Get public URL - using the correct public URL format
                 String publicUrl = supabaseUrl + "/storage/v1/object/public/" + bucketName + "/" + filename;
+                System.out.println("Public URL: " + publicUrl);
                 return publicUrl;
             } else {
-                throw new IOException("Failed to upload file to Supabase: " + response.getStatusCode());
+                throw new IOException("Failed to upload file to Supabase: " + response.getStatusCode() + " - " + response.getBody());
             }
             
         } catch (Exception e) {
+            System.err.println("Error uploading to Supabase: " + e.getMessage());
+            System.err.println("Supabase URL: " + supabaseUrl);
+            System.err.println("Bucket: " + bucketName);
+            System.err.println("API Key length: " + supabaseKey.length());
+            e.printStackTrace();
             throw new IOException("Error uploading to Supabase: " + e.getMessage());
         }
     }
