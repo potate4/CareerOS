@@ -3,6 +3,10 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
+
+class VideoAnalysisRequest(BaseModel):
+    video_url: str
+    
 class Pause(BaseModel):
     start: float
     end: float

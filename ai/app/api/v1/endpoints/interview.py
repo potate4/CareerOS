@@ -15,11 +15,11 @@ from pydantic import BaseModel
 from app.core.config import settings
 from app.helpers.interview import extract_audio_and_frames, analyze_frames, get_audio_analysis, cleanup_temp_files, get_analysis_and_feedback
 import uuid
+from app.schemas.interview import VideoAnalysisRequest
 
 router = APIRouter()
 
-class VideoAnalysisRequest(BaseModel):
-    video_url: str
+
 
 @router.post("/analyze")
 async def analyze(request: VideoAnalysisRequest):
