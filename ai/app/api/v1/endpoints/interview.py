@@ -25,27 +25,27 @@ router = APIRouter()
 
 def process_video_and_callback(request_data: dict):
     try:
-        # print("[+] Starting background video processing")
-        # # Download video from URL
-        # print(f"[+] Downloading video from: {request_data['videoUrl']}")
-        # response = requests.get(request_data['videoUrl'])
-        # response.raise_for_status()
+        print("[+] Starting background video processing")
+        # Download video from URL
+        print(f"[+] Downloading video from: {request_data['videoUrl']}")
+        response = requests.get(request_data['videoUrl'])
+        response.raise_for_status()
         
-        # # # Create upload directory if it doesn't exist
-        # os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+        # # Create upload directory if it doesn't exist
+        os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
         
-        # # # Generate unique filename for the video
-        # video_filename = f"video_{uuid.uuid4()}.webm"
-        # video_path = os.path.join(settings.UPLOAD_DIR, video_filename)
+        # # Generate unique filename for the video
+        video_filename = f"video_{uuid.uuid4()}.webm"
+        video_path = os.path.join(settings.UPLOAD_DIR, video_filename)
         
-        # # # Save video to upload directory
-        # with open(video_path, "wb") as video_file:
-        #     video_file.write(response.content)
+        # # Save video to upload directory
+        with open(video_path, "wb") as video_file:
+            video_file.write(response.content)
             
-        # print(f"[+] Downloaded video file to: {video_path}")
-        # response = get_analysis_and_feedback(video_path)
+        print(f"[+] Downloaded video file to: {video_path}")
+        response = get_analysis_and_feedback(video_path)
         
-        response = " kichu bhallaganema"
+        # response = " kichu bhallaganema"
 
         # 2. Analyze video (your actual logic)
         analysis_result = {
@@ -57,7 +57,7 @@ def process_video_and_callback(request_data: dict):
 
         # 3. Call Java callback API
         jwt = create_internal_jwt()
-        callback_url = f"{settings.BACKEND_URL}/api/v1/interview/analysis-callback"
+        callback_url = f"{settings.BACKEND_URL}/api/interview/analysis-callback"
         requests.post(callback_url, json=analysis_result, headers={"Authorization": f"Bearer {jwt}"})
 
         print("[+] Callback sent")
@@ -65,10 +65,10 @@ def process_video_and_callback(request_data: dict):
     except Exception as e:
         print(f"[!] Background processing failed: {str(e)}")
     finally:
-        pass
-        # if os.path.exists(video_path):
-        #     os.remove(video_path)
-        #     print(f"[+] Cleaned up: {video_path}")
+        if os.path.exists(video_path):
+            os.remove(video_path)
+            print(f"[+] Cleaned up: {video_path}")
+        cleanup_temp_files()
 
 @router.post("/analyze")
 async def analyze(request: VideoAnalysisRequest, background_tasks: BackgroundTasks):
