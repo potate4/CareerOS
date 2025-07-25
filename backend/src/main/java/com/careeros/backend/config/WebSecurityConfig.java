@@ -76,6 +76,7 @@ public class WebSecurityConfig {
                     .requestMatchers("/api/ai/test-auth").permitAll()
                     .requestMatchers("/api/interview/health").permitAll()
                     .requestMatchers("/api/interview/test-auth").permitAll()
+                    .requestMatchers("/api/interview/analysis-callback").permitAll()
                     .anyRequest().authenticated();
                 System.out.println("🔧 Authorization configured - /api/interview/analyze requires authentication");
             });

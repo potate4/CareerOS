@@ -18,12 +18,60 @@ from app.helpers.interview import extract_audio_and_frames, analyze_frames, get_
 import uuid
 from app.schemas.interview import VideoAnalysisRequest
 from datetime import datetime
+from fastapi import BackgroundTasks
+from app.helpers.auth import create_internal_jwt
+
 router = APIRouter()
 
+def process_video_and_callback(request_data: dict):
+    try:
+        # print("[+] Starting background video processing")
+        # # Download video from URL
+        # print(f"[+] Downloading video from: {request_data['videoUrl']}")
+        # response = requests.get(request_data['videoUrl'])
+        # response.raise_for_status()
+        
+        # # # Create upload directory if it doesn't exist
+        # os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+        
+        # # # Generate unique filename for the video
+        # video_filename = f"video_{uuid.uuid4()}.webm"
+        # video_path = os.path.join(settings.UPLOAD_DIR, video_filename)
+        
+        # # # Save video to upload directory
+        # with open(video_path, "wb") as video_file:
+        #     video_file.write(response.content)
+            
+        # print(f"[+] Downloaded video file to: {video_path}")
+        # response = get_analysis_and_feedback(video_path)
+        
+        response = " kichu bhallaganema"
 
+        # 2. Analyze video (your actual logic)
+        analysis_result = {
+            "jobId": request_data['jobId'],
+            "analysisData": response,
+            "status": "COMPLETED",
+            "errorMessage": None
+        }
+
+        # 3. Call Java callback API
+        jwt = create_internal_jwt()
+        callback_url = f"{settings.BACKEND_URL}/api/v1/interview/analysis-callback"
+        requests.post(callback_url, json=analysis_result, headers={"Authorization": f"Bearer {jwt}"})
+
+        print("[+] Callback sent")
+
+    except Exception as e:
+        print(f"[!] Background processing failed: {str(e)}")
+    finally:
+        pass
+        # if os.path.exists(video_path):
+        #     os.remove(video_path)
+        #     print(f"[+] Cleaned up: {video_path}")
 
 @router.post("/analyze")
-async def analyze(request: VideoAnalysisRequest):
+async def analyze(request: VideoAnalysisRequest, background_tasks: BackgroundTasks):
     video_path = None
     try:
         response = {
@@ -33,12 +81,15 @@ async def analyze(request: VideoAnalysisRequest):
             "createdAt": datetime.now(),
             "estimatedCompletionTime": datetime.now() + timedelta(minutes=5)
         }
-        # private String jobId;
-        # private String status;
-        # private String message;
-        # private LocalDateTime createdAt;
-        # private LocalDateTime estimatedCompletionTime;
-        # }
+        background_tasks.add_task(
+            process_video_and_callback,
+            {
+                "jobId": request.jobId,
+                "fileId": request.fileId,
+                "videoUrl": request.videoUrl,
+                "userId": request.userId
+            }
+        )
         # response = "Processing started for job " + str(request.jobId) + " and file id " + str(request.fileId) + " and video url " + str(request.videoUrl) + " and user id " + str(request.userId)
         # Download video from URL
         # print(f"[+] Downloading video from: {request.videoUrl}")

@@ -223,24 +223,30 @@ def cleanup_temp_files():
     
     # Clean up uploaded video file
     video_path = os.path.join(UPLOAD_DIR, "video.webm")
+    print("VIDEO PATH: ", video_path)
     if os.path.exists(video_path):
         os.remove(video_path)
     
     # Clean up extracted audio file
     audio_path = os.path.join(UPLOAD_DIR, "audio.wav")
+    print("AUDIO PATH: ", audio_path)
     if os.path.exists(audio_path):
         os.remove(audio_path)
     
     # Clean up all frame images
+    print("FRAME DIR: ", FRAME_DIR)
     if os.path.exists(FRAME_DIR):
         for file in os.listdir(FRAME_DIR):
             if file.endswith(".jpg"):
                 os.remove(os.path.join(FRAME_DIR, file))
     
     # Clean up all audio segments
+    print("AUDIO SEG DIR: ", AUDIO_SEG_DIR)
     if os.path.exists(AUDIO_SEG_DIR):
         for file in os.listdir(AUDIO_SEG_DIR):
             if file.endswith(".wav"):
                 os.remove(os.path.join(AUDIO_SEG_DIR, file))
     
     print("Temporary files cleaned up successfully")
+    
+    

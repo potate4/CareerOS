@@ -13,5 +13,7 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR")
     FRAME_DIR: str = os.getenv("FRAME_DIR")
     AUDIO_SEG_DIR: str = os.getenv("AUDIO_SEG_DIR")
+    BACKEND_URL: str = os.getenv("BACKEND_URL")
+    BACKEND_JWT_SECRET: str = os.getenv("BACKEND_JWT_SECRET")
 
 settings = Settings()
