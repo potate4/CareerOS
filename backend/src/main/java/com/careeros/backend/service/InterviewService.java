@@ -1,12 +1,14 @@
 package com.careeros.backend.service;
 
 import com.careeros.backend.model.InterviewJob;
+import com.careeros.backend.model.FileUpload;
 import com.careeros.backend.payload.request.InterviewAnalysisRequest;
 import com.careeros.backend.payload.request.InterviewAnalysisAIRequest;
 import com.careeros.backend.payload.request.InterviewAnalysisCallbackRequest;
 import com.careeros.backend.payload.response.InterviewAnalysisResponse;
 import com.careeros.backend.payload.response.InterviewJobResponse;
 import com.careeros.backend.payload.response.InterviewJobDetailResponse;
+import com.careeros.backend.payload.response.FileAnalysisResponse;
 import com.careeros.backend.repository.InterviewJobRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,6 +38,9 @@ public class InterviewService {
     
     @Autowired
     private InterviewJobRepository interviewJobRepository;
+    
+    @Autowired
+    private FileUploadService fileUploadService;
     
     public InterviewService(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
@@ -212,6 +217,82 @@ public class InterviewService {
         } catch (Exception e) {
             logger.error("Failed to get user jobs: {}", e.getMessage());
             throw new RuntimeException("Failed to get user jobs: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Get file analysis data for all files with their most recent analysis jobs
+     */
+    public java.util.List<FileAnalysisResponse> getFileAnalysisData(Long userId) {
+        try {
+            logger.info("Getting file analysis data for user: {}", userId);
+            
+            // Get all files for the user
+            java.util.List<FileUpload> files = fileUploadService.getUserFileUploads(userId);
+            logger.info("Found {} files for user {}", files.size(), userId);
+            
+            // Get most recent jobs for each file
+            java.util.List<InterviewJob> mostRecentJobs = interviewJobRepository.findMostRecentJobsByUserId(userId);
+            logger.info("Found {} most recent jobs for user {}", mostRecentJobs.size(), userId);
+            
+            // Create a map of fileId to most recent job for quick lookup
+            java.util.Map<Long, InterviewJob> fileJobMap = mostRecentJobs.stream()
+                .collect(java.util.stream.Collectors.toMap(
+                    InterviewJob::getFileId,
+                    job -> job
+                ));
+            
+            // Build response list
+            java.util.List<FileAnalysisResponse> responses = new java.util.ArrayList<>();
+            
+            for (FileUpload file : files) {
+                InterviewJob job = fileJobMap.get(file.getId());
+                
+                if (job != null) {
+                    // File has analysis job
+                    FileAnalysisResponse response = new FileAnalysisResponse(
+                        file.getId(),
+                        file.getFileName(),
+                        file.getOriginalFileName(),
+                        file.getFileUrl(),
+                        file.getCategory(),
+                        file.getUploadedAt(),
+                        job.getJobId(),
+                        job.getStatus(),
+                        job.getAnalysisType(),
+                        job.getDetailedAnalysis(),
+                        job.getErrorMessage(),
+                        job.getCreatedAt(),
+                        job.getUpdatedAt()
+                    );
+                    responses.add(response);
+                } else {
+                    // File has no analysis job
+                    FileAnalysisResponse response = new FileAnalysisResponse(
+                        file.getId(),
+                        file.getFileName(),
+                        file.getOriginalFileName(),
+                        file.getFileUrl(),
+                        file.getCategory(),
+                        file.getUploadedAt(),
+                        null, // no jobId
+                        "NO_ANALYSIS", // no analysis status
+                        null, // no analysis type
+                        null, // no detailed analysis
+                        null, // no error message
+                        null, // no analysis created at
+                        null  // no analysis updated at
+                    );
+                    responses.add(response);
+                }
+            }
+            
+            logger.info("Returning {} file analysis responses for user {}", responses.size(), userId);
+            return responses;
+            
+        } catch (Exception e) {
+            logger.error("Failed to get file analysis data: {}", e.getMessage());
+            throw new RuntimeException("Failed to get file analysis data: " + e.getMessage());
         }
     }
     

@@ -5,6 +5,7 @@ import com.careeros.backend.payload.request.InterviewAnalysisCallbackRequest;
 import com.careeros.backend.payload.response.InterviewAnalysisResponse;
 import com.careeros.backend.payload.response.InterviewJobResponse;
 import com.careeros.backend.payload.response.InterviewJobDetailResponse;
+import com.careeros.backend.payload.response.FileAnalysisResponse;
 import com.careeros.backend.payload.response.MessageResponse;
 import com.careeros.backend.security.UserDetailsImpl;
 import com.careeros.backend.service.InterviewService;
@@ -190,6 +191,34 @@ public class InterviewController {
             e.printStackTrace();
             return ResponseEntity.badRequest()
                     .body(new MessageResponse("Failed to get user jobs: " + e.getMessage()));
+        }
+    }
+    
+    @GetMapping("/files/analysis")
+    public ResponseEntity<?> getFileAnalysisData() {
+        try {
+            // Get current user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            
+            if (authentication == null || !authentication.isAuthenticated() || 
+                authentication.getName().equals("anonymousUser")) {
+                System.err.println("❌ Authentication failed - user not authenticated");
+                return ResponseEntity.status(403)
+                        .body(new MessageResponse("Authentication required to get file analysis data"));
+            }
+            
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            System.out.println("📁 Getting file analysis data for user: " + userDetails.getUsername() + " (ID: " + userDetails.getId() + ")");
+            
+            java.util.List<FileAnalysisResponse> fileAnalysisData = interviewService.getFileAnalysisData(userDetails.getId());
+            System.out.println("✅ File analysis data retrieved successfully");
+            return ResponseEntity.ok(fileAnalysisData);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Failed to get file analysis data: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("Failed to get file analysis data: " + e.getMessage()));
         }
     }
     
