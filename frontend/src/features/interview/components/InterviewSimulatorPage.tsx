@@ -118,7 +118,7 @@ const InterviewSimulatorPage: React.FC = () => {
       console.log('🔍 Starting interview analysis for recording:', recording.fileUrl);
       console.log('🔑 Current token:', localStorage.getItem('token'));
       
-      const result = await interviewAPI.analyzeInterview(recording.fileUrl);
+      const result = await interviewAPI.analyzeInterview(recording.fileUrl, "comprehensive" ,recording.id!, user?.id!);
       setAnalysisResult(result);
       setSuccess('Interview analysis completed successfully!');
     } catch (err: unknown) {

@@ -96,15 +96,17 @@ export const interviewAPI = {
   },
 
   // Analyze interview recording
-  analyzeInterview: async (videoUrl: string, analysisType: string = 'comprehensive'): Promise<any> => {
+  analyzeInterview: async (videoUrl: string, analysisType: string = 'comprehensive', fileId: number, userId: number): Promise<any> => {
     try {
       console.log('🔍 Calling interview analysis API...');
       console.log('📡 Request URL:', config.apiUrl + '/interview/analyze');
-      console.log('📦 Request payload:', { videoUrl, analysisType });
+      console.log('📦 Request payload:', { videoUrl, analysisType, fileId, userId });
       
       const response = await api.post('/interview/analyze', {
         videoUrl,
-        analysisType
+        analysisType,
+        userId,
+        fileId
       });
       
       console.log('✅ Interview analysis response:', response.data);

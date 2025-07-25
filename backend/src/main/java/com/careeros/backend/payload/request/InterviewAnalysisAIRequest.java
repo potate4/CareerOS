@@ -3,7 +3,7 @@ package com.careeros.backend.payload.request;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-public class InterviewAnalysisRequest {
+public class InterviewAnalysisAIRequest {
     
     @NotBlank(message = "Video URL is required")
     private String videoUrl;
@@ -12,28 +12,19 @@ public class InterviewAnalysisRequest {
     
     private String userId;
     
+    private String jobId; // Job ID for tracking
+    
     private Long fileId; // Reference to file upload
     
     // Default constructor
-    public InterviewAnalysisRequest() {}
-    
-    // Constructor with video URL
-    public InterviewAnalysisRequest(String videoUrl) {
-        this.videoUrl = videoUrl;
-    }
+    public InterviewAnalysisAIRequest() {}
     
     // Constructor with all fields
-    public InterviewAnalysisRequest(String videoUrl, String analysisType, String userId) {
+    public InterviewAnalysisAIRequest(String videoUrl, String analysisType, String userId, String jobId, Long fileId) {
         this.videoUrl = videoUrl;
         this.analysisType = analysisType;
         this.userId = userId;
-    }
-    
-    // Constructor with all fields including fileId
-    public InterviewAnalysisRequest(String videoUrl, String analysisType, String userId, Long fileId) {
-        this.videoUrl = videoUrl;
-        this.analysisType = analysisType;
-        this.userId = userId;
+        this.jobId = jobId;
         this.fileId = fileId;
     }
     
@@ -62,6 +53,14 @@ public class InterviewAnalysisRequest {
         this.userId = userId;
     }
     
+    public String getJobId() {
+        return jobId;
+    }
+    
+    public void setJobId(String jobId) {
+        this.jobId = jobId;
+    }
+    
     public Long getFileId() {
         return fileId;
     }
@@ -72,10 +71,11 @@ public class InterviewAnalysisRequest {
     
     @Override
     public String toString() {
-        return "InterviewAnalysisRequest{" +
+        return "InterviewAnalysisAIRequest{" +
                 "videoUrl='" + videoUrl + '\'' +
                 ", analysisType='" + analysisType + '\'' +
                 ", userId='" + userId + '\'' +
+                ", jobId='" + jobId + '\'' +
                 ", fileId=" + fileId +
                 '}';
     }

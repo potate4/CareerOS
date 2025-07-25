@@ -1,7 +1,10 @@
 package com.careeros.backend.controller;
 
 import com.careeros.backend.payload.request.InterviewAnalysisRequest;
+import com.careeros.backend.payload.request.InterviewAnalysisCallbackRequest;
 import com.careeros.backend.payload.response.InterviewAnalysisResponse;
+import com.careeros.backend.payload.response.InterviewJobResponse;
+import com.careeros.backend.payload.response.InterviewJobDetailResponse;
 import com.careeros.backend.payload.response.MessageResponse;
 import com.careeros.backend.security.UserDetailsImpl;
 import com.careeros.backend.service.InterviewService;
@@ -48,8 +51,8 @@ public class InterviewController {
             // Set the user ID from the authenticated user
             request.setUserId(userDetails.getId().toString());
             
-            InterviewAnalysisResponse response = interviewService.analyzeInterview(request);
-            System.out.println("✅ Interview analysis completed successfully");
+            InterviewJobResponse response = interviewService.createInterviewJob(request);
+            System.out.println("✅ Interview analysis job created successfully");
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
@@ -111,6 +114,85 @@ public class InterviewController {
         }
     }
 
+    @PostMapping("/analysis-callback")
+    public ResponseEntity<?> handleAnalysisCallback(@RequestBody InterviewAnalysisCallbackRequest callbackRequest) {
+        try {
+            System.out.println("🔄 Analysis callback received for job: " + callbackRequest.getJobId());
+            
+            InterviewJobResponse response = interviewService.handleAnalysisCallback(callbackRequest);
+            System.out.println("✅ Analysis callback processed successfully");
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Analysis callback failed: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("Analysis callback failed: " + e.getMessage()));
+        }
+    }
+    
+    @GetMapping("/job/{jobId}")
+    public ResponseEntity<?> getJobStatus(@PathVariable String jobId) {
+        try {
+            System.out.println("📊 Getting job status for: " + jobId);
+            
+            InterviewJobResponse response = interviewService.getJobStatus(jobId);
+            System.out.println("✅ Job status retrieved successfully");
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Failed to get job status: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("Failed to get job status: " + e.getMessage()));
+        }
+    }
+    
+    @GetMapping("/job/{jobId}/detail")
+    public ResponseEntity<?> getJobDetail(@PathVariable String jobId) {
+        try {
+            System.out.println("📊 Getting job details for: " + jobId);
+            
+            InterviewJobDetailResponse response = interviewService.getJobDetail(jobId);
+            System.out.println("✅ Job details retrieved successfully");
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Failed to get job details: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("Failed to get job details: " + e.getMessage()));
+        }
+    }
+    
+    @GetMapping("/jobs")
+    public ResponseEntity<?> getUserJobs() {
+        try {
+            // Get current user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            
+            if (authentication == null || !authentication.isAuthenticated() || 
+                authentication.getName().equals("anonymousUser")) {
+                System.err.println("❌ Authentication failed - user not authenticated");
+                return ResponseEntity.status(403)
+                        .body(new MessageResponse("Authentication required to get user jobs"));
+            }
+            
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            System.out.println("👤 Getting jobs for user: " + userDetails.getUsername() + " (ID: " + userDetails.getId() + ")");
+            
+            java.util.List<InterviewJobResponse> jobs = interviewService.getUserJobs(userDetails.getId());
+            System.out.println("✅ User jobs retrieved successfully");
+            return ResponseEntity.ok(jobs);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Failed to get user jobs: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("Failed to get user jobs: " + e.getMessage()));
+        }
+    }
+    
     @GetMapping("/test-post")
     public ResponseEntity<?> testPostAccess() {
         try {

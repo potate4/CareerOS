@@ -3,11 +3,15 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
+from requests.api import options
+
 
 class VideoAnalysisRequest(BaseModel):
     videoUrl: str
-    analysisType: str
-    userId: str
+    analysisType: Optional[str] = None
+    userId: Optional[int] = None
+    jobId: str
+    fileId: Optional[int] = None
     
 class Pause(BaseModel):
     start: float
