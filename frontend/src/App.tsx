@@ -6,6 +6,7 @@ import Dashboard from './components/dashboard/Dashboard';
 import AuthPage from './components/auth/AuthPage';
 import AIServicesPage from './components/ai/AIServicesPage';
 import InterviewSimulatorPage from './features/interview/components/InterviewSimulatorPage';
+import LearningPathPage from './components/learning-path/LearningPathPage';
 import './App.css';
 
 function App() {
@@ -39,6 +40,14 @@ function App() {
         element={
           <ProtectedRoute>
             <InterviewSimulatorPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/learning-path/*" 
+        element={
+          <ProtectedRoute>
+            <LearningPathPage />
           </ProtectedRoute>
         } 
       />

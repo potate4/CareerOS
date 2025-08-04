@@ -19,7 +19,7 @@ public class LearningPath {
     @Column(name = "career_goal", nullable = false)
     private String careerGoal;
     
-    @Column(name = "current_stage")
+    @Column(name = "current_stage", columnDefinition = "VARCHAR(20) CHECK (current_stage IN ('BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'))")
     @Enumerated(EnumType.STRING)
     private LearningStage currentStage;
     

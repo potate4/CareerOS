@@ -280,7 +280,7 @@ public class LearningPathService {
         module.setOrderIndex(orderIndex);
         
         // Add learning resources
-        List<LearningResource> resources = generateLearningResources(skill, difficultyLevel);
+        List<LearningResource> resources = generateLearningResources(skill, difficultyLevel, module);
         module.setResources(resources);
         
         return module;
@@ -321,9 +321,10 @@ public class LearningPathService {
      * Generate learning resources for a skill (mock implementation)
      * @param skill The skill
      * @param difficultyLevel The difficulty level
+     * @param learningModule The learning module to associate resources with
      * @return List of learning resources
      */
-    private List<LearningResource> generateLearningResources(String skill, LearningModule.DifficultyLevel difficultyLevel) {
+    private List<LearningResource> generateLearningResources(String skill, LearningModule.DifficultyLevel difficultyLevel, LearningModule learningModule) {
         List<LearningResource> resources = new ArrayList<>();
         
         // Mock resources - in production, this would fetch from external APIs
@@ -369,6 +370,7 @@ public class LearningPathService {
             resource.setDifficultyLevel(LearningResource.DifficultyLevel.valueOf(difficultyLevel.name()));
             resource.setDurationMinutes(60); // Mock duration
             resource.setRating(4.5); // Mock rating
+            resource.setLearningModule(learningModule); // Set the relationship
             resources.add(resource);
         }
         

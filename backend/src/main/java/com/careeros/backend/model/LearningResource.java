@@ -24,7 +24,7 @@ public class LearningResource {
     @Column(name = "url", nullable = false)
     private String url;
     
-    @Column(name = "resource_type")
+    @Column(name = "resource_type", columnDefinition = "VARCHAR(20) CHECK (resource_type IN ('VIDEO', 'COURSE', 'ARTICLE', 'BOOK', 'EXERCISE', 'PROJECT', 'QUIZ', 'PODCAST'))")
     @Enumerated(EnumType.STRING)
     private ResourceType resourceType;
     
@@ -34,7 +34,7 @@ public class LearningResource {
     @Column(name = "duration_minutes")
     private Integer durationMinutes;
     
-    @Column(name = "difficulty_level")
+    @Column(name = "difficulty_level", columnDefinition = "VARCHAR(20) CHECK (difficulty_level IN ('BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'))")
     @Enumerated(EnumType.STRING)
     private DifficultyLevel difficultyLevel;
     

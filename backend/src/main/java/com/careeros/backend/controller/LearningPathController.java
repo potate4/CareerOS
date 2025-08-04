@@ -29,11 +29,19 @@ public class LearningPathController {
      * @param request The learning path request containing career goal and current skills
      * @return ResponseEntity containing the generated learning path
      */
-    @PostMapping
+    @PostMapping("/learning")
     public ResponseEntity<?> generateLearningPath(@Valid @RequestBody LearningPathRequest request) {
         try {
             // Get current user from security context
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            
+            // Check if authentication is valid and principal is UserDetailsImpl
+            if (authentication == null || !authentication.isAuthenticated() || 
+                !(authentication.getPrincipal() instanceof UserDetailsImpl)) {
+                return ResponseEntity.status(401)
+                    .body(new MessageResponse("Authentication required. Please login again."));
+            }
+            
             UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
             
             System.out.println("🎯 Generating learning path for user: " + userDetails.getUsername());
@@ -61,22 +69,24 @@ public class LearningPathController {
      * Get the current active learning path for the authenticated user
      * @return ResponseEntity containing the current learning path
      */
-    @GetMapping("/{userId}")
-    public ResponseEntity<?> getCurrentLearningPath(@PathVariable Long userId) {
+    @GetMapping("/current")
+    public ResponseEntity<?> getCurrentLearningPath() {
         try {
             // Get current user from security context
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
             
-            // Verify the user is requesting their own learning path
-            if (!userDetails.getId().equals(userId)) {
-                return ResponseEntity.status(403)
-                        .body(new MessageResponse("Access denied: You can only view your own learning path"));
+            // Check if authentication is valid and principal is UserDetailsImpl
+            if (authentication == null || !authentication.isAuthenticated() || 
+                !(authentication.getPrincipal() instanceof UserDetailsImpl)) {
+                return ResponseEntity.status(401)
+                    .body(new MessageResponse("Authentication required. Please login again."));
             }
+            
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
             
             System.out.println("📖 Fetching learning path for user: " + userDetails.getUsername());
             
-            LearningPathResponse response = learningPathService.getCurrentLearningPath(userId);
+            LearningPathResponse response = learningPathService.getCurrentLearningPath(userDetails.getId());
             
             System.out.println("✅ Learning path retrieved successfully");
             
@@ -103,6 +113,14 @@ public class LearningPathController {
         try {
             // Get current user from security context
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            
+            // Check if authentication is valid and principal is UserDetailsImpl
+            if (authentication == null || !authentication.isAuthenticated() || 
+                !(authentication.getPrincipal() instanceof UserDetailsImpl)) {
+                return ResponseEntity.status(401)
+                    .body(new MessageResponse("Authentication required. Please login again."));
+            }
+            
             UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
             
             System.out.println("📊 Updating module progress for user: " + userDetails.getUsername());
@@ -142,6 +160,14 @@ public class LearningPathController {
         try {
             // Get current user from security context
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            
+            // Check if authentication is valid and principal is UserDetailsImpl
+            if (authentication == null || !authentication.isAuthenticated() || 
+                !(authentication.getPrincipal() instanceof UserDetailsImpl)) {
+                return ResponseEntity.status(401)
+                    .body(new MessageResponse("Authentication required. Please login again."));
+            }
+            
             UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
             
             System.out.println("📊 Getting learning path stats for user: " + userDetails.getUsername());
@@ -220,37 +246,37 @@ public class LearningPathController {
             // Get current user from security context
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             
-            if (authentication != null && authentication.isAuthenticated() && 
-                !authentication.getName().equals("anonymousUser")) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("authentication", authentication != null ? "Present" : "Null");
+            response.put("authenticated", authentication != null ? authentication.isAuthenticated() : false);
+            response.put("principalType", authentication != null ? authentication.getPrincipal().getClass().getSimpleName() : "N/A");
+            response.put("principal", authentication != null ? authentication.getPrincipal().toString() : "N/A");
+            
+            if (authentication != null && authentication.getPrincipal() instanceof UserDetailsImpl) {
                 UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-                
-                return ResponseEntity.ok(Map.of(
-                    "message", "Learning Path Service authentication successful",
-                    "user", Map.of(
-                        "id", userDetails.getId(),
-                        "username", userDetails.getUsername(),
-                        "email", userDetails.getEmail()
-                    ),
-                    "service", "Learning Path Service",
-                    "status", "operational",
-                    "timestamp", java.time.LocalDateTime.now().toString()
-                ));
+                response.put("userId", userDetails.getId());
+                response.put("username", userDetails.getUsername());
+                response.put("email", userDetails.getEmail());
+                response.put("message", "Learning Path Service authentication successful");
+                response.put("status", "operational");
             } else {
-                return ResponseEntity.ok(Map.of(
-                    "message", "No authentication provided for Learning Path Service",
-                    "status", "anonymous",
-                    "service", "Learning Path Service",
-                    "timestamp", java.time.LocalDateTime.now().toString()
-                ));
+                response.put("message", "No valid authentication provided for Learning Path Service");
+                response.put("status", "anonymous");
             }
             
+            response.put("service", "Learning Path Service");
+            response.put("timestamp", java.time.LocalDateTime.now().toString());
+            
+            return ResponseEntity.ok(response);
+            
         } catch (Exception e) {
-            return ResponseEntity.ok(Map.of(
-                "message", "Learning Path Service test endpoint working",
-                "error", e.getMessage(),
-                "service", "Learning Path Service",
-                "timestamp", java.time.LocalDateTime.now().toString()
-            ));
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Learning Path Service test endpoint error");
+            errorResponse.put("error", e.getMessage());
+            errorResponse.put("exceptionType", e.getClass().getSimpleName());
+            errorResponse.put("service", "Learning Path Service");
+            errorResponse.put("timestamp", java.time.LocalDateTime.now().toString());
+            return ResponseEntity.badRequest().body(errorResponse);
         }
     }
 } 

@@ -21,7 +21,7 @@ public class Skill {
     @Column(name = "category")
     private String category;
     
-    @Column(name = "proficiency_level")
+    @Column(name = "proficiency_level", columnDefinition = "VARCHAR(20) CHECK (proficiency_level IN ('BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'))")
     @Enumerated(EnumType.STRING)
     private ProficiencyLevel proficiencyLevel = ProficiencyLevel.BEGINNER;
     

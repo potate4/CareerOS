@@ -1,6 +1,6 @@
 export const config = {
   // API Configuration
-  apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:8080/api',
+  apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:8081/api',
   
   // App Configuration
   appName: import.meta.env.VITE_APP_NAME || 'CareerOS',

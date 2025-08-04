@@ -25,7 +25,7 @@ public class LearningModule {
     @Column(name = "skill_focus")
     private String skillFocus;
     
-    @Column(name = "difficulty_level")
+    @Column(name = "difficulty_level", columnDefinition = "VARCHAR(20) CHECK (difficulty_level IN ('BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'))")
     @Enumerated(EnumType.STRING)
     private DifficultyLevel difficultyLevel;
     
@@ -35,7 +35,7 @@ public class LearningModule {
     @Column(name = "progress_percentage")
     private Double progressPercentage = 0.0;
     
-    @Column(name = "status")
+    @Column(name = "status", columnDefinition = "VARCHAR(20) CHECK (status IN ('NOT_STARTED', 'IN_PROGRESS', 'COMPLETED', 'SKIPPED'))")
     @Enumerated(EnumType.STRING)
     private ModuleStatus status = ModuleStatus.NOT_STARTED;
     
