@@ -72,6 +72,14 @@ const InterviewSimulatorPage: React.FC = () => {
   const sessionStreamRef = useRef<MediaStream | null>(null);
   const sessionMimeRef = useRef<string | undefined>(undefined);
 
+  // Interview preferences
+  const [prefRole, setPrefRole] = useState('');
+  const [prefSeniority, setPrefSeniority] = useState('');
+  const [prefCompany, setPrefCompany] = useState('');
+  const [prefFocusAreas, setPrefFocusAreas] = useState(''); // comma-separated
+  const [prefLanguage, setPrefLanguage] = useState('');
+  const [prefDifficulty, setPrefDifficulty] = useState('');
+
   useEffect(() => {
     loadFileAnalysisData();
     return () => {
@@ -271,13 +279,32 @@ const InterviewSimulatorPage: React.FC = () => {
     });
   };
 
+  const buildInitialSessionData = () => {
+    const focusList = prefFocusAreas
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const data: Record<string, any> = {
+      role: prefRole || undefined,
+      seniority: prefSeniority || undefined,
+      company: prefCompany || undefined,
+      focusAreas: focusList.length ? focusList : undefined,
+      language: prefLanguage || undefined,
+      difficulty: prefDifficulty || undefined,
+    };
+    // Remove undefined keys
+    Object.keys(data).forEach((k) => data[k] === undefined && delete data[k]);
+    return data;
+  };
+
   const createAndStartSession = async () => {
     try {
       setIsSimStarting(true);
       setError(null);
       setSuccess(null);
       await setupSessionRecording();
-      const session = await interviewAPI.createSession({ role: 'Frontend Developer', seniority: 'Mid' });
+      const initial = buildInitialSessionData();
+      const session = await interviewAPI.createSession(Object.keys(initial).length ? initial : undefined);
       setActiveSession(session);
       const start = await interviewAPI.startSimulation(session.sessionId);
       const history = await interviewAPI.getConversation(session.sessionId);
@@ -418,6 +445,51 @@ const InterviewSimulatorPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Interview Preferences */}
+            <div className="mb-6 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-slate-900 mb-4">Interview preferences</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Target role</label>
+                  <input value={prefRole} onChange={(e)=>setPrefRole(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 text-slate-900" placeholder="e.g., Frontend Developer" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Seniority</label>
+                  <select value={prefSeniority} onChange={(e)=>setPrefSeniority(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 text-slate-900 bg-white">
+                    <option value="">Select...</option>
+                    <option>Intern</option>
+                    <option>Junior</option>
+                    <option>Mid</option>
+                    <option>Senior</option>
+                    <option>Staff</option>
+                    <option>Principal</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Company / Industry</label>
+                  <input value={prefCompany} onChange={(e)=>setPrefCompany(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 text-slate-900" placeholder="e.g., Fintech, Shopify" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Focus areas (comma separated)</label>
+                  <input value={prefFocusAreas} onChange={(e)=>setPrefFocusAreas(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 text-slate-900" placeholder="e.g., React, System Design, Data Structures" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Language</label>
+                  <input value={prefLanguage} onChange={(e)=>setPrefLanguage(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 text-slate-900" placeholder="e.g., English" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Difficulty</label>
+                  <select value={prefDifficulty} onChange={(e)=>setPrefDifficulty(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 text-slate-900 bg-white">
+                    <option value="">Select...</option>
+                    <option>Easy</option>
+                    <option>Moderate</option>
+                    <option>Hard</option>
+                  </select>
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-slate-500">These preferences are sent as initial context so the AI tailors questions for you.</p>
+            </div>
+
             <div className="flex flex-wrap items-center gap-4">
               <button
                 onClick={createAndStartSession}
@@ -452,8 +524,6 @@ const InterviewSimulatorPage: React.FC = () => {
                   </div>
                   <VideoRecorder onRecordingComplete={handleRecordingComplete} onReset={handleReset} />
                 </div>
-
-                {/* Save Recording Form */}
                 {currentRecording && (
                   <div className="border-t border-slate-200 p-6 bg-slate-50">
                     <h3 className="text-lg font-semibold mb-4 text-slate-900">Save Your Recording</h3>
@@ -535,7 +605,6 @@ const InterviewSimulatorPage: React.FC = () => {
                                 : 'border-slate-200 bg-slate-50'
                             }`}
                           >
-                            {/* Status Badge */}
                             <div className="absolute top-3 right-3">
                               {file.analysisStatus === 'COMPLETED' && (
                                 <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 text-slate-700">
@@ -563,18 +632,14 @@ const InterviewSimulatorPage: React.FC = () => {
                               )}
                             </div>
 
-                            {/* File Icon */}
                             <div className="p-3 rounded-lg bg-slate-100 inline-block mb-3">
                               <Video className="h-6 w-6 text-slate-600" />
                             </div>
-
-                            {/* File Info */}
                             <h3 className="font-semibold text-slate-900 mb-2 pr-20 truncate">{file.originalFileName}</h3>
                             <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
                               <Calendar className="h-3 w-3" />
                               {new Date(file.uploadedAt).toLocaleDateString()}
                             </div>
-
                             {file.analysisStatus === 'COMPLETED' && (
                               <div className="flex items-center gap-1 text-xs text-slate-600 mb-3">
                                 <Eye className="h-3 w-3" />
@@ -582,14 +647,26 @@ const InterviewSimulatorPage: React.FC = () => {
                               </div>
                             )}
 
-                            {/* Action Buttons */}
+                            {/* Inline compact media preview */}
+                            <div className="mt-2">
+                              {isLikelyVideo(file.fileUrl, file.category) ? (
+                                <video
+                                  src={file.fileUrl}
+                                  controls
+                                  preload="metadata"
+                                  playsInline
+                                  crossOrigin="anonymous"
+                                  className="w-full rounded-lg aspect-video bg-slate-900"
+                                />
+                              ) : (
+                                <audio src={file.fileUrl} controls preload="metadata" className="w-full" />
+                              )}
+                            </div>
+
                             <div className="flex items-center gap-2 mt-4">
                               {file.analysisStatus === 'NO_ANALYSIS' && (
                                 <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleAnalyzeRecording(file);
-                                  }}
+                                  onClick={(e) => { e.stopPropagation(); handleAnalyzeRecording(file); }}
                                   disabled={isAnalyzing}
                                   className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 transition-colors"
                                 >
@@ -614,10 +691,7 @@ const InterviewSimulatorPage: React.FC = () => {
                               </a>
                               
                               <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteRecording(file.fileId);
-                                }}
+                                onClick={(e) => { e.stopPropagation(); handleDeleteRecording(file.fileId); }}
                                 className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -761,8 +835,6 @@ const InterviewSimulatorPage: React.FC = () => {
               </div>
             </div>
           </div>
-
-          {/* Analysis Modal/Overlay removed; analysis is shown inline under the viewer */}
 
           {(uploadProgress > 0) && (
             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[90%] max-w-xl">

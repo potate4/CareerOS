@@ -23,6 +23,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class InterviewConversationService {
@@ -99,11 +100,23 @@ public class InterviewConversationService {
         List<Map<String, String>> formatted = history.stream()
                 .map(m -> Map.of("speaker", m.getSpeaker(), "message", m.getMessage()))
                 .collect(Collectors.toList());
-        // 3) Call AI to generate next question with prompt + history
+        // 3) Prepare initialData from session.sessionData if present
+        Map<String, Object> initialData = new HashMap<>();
+        try {
+            String sd = session.getSessionData();
+            if (sd != null && !sd.isBlank()) {
+                // naive JSON parse via Jackson-like map (RestTemplate will serialize fine)
+                initialData = new ObjectMapper().readValue(sd, Map.class);
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to parse sessionData as JSON: {}", e.getMessage());
+        }
+        // 4) Call AI to generate next question with prompt + history + initialData
         Map<String, Object> payload = new HashMap<>();
         payload.put("sessionId", sessionId);
         payload.put("userId", userId);
         payload.put("history", formatted);
+        payload.put("initialData", initialData);
         payload.put("prompt", "You are an interview simulator. Ask concise, relevant questions one at a time.");
         String nextQuestion = callAIToGenerateNextQuestion(payload);
         String ttsUrl = callAIForTTS(nextQuestion);
