@@ -9,6 +9,10 @@ import com.careeros.backend.payload.response.FileAnalysisResponse;
 import com.careeros.backend.payload.response.MessageResponse;
 import com.careeros.backend.security.UserDetailsImpl;
 import com.careeros.backend.service.InterviewService;
+import com.careeros.backend.service.InterviewSessionService;
+import com.careeros.backend.payload.request.CreateInterviewSessionRequest;
+import com.careeros.backend.payload.request.UpdateInterviewSessionRequest;
+import com.careeros.backend.payload.response.InterviewSessionResponse;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -26,6 +30,9 @@ public class InterviewController {
     
     @Autowired
     private InterviewService interviewService;
+
+    @Autowired
+    private InterviewSessionService interviewSessionService;
     
     @PostMapping("/analyze")
     public ResponseEntity<?> analyzeInterview(@RequestBody InterviewAnalysisRequest request) {
@@ -255,6 +262,93 @@ public class InterviewController {
                 "error", e.getMessage(),
                 "timestamp", LocalDateTime.now()
             ));
+        }
+    }
+
+    // ===== Session Management Endpoints =====
+
+    @PostMapping("/sessions")
+    public ResponseEntity<?> createSession(@RequestBody(required = false) CreateInterviewSessionRequest request) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated() ||
+                    authentication.getName().equals("anonymousUser")) {
+                return ResponseEntity.status(403)
+                        .body(new MessageResponse("Authentication required to create session"));
+            }
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            InterviewSessionResponse response = interviewSessionService.createSession(userDetails.getId(), request);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Failed to create session: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/sessions")
+    public ResponseEntity<?> listSessions(@RequestParam(value = "status", required = false) String status) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated() ||
+                    authentication.getName().equals("anonymousUser")) {
+                return ResponseEntity.status(403)
+                        .body(new MessageResponse("Authentication required to list sessions"));
+            }
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            java.util.List<InterviewSessionResponse> sessions = interviewSessionService.listSessions(userDetails.getId(), status);
+            return ResponseEntity.ok(sessions);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Failed to list sessions: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/sessions/{sessionId}")
+    public ResponseEntity<?> getSession(@PathVariable String sessionId) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated() ||
+                    authentication.getName().equals("anonymousUser")) {
+                return ResponseEntity.status(403)
+                        .body(new MessageResponse("Authentication required to get session"));
+            }
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            InterviewSessionResponse response = interviewSessionService.getSession(sessionId, userDetails.getId());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Failed to get session: " + e.getMessage()));
+        }
+    }
+
+    @PatchMapping("/sessions/{sessionId}")
+    public ResponseEntity<?> updateSession(@PathVariable String sessionId, @RequestBody UpdateInterviewSessionRequest request) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated() ||
+                    authentication.getName().equals("anonymousUser")) {
+                return ResponseEntity.status(403)
+                        .body(new MessageResponse("Authentication required to update session"));
+            }
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            InterviewSessionResponse response = interviewSessionService.updateSession(sessionId, userDetails.getId(), request);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Failed to update session: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/sessions/{sessionId}/end")
+    public ResponseEntity<?> endSession(@PathVariable String sessionId) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated() ||
+                    authentication.getName().equals("anonymousUser")) {
+                return ResponseEntity.status(403)
+                        .body(new MessageResponse("Authentication required to end session"));
+            }
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            InterviewSessionResponse response = interviewSessionService.endSession(sessionId, userDetails.getId());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Failed to end session: " + e.getMessage()));
         }
     }
 } 
