@@ -14,7 +14,7 @@ import {
   Zap
 } from 'lucide-react';
 import { learningPathAPI } from '../../services/learningPathAPI';
-import { LearningPathResponse, LearningModule, ModuleStatus, DifficultyLevel } from '../../types/learningPath';
+import { LearningPathResponse, LearningModule, ModuleStatus, DifficultyLevel, LearningStage } from '../../types/learningPath';
 
 const CurrentStatus: React.FC = () => {
   const [learningPath, setLearningPath] = useState<LearningPathResponse | null>(null);
@@ -254,11 +254,11 @@ const CurrentStatus: React.FC = () => {
                 </div>
 
                 {/* Learning Resources */}
-                {module.learningResources.length > 0 && (
+                {module.resources.length > 0 && (
                   <div className="space-y-2">
                     <h5 className="text-sm font-medium text-slate-700">Resources:</h5>
                     <div className="space-y-2">
-                      {module.learningResources.slice(0, 3).map((resource) => (
+                      {module.resources.slice(0, 3).map((resource) => (
                         <div key={resource.id} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
                           <div className="w-2 h-2 rounded-full bg-blue-500"></div>
                           <span className="text-sm text-slate-700 flex-1 truncate">{resource.title}</span>
@@ -272,9 +272,9 @@ const CurrentStatus: React.FC = () => {
                           </a>
                         </div>
                       ))}
-                      {module.learningResources.length > 3 && (
+                      {module.resources.length > 3 && (
                         <div className="text-xs text-slate-500 text-center">
-                          +{module.learningResources.length - 3} more resources
+                          +{module.resources.length - 3} more resources
                         </div>
                       )}
                     </div>

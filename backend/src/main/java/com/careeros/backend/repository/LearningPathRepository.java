@@ -29,6 +29,14 @@ public interface LearningPathRepository extends JpaRepository<LearningPath, Long
     List<LearningPath> findAllByUserId(@Param("userId") Long userId);
     
     /**
+     * Find all learning paths for a specific user ordered by creation date descending
+     * @param userId The user ID
+     * @return List of learning paths for the user ordered by creation date
+     */
+    @Query("SELECT lp FROM LearningPath lp WHERE lp.user.id = :userId ORDER BY lp.createdAt DESC")
+    List<LearningPath> findByUserIdOrderByCreatedAtDesc(@Param("userId") Long userId);
+    
+    /**
      * Find learning paths by career goal
      * @param careerGoal The career goal to search for
      * @return List of learning paths with the specified career goal

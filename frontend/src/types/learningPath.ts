@@ -26,13 +26,22 @@ export enum ResourceType {
 export enum ExperienceLevel {
   BEGINNER = 'BEGINNER',
   INTERMEDIATE = 'INTERMEDIATE',
-  ADVANCED = 'ADVANCED'
+  ADVANCED = 'ADVANCED',
+  EXPERT = 'EXPERT'
 }
 
 export enum LearningPace {
   SLOW = 'SLOW',
   MODERATE = 'MODERATE',
-  FAST = 'FAST'
+  FAST = 'FAST',
+  INTENSIVE = 'INTENSIVE'
+}
+
+export enum LearningStage {
+  BEGINNER = 'BEGINNER',
+  INTERMEDIATE = 'INTERMEDIATE',
+  ADVANCED = 'ADVANCED',
+  EXPERT = 'EXPERT'
 }
 
 export interface LearningResource {
@@ -40,15 +49,11 @@ export interface LearningResource {
   title: string;
   description: string;
   url: string;
-  resourceType: ResourceType;
   platform: string;
   durationMinutes: number;
-  difficultyLevel: DifficultyLevel;
   rating: number;
   isFree: boolean;
   language: string;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface LearningModule {
@@ -65,7 +70,7 @@ export interface LearningModule {
   orderIndex: number;
   createdAt: string;
   updatedAt: string;
-  learningResources: LearningResource[];
+  resources: LearningResource[];
 }
 
 export interface PathStatistics {
@@ -82,7 +87,7 @@ export interface PathStatistics {
 export interface LearningPath {
   id: number;
   careerGoal: string;
-  currentStage: DifficultyLevel;
+  currentStage: LearningStage;
   overallProgress: number;
   estimatedCompletionWeeks: number;
   isActive: boolean;
@@ -111,7 +116,7 @@ export interface ModuleProgressRequest {
 export interface LearningPathResponse {
   id: number;
   careerGoal: string;
-  currentStage: DifficultyLevel;
+  currentStage: LearningStage;
   overallProgress: number;
   estimatedCompletionWeeks: number;
   isActive: boolean;

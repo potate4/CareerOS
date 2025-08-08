@@ -3,6 +3,7 @@ package com.careeros.backend.controller;
 import com.careeros.backend.payload.request.LearningPathRequest;
 import com.careeros.backend.payload.request.ModuleProgressRequest;
 import com.careeros.backend.payload.response.LearningPathResponse;
+import com.careeros.backend.model.LearningPath;
 import com.careeros.backend.payload.response.MessageResponse;
 import com.careeros.backend.security.UserDetailsImpl;
 import com.careeros.backend.service.LearningPathService;
@@ -15,6 +16,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 import java.util.HashMap;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
@@ -32,6 +35,7 @@ public class LearningPathController {
     @PostMapping("/learning")
     public ResponseEntity<?> generateLearningPath(@Valid @RequestBody LearningPathRequest request) {
         try {
+            System.out.println("🎯 Generating learning path");
             // Get current user from security context
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             
@@ -72,6 +76,7 @@ public class LearningPathController {
     @GetMapping("/current")
     public ResponseEntity<?> getCurrentLearningPath() {
         try {
+
             // Get current user from security context
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             
@@ -233,6 +238,79 @@ public class LearningPathController {
                 "error", e.getMessage(),
                 "timestamp", java.time.LocalDateTime.now().toString()
             ));
+        }
+    }
+    
+    /**
+     * Get all learning paths for the authenticated user
+     * @return ResponseEntity containing all learning paths
+     */
+    @GetMapping("/all")
+    public ResponseEntity<?> getAllLearningPaths() {
+        try {
+            // Get current user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            
+            // Check if authentication is valid and principal is UserDetailsImpl
+            if (authentication == null || !authentication.isAuthenticated() || 
+                !(authentication.getPrincipal() instanceof UserDetailsImpl)) {
+                return ResponseEntity.status(401)
+                    .body(new MessageResponse("Authentication required. Please login again."));
+            }
+            
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            
+            System.out.println("📚 Getting all learning paths for user: " + userDetails.getUsername());
+            
+            List<LearningPath> learningPaths = learningPathService.getAllLearningPathsForUser(userDetails.getId());
+            List<LearningPathResponse> responses = learningPaths.stream()
+                .map(LearningPathResponse::new)
+                .collect(Collectors.toList());
+            
+            System.out.println("✅ Retrieved " + responses.size() + " learning paths");
+            
+            return ResponseEntity.ok(responses);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Unexpected error getting all learning paths: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("Failed to get learning paths: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * Deactivate current learning path for the authenticated user
+     * @return ResponseEntity containing deactivation result
+     */
+    @DeleteMapping("/current")
+    public ResponseEntity<?> deactivateCurrentLearningPath() {
+        try {
+            // Get current user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            
+            // Check if authentication is valid and principal is UserDetailsImpl
+            if (authentication == null || !authentication.isAuthenticated() || 
+                !(authentication.getPrincipal() instanceof UserDetailsImpl)) {
+                return ResponseEntity.status(401)
+                    .body(new MessageResponse("Authentication required. Please login again."));
+            }
+            
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            
+            System.out.println("🗑️ Deactivating current learning path for user: " + userDetails.getUsername());
+            
+            learningPathService.deactivateExistingLearningPaths(userDetails.getId());
+            
+            System.out.println("✅ Current learning path deactivated successfully");
+            
+            return ResponseEntity.ok(new MessageResponse("Learning path deactivated successfully"));
+            
+        } catch (Exception e) {
+            System.err.println("❌ Unexpected error deactivating learning path: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("Failed to deactivate learning path: " + e.getMessage()));
         }
     }
     

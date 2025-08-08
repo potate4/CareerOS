@@ -471,10 +471,19 @@ public class LearningPathService {
     }
     
     /**
+     * Get all learning paths for a user
+     * @param userId The user ID
+     * @return List of all learning paths for the user
+     */
+    public List<LearningPath> getAllLearningPathsForUser(Long userId) {
+        return learningPathRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    }
+    
+    /**
      * Deactivate existing active learning paths for a user
      * @param userId The user ID
      */
-    private void deactivateExistingLearningPaths(Long userId) {
+    public void deactivateExistingLearningPaths(Long userId) {
         Optional<LearningPath> existingPath = learningPathRepository.findActiveLearningPathByUserId(userId);
         if (existingPath.isPresent()) {
             LearningPath path = existingPath.get();
