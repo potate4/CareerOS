@@ -136,6 +136,7 @@ async def generate_question(req: GenerateQuestionRequest):
                 parts.append("History: " + json.dumps(req.history))
             parts.append("You are an interview simulator. Ask a concise, relevant next question.")
             prompt = "\n".join(parts)
+            print("PROMPT: ", prompt)
         question = generate_interview_question(prompt)
         if isinstance(question, dict) and question.get("error"):
             raise HTTPException(status_code=500, detail=question.get("error"))

@@ -377,4 +377,5 @@ def generate_interview_question(prompt: str):
         
         return ai_response
     except Exception as e:
+        print("ERROR: ", e)
         return {"error": f"Question generation failed: {str(e)}"}

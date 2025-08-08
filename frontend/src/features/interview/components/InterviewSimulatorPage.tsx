@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Video, Save, Play, Download, Trash2, AlertCircle, CheckCircle, Clock, CheckCircle2, XCircle, MessageCircle, Mic, Square } from 'lucide-react';
 import { useAuthStore } from '../../../stores/authStore';
 import AuthenticatedLayout from '../../../components/layout/AuthenticatedLayout';
@@ -26,8 +26,21 @@ const InterviewSimulatorPage: React.FC = () => {
   const [isAnswering, setIsAnswering] = useState(false);
   const [isEndingSession, setIsEndingSession] = useState(false);
 
+  // New: mic recording for interactive answers
+  const audioRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const [isMicRecording, setIsMicRecording] = useState(false);
+
   useEffect(() => {
     loadFileAnalysisData();
+    return () => {
+      // cleanup audio stream on unmount
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach(t => t.stop());
+        audioStreamRef.current = null;
+      }
+    };
   }, []);
 
   const loadFileAnalysisData = async () => {
@@ -126,7 +139,7 @@ const InterviewSimulatorPage: React.FC = () => {
       console.log('🔍 Starting interview analysis for file:', fileAnalysis.fileUrl);
       console.log('🔑 Current token:', localStorage.getItem('token'));
       
-      const result = await interviewAPI.analyzeInterview(fileAnalysis.fileUrl, "comprehensive", fileAnalysis.fileId, user?.id!);
+      const result = await interviewAPI.analyzeInterview(fileAnalysis.fileUrl, 'comprehensive', fileAnalysis.fileId, user?.id!);
       setAnalysisResult(result);
       setSuccess('Interview analysis completed successfully!');
       
@@ -142,6 +155,45 @@ const InterviewSimulatorPage: React.FC = () => {
   };
 
   // ===== New: Interactive simulation helpers =====
+  const startMicRecording = async () => {
+    try {
+      // request mic
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioStreamRef.current = stream;
+      const mime = 'audio/webm;codecs=opus';
+      const recorder = new MediaRecorder(stream, { mimeType: mime });
+      audioRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      recorder.start();
+      setIsMicRecording(true);
+    } catch (e) {
+      console.error('Mic permission/recording failed', e);
+      setError('Microphone unavailable. Please allow mic access.');
+    }
+  };
+
+  const stopMicRecordingAndGetBlob = async (): Promise<Blob | null> => {
+    return new Promise((resolve) => {
+      const recorder = audioRecorderRef.current;
+      if (!recorder) return resolve(null);
+      recorder.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        // cleanup stream
+        if (audioStreamRef.current) {
+          audioStreamRef.current.getTracks().forEach((t) => t.stop());
+          audioStreamRef.current = null;
+        }
+        audioRecorderRef.current = null;
+        setIsMicRecording(false);
+        resolve(blob);
+      };
+      recorder.stop();
+    });
+  };
+
   const createAndStartSession = async () => {
     try {
       setIsSimStarting(true);
@@ -159,6 +211,8 @@ const InterviewSimulatorPage: React.FC = () => {
         const audio = new Audio(start.audioUrl);
         audio.play().catch(() => {});
       }
+      // Auto-start mic recording for user's answer
+      await startMicRecording();
       setSuccess('Interview session started');
     } catch (e: any) {
       setError(e.message || 'Failed to start simulation');
@@ -174,35 +228,26 @@ const InterviewSimulatorPage: React.FC = () => {
     return resp.fileUrl;
   };
 
-  const stopAndSendAnswer = async () => {
+  const submitCurrentAnswer = async () => {
     if (!activeSession) return;
     try {
       setIsAnswering(true);
-      // Capture audio: for now, reuse the VideoRecorder flow; in a full impl we'd separate audio mic capture UI
-      // Here we prompt user to select an audio file as a placeholder
-      const picker = document.createElement('input');
-      picker.type = 'file';
-      picker.accept = 'audio/*,video/webm';
-      const p = new Promise<File | null>((resolve) => {
-        picker.onchange = () => resolve(picker.files && picker.files[0] ? picker.files[0] : null);
-        picker.click();
-      });
-      const picked = await p;
-      if (!picked) {
-        setIsAnswering(false);
-        return;
+      // stop recording and gather blob
+      const blob = await stopMicRecordingAndGetBlob();
+      if (!blob || blob.size === 0) {
+        throw new Error('No audio captured');
       }
-      const file = picked.type.startsWith('audio') ? picked : new File([await picked.arrayBuffer()], `converted-${Date.now()}.webm`, { type: 'audio/webm' });
-      const up = await interviewAPI.uploadAudio(file, 'answer-segment');
-      if (!up.success || !up.fileUrl) throw new Error(up.message || 'Audio upload failed');
-      const res = await interviewAPI.processAnswer(activeSession.sessionId, up.fileUrl);
+      const fileUrl = await uploadBlobAsAudioFile(blob);
+      const res = await interviewAPI.processAnswer(activeSession.sessionId, fileUrl);
       // Refresh history
       const history = await interviewAPI.getConversation(activeSession.sessionId);
       setConversation(history);
+      // Play next question audio and auto-start recording again
       if (res.audioUrl) {
         const audio = new Audio(res.audioUrl);
         audio.play().catch(() => {});
       }
+      await startMicRecording();
     } catch (e: any) {
       setError(e.message || 'Failed to process answer');
     } finally {
@@ -217,6 +262,15 @@ const InterviewSimulatorPage: React.FC = () => {
       const ended = await interviewAPI.endSession(activeSession.sessionId);
       setActiveSession(ended);
       setSuccess('Session ended');
+      // stop mic if recording
+      if (audioRecorderRef.current && isMicRecording) {
+        audioRecorderRef.current.stop();
+      }
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach((t) => t.stop());
+        audioStreamRef.current = null;
+      }
+      setIsMicRecording(false);
     } catch (e: any) {
       setError(e.message || 'Failed to end session');
     } finally {
@@ -371,7 +425,7 @@ const InterviewSimulatorPage: React.FC = () => {
                 {activeSession && activeSession.status === 'ACTIVE' && (
                   <div className="mt-4 flex items-center gap-3">
                     <button
-                      onClick={stopAndSendAnswer}
+                      onClick={submitCurrentAnswer}
                       disabled={isAnswering}
                       className="px-4 py-2 rounded-md text-sm font-medium text-white transition-colors disabled:opacity-50"
                       style={{ backgroundColor: '#88BDF2' }}
@@ -382,10 +436,16 @@ const InterviewSimulatorPage: React.FC = () => {
                         </>
                       ) : (
                         <>
-                          <Mic className="h-4 w-4" /> Answer (upload segment)
+                          <Mic className="h-4 w-4" /> Done
                         </>
                       )}
                     </button>
+                    {isMicRecording && (
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full" style={{ backgroundColor: '#FEE2E2' }}>
+                        <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                        <span className="text-xs font-medium text-red-700">Recording...</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
