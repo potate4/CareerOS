@@ -15,6 +15,21 @@ const isLikelyVideo = (url: string, category?: string) => {
   return lower.endsWith('.webm') || lower.endsWith('.mp4') || lower.endsWith('.mov') || lower.endsWith('.mkv');
 };
 
+// Best-supported MediaRecorder mime for broader playback (VP8 preferred)
+const getBestSupportedMime = (): string | undefined => {
+  const candidates = [
+    'video/webm;codecs=vp8,opus',
+    'video/webm;codecs=vp9,opus',
+    'video/webm'
+  ];
+  for (const m of candidates) {
+    if ((window as any).MediaRecorder && (window as any).MediaRecorder.isTypeSupported && (window as any).MediaRecorder.isTypeSupported(m)) {
+      return m;
+    }
+  }
+  return undefined;
+};
+
 const InterviewSimulatorPage: React.FC = () => {
   const { user } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
@@ -29,6 +44,8 @@ const InterviewSimulatorPage: React.FC = () => {
   const [result, setResult] = useState<any>(null);
   const [selectedFileForAnalysis, setSelectedFileForAnalysis] = useState<FileAnalysisResponse | null>(null);
   const videoPlayerRef = useRef<HTMLVideoElement | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const viewerRef = useRef<HTMLDivElement | null>(null);
 
   // Interactive simulation state
   const [activeSession, setActiveSession] = useState<InterviewSessionDTO | null>(null);
@@ -53,6 +70,7 @@ const InterviewSimulatorPage: React.FC = () => {
   const sessionRecorderRef = useRef<MediaRecorder | null>(null);
   const sessionChunksRef = useRef<Blob[]>([]);
   const sessionStreamRef = useRef<MediaStream | null>(null);
+  const sessionMimeRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     loadFileAnalysisData();
@@ -168,12 +186,17 @@ const InterviewSimulatorPage: React.FC = () => {
 
   const handleFileClick = (file: FileAnalysisResponse) => {
     setSelectedFileForAnalysis(file);
-    // auto-play selected video
+    // auto-play selected video and scroll to viewer
     setTimeout(() => {
       try {
         if (videoPlayerRef.current) {
           videoPlayerRef.current.load();
           videoPlayerRef.current.play().catch(() => {});
+        }
+      } catch {}
+      try {
+        if (viewerRef.current) {
+          viewerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       } catch {}
     }, 0);
@@ -197,7 +220,9 @@ const InterviewSimulatorPage: React.FC = () => {
       const mixedAudioTrack = mixDestRef.current.stream.getAudioTracks()[0];
       sessionStreamRef.current = new MediaStream([videoTrack, mixedAudioTrack]);
       sessionChunksRef.current = [];
-      sessionRecorderRef.current = new MediaRecorder(sessionStreamRef.current, { mimeType: 'video/webm;codecs=vp9,opus' });
+      const mime = getBestSupportedMime();
+      sessionMimeRef.current = mime;
+      sessionRecorderRef.current = mime ? new MediaRecorder(sessionStreamRef.current, { mimeType: mime }) : new MediaRecorder(sessionStreamRef.current);
       sessionRecorderRef.current.ondataavailable = (e) => { if (e.data && e.data.size > 0) sessionChunksRef.current.push(e.data); };
       sessionRecorderRef.current.start();
     } catch (e) { setError('Failed to start session recorder.'); }
@@ -323,7 +348,8 @@ const InterviewSimulatorPage: React.FC = () => {
       if (!sessionRecorderRef.current) return;
       const resolved = await new Promise<Blob | null>((resolve) => {
         sessionRecorderRef.current!.onstop = () => {
-          const blob = new Blob(sessionChunksRef.current, { type: 'video/webm' });
+          const type = sessionMimeRef.current || 'video/webm';
+          const blob = new Blob(sessionChunksRef.current, { type });
           resolve(blob);
         };
         sessionRecorderRef.current!.stop();
@@ -331,9 +357,11 @@ const InterviewSimulatorPage: React.FC = () => {
       if (!resolved) return;
       const fileName = `interactive-session-${Date.now()}.webm`;
       const file = new File([resolved], fileName, { type: 'video/webm' });
-      const resp = await interviewAPI.uploadRecording({ file, fileType: 'video', sessionTitle: 'Interactive Interview Session', description: 'Combined video + audio (user + AI)' });
+      setUploadProgress(1);
+      const resp = await interviewAPI.uploadRecording({ file, fileType: 'video', sessionTitle: 'Interactive Interview Session', description: 'Combined video + audio (user + AI)' }, (p) => setUploadProgress(p));
       if ((resp as any).success) { setSuccess('Session recording saved'); await loadFileAnalysisData(); } else { setError((resp as any).message || 'Failed to save session recording'); }
     } catch (e: any) { setError(e.message || 'Failed to save session recording'); } finally {
+      setUploadProgress(0);
       [micStreamRef.current, camStreamRef.current].forEach((s) => { if (s) s.getTracks().forEach(t => t.stop()); });
       micStreamRef.current = null; camStreamRef.current = null;
       if (audioCtxRef.current) { try { audioCtxRef.current.close(); } catch {} audioCtxRef.current = null; }
@@ -601,26 +629,29 @@ const InterviewSimulatorPage: React.FC = () => {
 
                       {/* Inline Viewer and Analysis */}
                       {selectedFileForAnalysis && (
-                        <div className="mt-8">
+                        <div className="mt-8" ref={viewerRef}>
                           <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-sm">
                             <div className="p-4 border-b border-slate-200">
                               <h3 className="text-lg font-semibold text-slate-900">Recording Viewer</h3>
                               <p className="text-sm text-slate-500">{selectedFileForAnalysis.originalFileName}</p>
                             </div>
-                            <div className="p-4">
+                            <div className="p-4 space-y-4">
                               {isLikelyVideo(selectedFileForAnalysis.fileUrl, selectedFileForAnalysis.category) ? (
-                                <video ref={videoPlayerRef} controls className="w-full rounded-xl">
-                                  <source src={selectedFileForAnalysis.fileUrl} type="video/webm" />
-                                  Your browser does not support the video element.
-                                </video>
+                                <video
+                                  ref={videoPlayerRef}
+                                  src={selectedFileForAnalysis.fileUrl}
+                                  controls
+                                  playsInline
+                                  crossOrigin="anonymous"
+                                  controlsList="nodownload"
+                                  preload="metadata"
+                                  className="w-full rounded-xl aspect-video bg-slate-900"
+                                />
                               ) : (
-                                <audio controls className="w-full">
-                                  <source src={selectedFileForAnalysis.fileUrl} />
-                                  Your browser does not support the audio element.
-                                </audio>
+                                <audio src={selectedFileForAnalysis.fileUrl} controls className="w-full" />
                               )}
                               {selectedFileForAnalysis.analysisStatus === 'COMPLETED' && selectedFileForAnalysis.detailedAnalysis && (
-                                <div className="mt-6">
+                                <div className="mt-2">
                                   <h4 className="text-md font-semibold text-slate-900 mb-2">Analysis</h4>
                                   <div className="prose prose-slate max-w-none">
                                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -731,31 +762,14 @@ const InterviewSimulatorPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Analysis Modal/Overlay */}
-          {selectedFileForAnalysis && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-                <div className="p-6 border-b border-slate-200 flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold text-slate-900">Interview Analysis</h2>
-                    <p className="text-slate-600 mt-1">{selectedFileForAnalysis.originalFileName}</p>
-                  </div>
-                  <button
-                    onClick={() => setSelectedFileForAnalysis(null)}
-                    className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                  >
-                    <XCircle className="h-6 w-6" />
-                  </button>
-                </div>
-                
-                <div className="p-6 overflow-auto max-h-[calc(90vh-120px)]">
-                  {selectedFileForAnalysis.detailedAnalysis && (
-                    <div className="prose prose-slate max-w-none">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {selectedFileForAnalysis.detailedAnalysis}
-                      </ReactMarkdown>
-                    </div>
-                  )}
+          {/* Analysis Modal/Overlay removed; analysis is shown inline under the viewer */}
+
+          {(uploadProgress > 0) && (
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[90%] max-w-xl">
+              <div className="bg-white border border-slate-200 rounded-xl shadow-lg p-4">
+                <div className="text-sm font-medium text-slate-800 mb-2">Uploading session recording... {uploadProgress}%</div>
+                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-slate-600" style={{ width: `${uploadProgress}%` }} />
                 </div>
               </div>
             </div>
