@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Video, Save, Play, Download, Trash2, AlertCircle, CheckCircle, Clock, CheckCircle2, XCircle, MessageCircle, Mic, Square, ChevronDown, ChevronRight, Eye, FileText, Calendar, User, Bot } from 'lucide-react';
+import { Video, Save, Play, Download, Trash2, AlertCircle, CheckCircle, Clock, CheckCircle2, XCircle, MessageCircle, Mic, Square, ChevronDown, ChevronRight, Eye, FileText, Calendar, User, Bot, Camera, CameraOff } from 'lucide-react';
 import { useAuthStore } from '../../../stores/authStore';
 import AuthenticatedLayout from '../../../components/layout/AuthenticatedLayout';
 import VideoRecorder from './VideoRecorder';
@@ -42,10 +42,11 @@ const InterviewSimulatorPage: React.FC = () => {
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<any>(null);
-  const [selectedFileForAnalysis, setSelectedFileForAnalysis] = useState<FileAnalysisResponse | null>(null);
-  const videoPlayerRef = useRef<HTMLVideoElement | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
-  const viewerRef = useRef<HTMLDivElement | null>(null);
+
+  // File list state
+  const [isFilesCollapsed, setIsFilesCollapsed] = useState(false);
+  const [expandedFileId, setExpandedFileId] = useState<number | null>(null);
 
   // Interactive simulation state
   const [activeSession, setActiveSession] = useState<InterviewSessionDTO | null>(null);
@@ -165,8 +166,8 @@ const InterviewSimulatorPage: React.FC = () => {
       await interviewAPI.deleteRecording(recordingId);
       await loadFileAnalysisData();
       setSuccess('Recording deleted successfully!');
-      if (selectedFileForAnalysis?.fileId === recordingId) {
-        setSelectedFileForAnalysis(null);
+      if (expandedFileId === recordingId) {
+        setExpandedFileId(null);
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete recording';
@@ -192,22 +193,8 @@ const InterviewSimulatorPage: React.FC = () => {
     }
   };
 
-  const handleFileClick = (file: FileAnalysisResponse) => {
-    setSelectedFileForAnalysis(file);
-    // auto-play selected video and scroll to viewer
-    setTimeout(() => {
-      try {
-        if (videoPlayerRef.current) {
-          videoPlayerRef.current.load();
-          videoPlayerRef.current.play().catch(() => {});
-        }
-      } catch {}
-      try {
-        if (viewerRef.current) {
-          viewerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      } catch {}
-    }, 0);
+  const toggleFileExpanded = (fileId: number) => {
+    setExpandedFileId(expandedFileId === fileId ? null : fileId);
   };
 
   const setupSessionRecording = async () => {
@@ -426,22 +413,49 @@ const InterviewSimulatorPage: React.FC = () => {
                   Practice realistic interviews with AI-powered voice interactions and instant feedback analysis.
                 </p>
               </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={async () => {
-                    try { const result = await interviewAPI.checkInterviewHealth(); setResult({ message: 'Interview service health check', result }); }
-                    catch (err: any) { setError(err.message || 'Health check failed'); }
-                  }}
-                  className="px-4 py-2 rounded-lg text-sm font-medium bg-slate-200 text-slate-700 hover:bg-slate-300 transition-colors"
-                >
-                  Check Service
-                </button>
-                {activeSession && activeSession.status === 'ACTIVE' && (
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-600">
-                    <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-                    <span className="text-sm font-medium text-white">Live Session</span>
-                  </div>
-                )}
+
+              {/* Session Status & Controls */}
+              <div className="flex flex-col items-end gap-3">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={async () => {
+                      try { const result = await interviewAPI.checkInterviewHealth(); setResult({ message: 'Interview service health check', result }); }
+                      catch (err: any) { setError(err.message || 'Health check failed'); }
+                    }}
+                    className="px-4 py-2 rounded-lg text-sm font-medium bg-slate-200 text-slate-700 hover:bg-slate-300 transition-colors"
+                  >
+                    Check Service
+                  </button>
+                  {activeSession && activeSession.status === 'ACTIVE' && (
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-600">
+                      <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+                      <span className="text-sm font-medium text-white">Live Session</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Main Session Controls */}
+                <div className="flex items-center gap-3">
+                  {!activeSession || activeSession.status !== 'ACTIVE' ? (
+                    <button
+                      onClick={createAndStartSession}
+                      disabled={isSimStarting}
+                      className="px-6 py-3 rounded-lg text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-60 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
+                    >
+                      <Camera className="h-4 w-4" />
+                      {isSimStarting ? 'Starting Session...' : 'Start Interview'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={endCurrentSession}
+                      disabled={isEndingSession}
+                      className="px-6 py-3 rounded-lg text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-60 transition-all duration-200 flex items-center gap-2"
+                    >
+                      <Square className="h-4 w-4" />
+                      {isEndingSession ? 'Ending...' : 'End Session'}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -489,38 +503,27 @@ const InterviewSimulatorPage: React.FC = () => {
               </div>
               <p className="mt-3 text-xs text-slate-500">These preferences are sent as initial context so the AI tailors questions for you.</p>
             </div>
-
-            <div className="flex flex-wrap items-center gap-4">
-              <button
-                onClick={createAndStartSession}
-                disabled={isSimStarting}
-                className="px-6 py-3 rounded-lg text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-60 transition-all duration-200 shadow-lg hover:shadow-xl"
-              >
-                {isSimStarting ? 'Starting Session...' : 'Start Interactive Interview'}
-              </button>
-              {activeSession && activeSession.status === 'ACTIVE' && (
-                <button
-                  onClick={endCurrentSession}
-                  disabled={isEndingSession}
-                  className="px-6 py-3 rounded-lg text-sm font-semibold bg-slate-600 text-white hover:bg-slate-700 disabled:opacity-60 transition-all duration-200"
-                >
-                  {isEndingSession ? 'Ending...' : 'End Session'}
-                </button>
-              )}
-            </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Main Content - Full Width Video + Files */}
-            <div className="lg:col-span-3 space-y-6">
-              {/* Video Recorder - Full Width */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left Column - Video Recorder */}
+            <div className="space-y-6">
+              {/* Video Recorder */}
               <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
                 <div className="p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 rounded-lg bg-slate-100">
-                      <Video className="h-5 w-5 text-slate-600" />
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-slate-100">
+                        <Video className="h-5 w-5 text-slate-600" />
+                      </div>
+                      <h2 className="text-xl font-semibold text-slate-900">Recording Studio</h2>
                     </div>
-                    <h2 className="text-xl font-semibold text-slate-900">Recording Studio</h2>
+                    {isMicRecording && (
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-100">
+                        <div className="w-2 h-2 rounded-full animate-pulse bg-red-500"></div>
+                        <span className="text-xs font-medium text-red-700">Recording Audio</span>
+                      </div>
+                    )}
                   </div>
                   <VideoRecorder onRecordingComplete={handleRecordingComplete} onReset={handleReset} />
                 </div>
@@ -570,100 +573,219 @@ const InterviewSimulatorPage: React.FC = () => {
                   </div>
                 )}
               </div>
+            </div>
 
-              {/* Files Grid */}
-              <div className="bg-white rounded-2xl shadow-lg border border-slate-200">
-                <div className="p-6 border-b border-slate-200">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-slate-100">
-                      <FileText className="h-5 w-5 text-slate-600" />
+            {/* Right Column - Live Chat */}
+            <div className="space-y-6">
+              <div className="bg-white rounded-2xl shadow-lg border border-slate-200 sticky top-6">
+                <div className="p-4 border-b border-slate-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 rounded-lg bg-slate-100">
+                        <MessageCircle className="h-4 w-4 text-slate-600" />
+                      </div>
+                      <h3 className="font-semibold text-slate-900">Interview Conversation</h3>
                     </div>
-                    <h2 className="text-xl font-semibold text-slate-900">Your Interview Files</h2>
-                    <span className="text-sm text-slate-500">({fileAnalysisData.length} files)</span>
+                    {activeSession && activeSession.status === 'ACTIVE' && (
+                      <button
+                        onClick={submitCurrentAnswer}
+                        disabled={isAnswering}
+                        className="px-4 py-2 rounded-lg text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 transition-colors flex items-center gap-2"
+                      >
+                        {isAnswering ? (
+                          <>
+                            <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <Mic className="h-4 w-4" />
+                            Done Speaking
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                <div className="p-6">
-                  {fileAnalysisData.length === 0 ? (
-                    <div className="text-center py-12">
-                      <div className="p-4 rounded-2xl bg-slate-100 inline-block mb-4">
-                        <Video className="h-12 w-12 text-slate-400" />
+                <div className="p-4">
+                  {!activeSession ? (
+                    <div className="text-center py-8">
+                      <div className="p-3 rounded-lg bg-slate-100 inline-block mb-3">
+                        <MessageCircle className="h-6 w-6 text-slate-400" />
                       </div>
-                      <h3 className="text-lg font-medium text-slate-900 mb-2">No recordings yet</h3>
-                      <p className="text-slate-600">Start your first video interview practice session to see your files here.</p>
+                      <p className="text-sm text-slate-500">Start an interview session to see the conversation here.</p>
                     </div>
                   ) : (
-                    <>
-                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                        {fileAnalysisData.map((file) => (
-                          <div
-                            key={file.fileId}
-                            onClick={() => handleFileClick(file)}
-                            className={`relative rounded-xl border-2 p-4 transition-all duration-200 cursor-pointer hover:shadow-lg ${
-                              file.analysisStatus === 'COMPLETED' 
-                                ? 'border-slate-300 hover:border-slate-500 bg-white' 
-                                : 'border-slate-200 bg-slate-50'
-                            }`}
-                          >
-                            <div className="absolute top-3 right-3">
-                              {file.analysisStatus === 'COMPLETED' && (
-                                <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 text-slate-700">
-                                  <CheckCircle2 className="h-3 w-3" />
-                                  <span className="text-xs font-medium">Ready</span>
+                    <div className="space-y-3 max-h-96 overflow-auto">
+                      {conversation.map((m, idx) => {
+                        const isAI = m.speaker === 'ai';
+                        return (
+                          <div key={idx} className={`flex ${isAI ? 'justify-start' : 'justify-end'}`}>
+                            <div className="flex items-start gap-2 max-w-[85%]">
+                              {isAI && (
+                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-600 text-white">
+                                  <Bot className="h-3 w-3" />
                                 </div>
                               )}
-                              {file.analysisStatus === 'PENDING' && (
-                                <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-100 text-yellow-700">
-                                  <Clock className="h-3 w-3" />
-                                  <span className="text-xs font-medium">Processing</span>
+                              <div className={`rounded-lg p-3 ${isAI ? 'bg-slate-100' : 'bg-slate-900 text-white'}`}>
+                                <div className="text-xs mb-1 opacity-70">
+                                  {new Date(m.createdAt).toLocaleTimeString()}
                                 </div>
-                              )}
-                              {file.analysisStatus === 'FAILED' && (
-                                <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700">
-                                  <XCircle className="h-3 w-3" />
-                                  <span className="text-xs font-medium">Failed</span>
-                                </div>
-                              )}
-                              {file.analysisStatus === 'NO_ANALYSIS' && (
-                                <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-slate-200 text-slate-600">
-                                  <AlertCircle className="h-3 w-3" />
-                                  <span className="text-xs font-medium">No Analysis</span>
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="p-3 rounded-lg bg-slate-100 inline-block mb-3">
-                              <Video className="h-6 w-6 text-slate-600" />
-                            </div>
-                            <h3 className="font-semibold text-slate-900 mb-2 pr-20 truncate">{file.originalFileName}</h3>
-                            <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
-                              <Calendar className="h-3 w-3" />
-                              {new Date(file.uploadedAt).toLocaleDateString()}
-                            </div>
-                            {file.analysisStatus === 'COMPLETED' && (
-                              <div className="flex items-center gap-1 text-xs text-slate-600 mb-3">
-                                <Eye className="h-3 w-3" />
-                                Click to view analysis
+                                <div className="text-sm">{m.message}</div>
+                                {m.audioUrl && (
+                                  <audio src={m.audioUrl} controls className="mt-2 w-full" style={{ maxWidth: '200px', height: '30px' }} />
+                                )}
                               </div>
-                            )}
-
-                            {/* Inline compact media preview */}
-                            <div className="mt-2">
-                              {isLikelyVideo(file.fileUrl, file.category) ? (
-                                <video
-                                  src={file.fileUrl}
-                                  controls
-                                  preload="metadata"
-                                  playsInline
-                                  crossOrigin="anonymous"
-                                  className="w-full rounded-lg aspect-video bg-slate-900"
-                                />
-                              ) : (
-                                <audio src={file.fileUrl} controls preload="metadata" className="w-full" />
+                              {!isAI && (
+                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-600 text-white">
+                                  <User className="h-3 w-3" />
+                                </div>
                               )}
                             </div>
+                          </div>
+                        );
+                      })}
+                      {activeSession.status === 'ACTIVE' && (
+                        <div className="text-xs text-slate-500 text-center py-2">
+                          {isAnswering ? 'Processing your response...' : 'Speak your answer, then click "Done Speaking"'}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
 
-                            <div className="flex items-center gap-2 mt-4">
+          {/* Files List - Full Width Below */}
+          <div className="mt-6 bg-white rounded-2xl shadow-lg border border-slate-200">
+            <div className="p-4 border-b border-slate-200">
+              <button
+                onClick={() => setIsFilesCollapsed(!isFilesCollapsed)}
+                className="w-full flex items-center justify-between text-left"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-slate-100">
+                    <FileText className="h-4 w-4 text-slate-600" />
+                  </div>
+                  <h3 className="font-semibold text-slate-900">Interview Files</h3>
+                  <span className="text-xs text-slate-500">({fileAnalysisData.length})</span>
+                </div>
+                {isFilesCollapsed ? (
+                  <ChevronRight className="h-4 w-4 text-slate-400" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-slate-400" />
+                )}
+              </button>
+            </div>
+
+            {!isFilesCollapsed && (
+              <div className="p-4">
+                {fileAnalysisData.length === 0 ? (
+                  <div className="text-center py-8 px-4">
+                    <div className="p-3 rounded-lg bg-slate-100 inline-block mb-3">
+                      <Video className="h-6 w-6 text-slate-400" />
+                    </div>
+                    <p className="text-xs text-slate-500">No recordings yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {fileAnalysisData.map((file) => (
+                      <div key={file.fileId} className="border border-slate-200 rounded-lg overflow-hidden">
+                        {/* File Item Header */}
+                        <button
+                          onClick={() => toggleFileExpanded(file.fileId)}
+                          className="w-full p-4 text-left hover:bg-slate-50 transition-colors"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-3">
+                              <Video className="h-5 w-5 text-slate-600" />
+                              <span className="text-sm font-medium text-slate-900">
+                                {file.originalFileName}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-1">
+                                {file.analysisStatus === 'COMPLETED' && (
+                                  <div className="flex items-center gap-1 px-2 py-1 rounded bg-slate-100 text-slate-700">
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    <span className="text-xs">Ready</span>
+                                  </div>
+                                )}
+                                {file.analysisStatus === 'PENDING' && (
+                                  <div className="flex items-center gap-1 px-2 py-1 rounded bg-yellow-100 text-yellow-700">
+                                    <Clock className="h-3 w-3" />
+                                    <span className="text-xs">Processing</span>
+                                  </div>
+                                )}
+                                {file.analysisStatus === 'FAILED' && (
+                                  <div className="flex items-center gap-1 px-2 py-1 rounded bg-red-100 text-red-700">
+                                    <XCircle className="h-3 w-3" />
+                                    <span className="text-xs">Failed</span>
+                                  </div>
+                                )}
+                                {file.analysisStatus === 'NO_ANALYSIS' && (
+                                  <div className="flex items-center gap-1 px-2 py-1 rounded bg-slate-200 text-slate-600">
+                                    <AlertCircle className="h-3 w-3" />
+                                    <span className="text-xs">No Analysis</span>
+                                  </div>
+                                )}
+                              </div>
+                              {expandedFileId === file.fileId ? (
+                                <ChevronDown className="h-4 w-4 text-slate-400" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-slate-400" />
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-xs text-slate-500 text-left">
+                            {new Date(file.uploadedAt).toLocaleDateString()}
+                          </div>
+                        </button>
+
+                        {/* Expanded File Content */}
+                        {expandedFileId === file.fileId && (
+                          <div className="border-t border-slate-200 p-4 bg-slate-50 space-y-4">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                              {/* Media Player */}
+                              <div>
+                                {isLikelyVideo(file.fileUrl, file.category) ? (
+                                  <video
+                                    src={file.fileUrl}
+                                    controls
+                                    playsInline
+                                    crossOrigin="anonymous"
+                                    controlsList="nodownload"
+                                    preload="metadata"
+                                    className="w-full rounded-lg aspect-video bg-slate-900"
+                                  />
+                                ) : (
+                                  <audio src={file.fileUrl} controls className="w-full" />
+                                )}
+                              </div>
+
+                              {/* Analysis */}
+                              <div>
+                                {file.analysisStatus === 'COMPLETED' && file.detailedAnalysis ? (
+                                  <div className="space-y-2">
+                                    <h4 className="text-sm font-semibold text-slate-900">Analysis</h4>
+                                    <div className="prose prose-slate prose-sm max-w-none text-xs max-h-64 overflow-auto">
+                                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                        {file.detailedAnalysis}
+                                      </ReactMarkdown>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="text-center py-8">
+                                    <p className="text-sm text-slate-500">No analysis available</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex items-center gap-2 pt-2 border-t border-slate-200">
                               {file.analysisStatus === 'NO_ANALYSIS' && (
                                 <button
                                   onClick={(e) => { e.stopPropagation(); handleAnalyzeRecording(file); }}
@@ -694,146 +816,17 @@ const InterviewSimulatorPage: React.FC = () => {
                                 onClick={(e) => { e.stopPropagation(); handleDeleteRecording(file.fileId); }}
                                 className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-3 w-3" />
                               </button>
                             </div>
                           </div>
-                        ))}
+                        )}
                       </div>
-
-                      {/* Inline Viewer and Analysis */}
-                      {selectedFileForAnalysis && (
-                        <div className="mt-8" ref={viewerRef}>
-                          <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-sm">
-                            <div className="p-4 border-b border-slate-200">
-                              <h3 className="text-lg font-semibold text-slate-900">Recording Viewer</h3>
-                              <p className="text-sm text-slate-500">{selectedFileForAnalysis.originalFileName}</p>
-                            </div>
-                            <div className="p-4 space-y-4">
-                              {isLikelyVideo(selectedFileForAnalysis.fileUrl, selectedFileForAnalysis.category) ? (
-                                <video
-                                  ref={videoPlayerRef}
-                                  src={selectedFileForAnalysis.fileUrl}
-                                  controls
-                                  playsInline
-                                  crossOrigin="anonymous"
-                                  controlsList="nodownload"
-                                  preload="metadata"
-                                  className="w-full rounded-xl aspect-video bg-slate-900"
-                                />
-                              ) : (
-                                <audio src={selectedFileForAnalysis.fileUrl} controls className="w-full" />
-                              )}
-                              {selectedFileForAnalysis.analysisStatus === 'COMPLETED' && selectedFileForAnalysis.detailedAnalysis && (
-                                <div className="mt-2">
-                                  <h4 className="text-md font-semibold text-slate-900 mb-2">Analysis</h4>
-                                  <div className="prose prose-slate max-w-none">
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                      {selectedFileForAnalysis.detailedAnalysis}
-                                    </ReactMarkdown>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Right Sidebar - Conversation */}
-            <div className="lg:col-span-1">
-              <div className="bg-white rounded-2xl shadow-lg border border-slate-200 sticky top-6">
-                <div className="p-4 border-b border-slate-200">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 rounded-lg bg-slate-100">
-                        <MessageCircle className="h-4 w-4 text-slate-600" />
-                      </div>
-                      <h3 className="font-semibold text-slate-900">Live Chat</h3>
-                    </div>
-                    {isMicRecording && (
-                      <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-red-100">
-                        <div className="w-2 h-2 rounded-full animate-pulse bg-red-500"></div>
-                        <span className="text-xs font-medium text-red-700">Recording</span>
-                      </div>
-                    )}
+                    ))}
                   </div>
-                </div>
-
-                <div className="p-4">
-                  {!activeSession ? (
-                    <div className="text-center py-8">
-                      <div className="p-3 rounded-lg bg-slate-100 inline-block mb-3">
-                        <MessageCircle className="h-6 w-6 text-slate-400" />
-                      </div>
-                      <p className="text-sm text-slate-500">Start an interview session to see the conversation here.</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="space-y-3 max-h-96 overflow-auto mb-4">
-                        {conversation.map((m, idx) => {
-                          const isAI = m.speaker === 'ai';
-                          return (
-                            <div key={idx} className={`flex ${isAI ? 'justify-start' : 'justify-end'}`}>
-                              <div className="flex items-start gap-2 max-w-[85%]">
-                                {isAI && (
-                                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-600 text-white">
-                                    <Bot className="h-3 w-3" />
-                                  </div>
-                                )}
-                                <div className={`rounded-lg p-3 ${isAI ? 'bg-slate-100' : 'bg-slate-900 text-white'}`}>
-                                  <div className="text-xs mb-1 opacity-70">
-                                    {new Date(m.createdAt).toLocaleTimeString()}
-                                  </div>
-                                  <div className="text-sm">{m.message}</div>
-                                  {m.audioUrl && (
-                                    <audio src={m.audioUrl} controls className="mt-2 w-full" style={{ maxWidth: '200px', height: '30px' }} />
-                                  )}
-                                </div>
-                                {!isAI && (
-                                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-600 text-white">
-                                    <User className="h-3 w-3" />
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {activeSession.status === 'ACTIVE' && (
-                        <div className="border-t border-slate-200 pt-4">
-                          <div className="text-xs text-slate-500 mb-3 text-center">
-                            {isAnswering ? 'Processing your response...' : 'Speak your answer, then click Done'}
-                          </div>
-                          <button
-                            onClick={submitCurrentAnswer}
-                            disabled={isAnswering}
-                            className="w-full px-4 py-2 rounded-lg text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-                          >
-                            {isAnswering ? (
-                              <>
-                                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                                Processing...
-                              </>
-                            ) : (
-                              <>
-                                <Mic className="h-4 w-4" />
-                                Done Speaking
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
+                )}
               </div>
-            </div>
+            )}
           </div>
 
           {(uploadProgress > 0) && (
