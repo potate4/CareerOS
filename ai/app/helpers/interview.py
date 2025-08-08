@@ -264,22 +264,54 @@ def cleanup_temp_files():
 
 def convert_speech_to_text(audio_url: str) -> Dict:
     """Convert speech to text using Google's speech recognition"""
-    audio_path = None
+    input_audio_path = None
+    wav_audio_path = None
     try:
         response = requests.get(audio_url)
         response.raise_for_status()
+        print("[+] downloaded audio file")
         
-        # Save audio to temp file
-        audio_filename = f"audio_{uuid.uuid4()}.wav"
-        audio_path = os.path.join(UPLOAD_DIR, audio_filename)
-        with open(audio_path, "wb") as audio_file:
+        # Save original audio bytes to a temp file (extension-agnostic)
+        input_audio_filename = f"audio_src_{uuid.uuid4()}"
+        input_audio_path = os.path.join(UPLOAD_DIR, input_audio_filename)
+        with open(input_audio_path, "wb") as audio_file:
             audio_file.write(response.content)
+        print("[+] saved source audio to", input_audio_path)
         
-        # Process with SpeechRecognition
+        # Convert to PCM WAV 16kHz mono using ffmpeg to satisfy SpeechRecognition
+        wav_audio_filename = f"audio_{uuid.uuid4()}.wav"
+        wav_audio_path = os.path.join(UPLOAD_DIR, wav_audio_filename)
+        try:
+            completed = subprocess.run(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    input_audio_path,
+                    "-acodec",
+                    "pcm_s16le",
+                    "-ar",
+                    "16000",
+                    "-ac",
+                    "1",
+                    wav_audio_path,
+                ],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            print("[+] converted audio to wav at", wav_audio_path)
+        except subprocess.CalledProcessError as cpe:
+            err = cpe.stderr.decode(errors="ignore") if cpe.stderr else str(cpe)
+            return {"error": f"Audio conversion failed: {err}"}
+        except Exception as ffmpeg_err:
+            return {"error": f"Audio conversion failed: {ffmpeg_err}"}
+        
+        # Process with SpeechRecognition on the converted WAV
         recognizer = sr.Recognizer()
-        with sr.AudioFile(audio_path) as source:
+        with sr.AudioFile(wav_audio_path) as source:
             audio_data = recognizer.record(source)
-            
+        print("[+] processed audio file")
         try:
             text = recognizer.recognize_google(audio_data)
             confidence = 0.9
@@ -288,7 +320,7 @@ def convert_speech_to_text(audio_url: str) -> Dict:
             confidence = 0.0
         except sr.RequestError:
             return {"error": "Speech recognition service unavailable"}
-        
+        print("[+] recognized text", text)
         return {
             "text": text,
             "confidence": confidence,
@@ -297,8 +329,12 @@ def convert_speech_to_text(audio_url: str) -> Dict:
     except Exception as e:
         return {"error": f"Speech-to-text failed: {str(e)}"}
     finally:
-        if audio_path and os.path.exists(audio_path):
-            os.remove(audio_path)
+        for path in [input_audio_path, wav_audio_path]:
+            if path and os.path.exists(path):
+                try:
+                    os.remove(path)
+                except Exception:
+                    pass
 
 def convert_text_to_speech(text: str, language: str = "en", slow: bool = False) -> Dict:
     """Convert text to speech using Google's TTS"""

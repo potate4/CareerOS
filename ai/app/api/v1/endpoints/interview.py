@@ -20,7 +20,7 @@ from app.schemas.interview import VideoAnalysisRequest
 from datetime import datetime
 from fastapi import BackgroundTasks
 from app.helpers.auth import create_internal_jwt
-from app.helpers.interview import convert_text_to_speech
+from app.helpers.interview import convert_text_to_speech, convert_speech_to_text
 router = APIRouter()
 
 def process_video_and_callback(request_data: dict):
@@ -126,8 +126,6 @@ async def analyze(request: VideoAnalysisRequest, background_tasks: BackgroundTas
             os.remove(video_path)
             print(f"[+] Cleaned up video file: {video_path}")
 
-
-
 @router.post("/tts")
 async def analyze(text: str, language: str = "en", slow: bool = False):
     
@@ -146,3 +144,19 @@ async def analyze(text: str, language: str = "en", slow: bool = False):
     
 
 
+@router.post("/stt")
+async def analyze(audio_url: str):
+    
+    try:
+        response = convert_speech_to_text(audio_url)
+        
+        
+        return response
+        
+    except requests.RequestException as e:
+        raise HTTPException(status_code=400, detail=f"Failed to download video: {str(e)}")
+    except Exception as e:
+        # Clean up files even if an error occurs
+        # cleanup_temp_files()
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+    
