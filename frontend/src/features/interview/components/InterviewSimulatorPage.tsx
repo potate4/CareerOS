@@ -28,18 +28,41 @@ const InterviewSimulatorPage: React.FC = () => {
 
   // New: mic recording for interactive answers
   const audioRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioStreamRef = useRef<MediaStream | null>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const [isMicRecording, setIsMicRecording] = useState(false);
+
+  // New: continuous session recorder (video + mixed mic + AI)
+  const camStreamRef = useRef<MediaStream | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const mixDestRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const micSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const ttsAudioElRef = useRef<HTMLAudioElement | null>(null);
+  const ttsSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const sessionRecorderRef = useRef<MediaRecorder | null>(null);
+  const sessionChunksRef = useRef<Blob[]>([]);
+  const sessionStreamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     loadFileAnalysisData();
     return () => {
-      // cleanup audio stream on unmount
-      if (audioStreamRef.current) {
-        audioStreamRef.current.getTracks().forEach(t => t.stop());
-        audioStreamRef.current = null;
+      // cleanup audio streams and recorders on unmount
+      if (audioRecorderRef.current && isMicRecording) {
+        try { audioRecorderRef.current.stop(); } catch {}
       }
+      if (sessionRecorderRef.current && sessionRecorderRef.current.state !== 'inactive') {
+        try { sessionRecorderRef.current.stop(); } catch {}
+      }
+      [micStreamRef.current, camStreamRef.current].forEach((s) => {
+        if (s) s.getTracks().forEach(t => t.stop());
+      });
+      micStreamRef.current = null;
+      camStreamRef.current = null;
+      if (audioCtxRef.current) {
+        try { audioCtxRef.current.close(); } catch {}
+        audioCtxRef.current = null;
+      }
+      ttsAudioElRef.current = null;
     };
   }, []);
 
@@ -95,7 +118,7 @@ const InterviewSimulatorPage: React.FC = () => {
 
       const response = await interviewAPI.uploadRecording(request);
       
-      if (response.success) {
+      if ((response as any).success) {
         setSuccess('Recording saved successfully!');
         setCurrentRecording(null);
         setSessionTitle('');
@@ -104,7 +127,7 @@ const InterviewSimulatorPage: React.FC = () => {
         // Refresh the file analysis data
         await loadFileAnalysisData();
       } else {
-        setError(response.message || 'Failed to save recording');
+        setError((response as any).message || 'Failed to save recording');
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to save recording';
@@ -154,14 +177,75 @@ const InterviewSimulatorPage: React.FC = () => {
     }
   };
 
+  // ===== New: Continuous session recording (camera + mic + AI TTS mix) =====
+  const setupSessionRecording = async () => {
+    try {
+      // Prepare mic stream (reuse if available)
+      if (!micStreamRef.current) {
+        micStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
+      // Prepare camera stream
+      if (!camStreamRef.current) {
+        camStreamRef.current = await navigator.mediaDevices.getUserMedia({ video: true });
+      }
+      // Create audio context and destination for mix
+      if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (!mixDestRef.current) mixDestRef.current = audioCtxRef.current.createMediaStreamDestination();
+      // Connect mic into mix
+      if (!micSourceRef.current) {
+        micSourceRef.current = audioCtxRef.current.createMediaStreamSource(micStreamRef.current!);
+        micSourceRef.current.connect(mixDestRef.current);
+      }
+      // Build session stream: video track + mixed audio track
+      const videoTrack = camStreamRef.current.getVideoTracks()[0];
+      const mixedAudioTrack = mixDestRef.current.stream.getAudioTracks()[0];
+      sessionStreamRef.current = new MediaStream([videoTrack, mixedAudioTrack]);
+      // Start recorder
+      sessionChunksRef.current = [];
+      sessionRecorderRef.current = new MediaRecorder(sessionStreamRef.current, { mimeType: 'video/webm;codecs=vp9,opus' });
+      sessionRecorderRef.current.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) sessionChunksRef.current.push(e.data);
+      };
+      sessionRecorderRef.current.start();
+    } catch (e) {
+      console.error('Failed to setup session recording', e);
+      setError('Failed to start session recorder.');
+    }
+  };
+
+  const playTTSMixed = async (url?: string | null) => {
+    if (!url) return;
+    try {
+      if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (!mixDestRef.current) mixDestRef.current = audioCtxRef.current.createMediaStreamDestination();
+      if (!ttsAudioElRef.current) {
+        ttsAudioElRef.current = new Audio();
+        ttsAudioElRef.current.crossOrigin = 'anonymous';
+        ttsAudioElRef.current.preload = 'auto';
+      }
+      if (!ttsSourceRef.current) {
+        ttsSourceRef.current = audioCtxRef.current.createMediaElementSource(ttsAudioElRef.current);
+        // Feed TTS both to speakers and to mixed destination (for recording)
+        ttsSourceRef.current.connect(audioCtxRef.current.destination);
+        ttsSourceRef.current.connect(mixDestRef.current);
+      }
+      ttsAudioElRef.current.src = url;
+      await ttsAudioElRef.current.play();
+    } catch (e) {
+      console.warn('TTS mix playback failed, falling back to direct audio element', e);
+      try { new Audio(url).play().catch(() => {}); } catch {}
+    }
+  };
+
   // ===== New: Interactive simulation helpers =====
   const startMicRecording = async () => {
     try {
-      // request mic
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioStreamRef.current = stream;
+      // request mic if not present
+      if (!micStreamRef.current) {
+        micStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
       const mime = 'audio/webm;codecs=opus';
-      const recorder = new MediaRecorder(stream, { mimeType: mime });
+      const recorder = new MediaRecorder(micStreamRef.current, { mimeType: mime });
       audioRecorderRef.current = recorder;
       audioChunksRef.current = [];
       recorder.ondataavailable = (e) => {
@@ -181,11 +265,6 @@ const InterviewSimulatorPage: React.FC = () => {
       if (!recorder) return resolve(null);
       recorder.onstop = () => {
         const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        // cleanup stream
-        if (audioStreamRef.current) {
-          audioStreamRef.current.getTracks().forEach((t) => t.stop());
-          audioStreamRef.current = null;
-        }
         audioRecorderRef.current = null;
         setIsMicRecording(false);
         resolve(blob);
@@ -199,6 +278,8 @@ const InterviewSimulatorPage: React.FC = () => {
       setIsSimStarting(true);
       setError(null);
       setSuccess(null);
+      // Setup session-wide recorder first
+      await setupSessionRecording();
       // example initial data, can be driven from UI later
       const session = await interviewAPI.createSession({ role: 'Frontend Developer', seniority: 'Mid' });
       setActiveSession(session);
@@ -206,11 +287,8 @@ const InterviewSimulatorPage: React.FC = () => {
       // fetch history to include the stored AI question
       const history = await interviewAPI.getConversation(session.sessionId);
       setConversation(history);
-      // Optionally autoplay TTS using returned audioUrl
-      if (start.audioUrl) {
-        const audio = new Audio(start.audioUrl);
-        audio.play().catch(() => {});
-      }
+      // Autoplay TTS with mixed capture
+      await playTTSMixed(start.audioUrl);
       // Auto-start mic recording for user's answer
       await startMicRecording();
       setSuccess('Interview session started');
@@ -224,8 +302,8 @@ const InterviewSimulatorPage: React.FC = () => {
   const uploadBlobAsAudioFile = async (blob: Blob): Promise<string> => {
     const file = new File([blob], `answer-${Date.now()}.webm`, { type: 'audio/webm' });
     const resp = await interviewAPI.uploadAudio(file, 'interview-segment');
-    if (!resp.success || !resp.fileUrl) throw new Error(resp.message || 'Audio upload failed');
-    return resp.fileUrl;
+    if (!(resp as any).success || !(resp as any).fileUrl) throw new Error((resp as any).message || 'Audio upload failed');
+    return (resp as any).fileUrl as string;
   };
 
   const submitCurrentAnswer = async () => {
@@ -243,15 +321,54 @@ const InterviewSimulatorPage: React.FC = () => {
       const history = await interviewAPI.getConversation(activeSession.sessionId);
       setConversation(history);
       // Play next question audio and auto-start recording again
-      if (res.audioUrl) {
-        const audio = new Audio(res.audioUrl);
-        audio.play().catch(() => {});
-      }
+      await playTTSMixed(res.audioUrl);
       await startMicRecording();
     } catch (e: any) {
       setError(e.message || 'Failed to process answer');
     } finally {
       setIsAnswering(false);
+    }
+  };
+
+  const stopAndUploadSessionRecording = async () => {
+    try {
+      if (!sessionRecorderRef.current) return;
+      const resolved = await new Promise<Blob | null>((resolve) => {
+        sessionRecorderRef.current!.onstop = () => {
+          const blob = new Blob(sessionChunksRef.current, { type: 'video/webm' });
+          resolve(blob);
+        };
+        sessionRecorderRef.current!.stop();
+      });
+      if (!resolved) return;
+      const fileName = `interactive-session-${Date.now()}.webm`;
+      const file = new File([resolved], fileName, { type: 'video/webm' });
+      const resp = await interviewAPI.uploadRecording({ file, fileType: 'video', sessionTitle: 'Interactive Interview Session', description: 'Combined video + audio (user + AI)' });
+      if ((resp as any).success) {
+        setSuccess('Session recording saved');
+        await loadFileAnalysisData();
+      } else {
+        setError((resp as any).message || 'Failed to save session recording');
+      }
+    } catch (e: any) {
+      setError(e.message || 'Failed to save session recording');
+    } finally {
+      // Cleanup streams and audio context
+      [micStreamRef.current, camStreamRef.current].forEach((s) => {
+        if (s) s.getTracks().forEach(t => t.stop());
+      });
+      micStreamRef.current = null;
+      camStreamRef.current = null;
+      if (audioCtxRef.current) {
+        try { audioCtxRef.current.close(); } catch {}
+        audioCtxRef.current = null;
+      }
+      sessionRecorderRef.current = null;
+      sessionStreamRef.current = null;
+      mixDestRef.current = null;
+      micSourceRef.current = null;
+      ttsSourceRef.current = null;
+      ttsAudioElRef.current = null;
     }
   };
 
@@ -266,11 +383,8 @@ const InterviewSimulatorPage: React.FC = () => {
       if (audioRecorderRef.current && isMicRecording) {
         audioRecorderRef.current.stop();
       }
-      if (audioStreamRef.current) {
-        audioStreamRef.current.getTracks().forEach((t) => t.stop());
-        audioStreamRef.current = null;
-      }
-      setIsMicRecording(false);
+      // stop and upload the continuous session recording
+      await stopAndUploadSessionRecording();
     } catch (e: any) {
       setError(e.message || 'Failed to end session');
     } finally {
