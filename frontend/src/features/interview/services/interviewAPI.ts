@@ -215,9 +215,10 @@ export const interviewAPI = {
       throw handleApiError(error);
     }
   },
-  processAnswer: async (sessionId: string, audioUrl: string): Promise<ProcessAnswerResponse> => {
+  processAnswer: async (sessionId: string, audioUrl: string): Promise<any> => {
     try {
-      const response = await api.post(`/interview/sessions/${sessionId}/answer`, { audioUrl });
+      const response = await api.post(`/interview/sessions/${sessionId}/answer`, { audioUrl }, { timeout: 15000, validateStatus: () => true });
+      // If server returns 202, forward body (jobId/status). If 200, forward body (legacy immediate result).
       return response.data;
     } catch (error) {
       throw handleApiError(error);

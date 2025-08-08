@@ -5,6 +5,7 @@ import AuthenticatedLayout from '../../../components/layout/AuthenticatedLayout'
 import VideoRecorder from './VideoRecorder';
 import { interviewAPI } from '../services/interviewAPI';
 import { InterviewRecording, InterviewRecordingRequest, FileAnalysisResponse, ConversationMessage, InterviewSessionDTO } from '../types';
+import { ApiError } from '../../../utils/apiErrorHandler';
 
 const InterviewSimulatorPage: React.FC = () => {
   const { user } = useAuthStore();
@@ -306,6 +307,28 @@ const InterviewSimulatorPage: React.FC = () => {
     return (resp as any).fileUrl as string;
   };
 
+  const pollForNextAIMessage = async (sessionId: string, afterIso?: string, timeoutMs = 90000, intervalMs = 2000) => {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      try {
+        const history = await interviewAPI.getConversation(sessionId);
+        // find newest AI message
+        const aiMessages = history.filter(h => h.speaker === 'ai');
+        const latest = aiMessages[aiMessages.length - 1];
+        if (latest) {
+          if (!afterIso || new Date(latest.createdAt).getTime() > new Date(afterIso).getTime()) {
+            setConversation(history);
+            await playTTSMixed(latest.audioUrl || undefined);
+            await startMicRecording();
+            return true;
+          }
+        }
+      } catch {}
+      await new Promise(r => setTimeout(r, intervalMs));
+    }
+    return false;
+  };
+
   const submitCurrentAnswer = async () => {
     if (!activeSession) return;
     try {
@@ -316,13 +339,27 @@ const InterviewSimulatorPage: React.FC = () => {
         throw new Error('No audio captured');
       }
       const fileUrl = await uploadBlobAsAudioFile(blob);
+      // capture last ai message time to support fallback polling
+      const lastAi = [...conversation].filter(c => c.speaker === 'ai').pop();
+      const lastAiTime = lastAi?.createdAt;
       const res = await interviewAPI.processAnswer(activeSession.sessionId, fileUrl);
-      // Refresh history
-      const history = await interviewAPI.getConversation(activeSession.sessionId);
-      setConversation(history);
-      // Play next question audio and auto-start recording again
-      await playTTSMixed(res.audioUrl);
-      await startMicRecording();
+      // 202 async path -> start polling
+      if (res && res.status === 'PENDING') {
+        const ok = await pollForNextAIMessage(activeSession.sessionId, lastAiTime);
+        if (!ok) throw new Error('Processing timed out, please try again');
+        return;
+      }
+      // 200 immediate result path
+      if (res && res.audioUrl) {
+        const history = await interviewAPI.getConversation(activeSession.sessionId);
+        setConversation(history);
+        await playTTSMixed(res.audioUrl);
+        await startMicRecording();
+        return;
+      }
+      // Otherwise, fallback poll
+      const ok = await pollForNextAIMessage(activeSession.sessionId, lastAiTime);
+      if (!ok) throw new Error('Processing failed');
     } catch (e: any) {
       setError(e.message || 'Failed to process answer');
     } finally {

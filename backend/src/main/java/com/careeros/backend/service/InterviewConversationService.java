@@ -15,11 +15,13 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Service
@@ -111,6 +113,20 @@ public class InterviewConversationService {
                 "nextQuestion", nextQuestion,
                 "audioUrl", ttsUrl
         );
+    }
+
+    // Async variant returning jobId immediately
+    @Async
+    public CompletableFuture<String> processUserAnswerAsync(String sessionId, Long userId, String audioFileUrl) {
+        try {
+            // Process in background
+            processUserAnswerAndGenerateNext(sessionId, userId, audioFileUrl);
+            // Return completed job id or marker; for now we can use a composite key of session and timestamp
+            return CompletableFuture.completedFuture(UUID.randomUUID().toString());
+        } catch (Exception e) {
+            logger.error("Async processing failed: {}", e.getMessage());
+            return CompletableFuture.completedFuture("ERROR:" + e.getMessage());
+        }
     }
 
     private String callAIToGenerateQuestion(String sessionId, Long userId, Map<String, Object> initialData, List<Map<String, String>> history) {

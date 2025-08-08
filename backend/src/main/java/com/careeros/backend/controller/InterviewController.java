@@ -18,6 +18,7 @@ import com.careeros.backend.payload.request.ConversationMessageRequest;
 import com.careeros.backend.payload.response.ConversationMessageResponse;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -428,8 +429,14 @@ public class InterviewController {
             }
             UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
             String audioUrl = body.get("audioUrl");
-            Map<String, Object> result = interviewConversationService.processUserAnswerAndGenerateNext(sessionId, userDetails.getId(), audioUrl);
-            return ResponseEntity.ok(result);
+            // fire-and-forget async processing
+            interviewConversationService.processUserAnswerAsync(sessionId, userDetails.getId(), audioUrl);
+            // Return 202 with a jobId token for tracking (optional)
+            String jobId = java.util.UUID.randomUUID().toString();
+            return ResponseEntity.status(HttpStatus.ACCEPTED).body(Map.of(
+                "jobId", jobId,
+                "status", "PENDING"
+            ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(new MessageResponse("Failed to process answer: " + e.getMessage()));
         }
