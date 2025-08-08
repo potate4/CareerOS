@@ -9,7 +9,12 @@ import numpy as np
 from app.schemas.interview import Transcript, AudioAnalysis, Pause, Emotion, InterviewFeedback
 from typing import List
 from google import genai 
-
+import requests
+import base64
+import uuid
+import speech_recognition as sr
+from gtts import gTTS
+from typing import Dict
 
 UPLOAD_DIR = settings.UPLOAD_DIR
 FRAME_DIR = settings.FRAME_DIR
@@ -20,6 +25,23 @@ client = genai.Client(api_key=settings.GOOGLE_API_KEY)
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(FRAME_DIR, exist_ok=True)
 os.makedirs(AUDIO_SEG_DIR, exist_ok=True)
+
+
+def get_gemini_text_completion(prompt: str):
+
+
+    print("PROMPT: ", prompt)
+    response = client.models.generate_content(
+        model='gemini-2.0-flash',
+        contents=prompt,
+        config={
+        'temperature': 1,
+        'response_mime_type': 'text/plain',
+        },
+    )
+
+    return response.text
+
 
 def extract_audio_and_frames(video_path: str):
     audio_path = os.path.join(UPLOAD_DIR, "audio.wav")
@@ -198,21 +220,7 @@ def get_analysis_and_feedback(video_path):
 
 
 
-def analyze_transcripts(transcripts: List[Transcript]):
-    prompt = f"""
-    """
 
-    response = client.models.generate_content(
-        model='gemini-2.0-flash',
-        contents=prompt,
-         config={
-        'temperature': 1,
-        'response_mime_type': 'application/json',
-        'response_schema': InterviewFeedback,
-        },
-    )
-
-    return response.parsed
 
 def cleanup_temp_files():
     """
@@ -250,3 +258,87 @@ def cleanup_temp_files():
     print("Temporary files cleaned up successfully")
     
     
+
+
+# New helper functions for interactive interview
+
+def convert_speech_to_text(audio_url: str) -> Dict:
+    """Convert speech to text using Google's speech recognition"""
+    audio_path = None
+    try:
+        response = requests.get(audio_url)
+        response.raise_for_status()
+        
+        # Save audio to temp file
+        audio_filename = f"audio_{uuid.uuid4()}.wav"
+        audio_path = os.path.join(UPLOAD_DIR, audio_filename)
+        with open(audio_path, "wb") as audio_file:
+            audio_file.write(response.content)
+        
+        # Process with SpeechRecognition
+        recognizer = sr.Recognizer()
+        with sr.AudioFile(audio_path) as source:
+            audio_data = recognizer.record(source)
+            
+        try:
+            text = recognizer.recognize_google(audio_data)
+            confidence = 0.9
+        except sr.UnknownValueError:
+            text = ""
+            confidence = 0.0
+        except sr.RequestError:
+            return {"error": "Speech recognition service unavailable"}
+        
+        return {
+            "text": text,
+            "confidence": confidence,
+            "language": "en-US"
+        }
+    except Exception as e:
+        return {"error": f"Speech-to-text failed: {str(e)}"}
+    finally:
+        if audio_path and os.path.exists(audio_path):
+            os.remove(audio_path)
+
+def convert_text_to_speech(text: str, language: str = "en", slow: bool = False) -> Dict:
+    """Convert text to speech using Google's TTS"""
+    audio_path = None
+    try:
+        # Generate audio with gTTS
+        
+        audio_filename = f"tts_{uuid.uuid4()}.mp3"
+        audio_path = os.path.join(UPLOAD_DIR, audio_filename)
+        
+        tts = gTTS(text=text, lang=language, slow=slow)
+        tts.save(audio_path)
+        
+        # Convert to base64
+        with open(audio_path, "rb") as audio_file:
+            audio_bytes = audio_file.read()
+        audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")
+        
+        # Estimate duration based on word count
+        word_count = len(text.split())
+        estimated_duration = word_count / 3  # Approx. 3 words per second
+        
+        return {
+            "audio_base64": audio_base64,
+            "duration": estimated_duration,
+            "text": text,
+            "format": "mp3"
+        }
+    except Exception as e:
+        return {"error": f"Text-to-speech failed: {str(e)}"}
+    finally:
+        if audio_path and os.path.exists(audio_path):
+            os.remove(audio_path)
+
+def generate_interview_question(prompt: str):
+    """Generate interview questions using Gemini AI"""
+    
+    try:
+        ai_response = get_gemini_text_completion(prompt)
+        
+        return ai_response
+    except Exception as e:
+        return {"error": f"Question generation failed: {str(e)}"}
