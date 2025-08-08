@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Video, Save, Play, Download, Trash2, AlertCircle, CheckCircle, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { Video, Save, Play, Download, Trash2, AlertCircle, CheckCircle, Clock, CheckCircle2, XCircle, MessageCircle, Mic, Square } from 'lucide-react';
 import { useAuthStore } from '../../../stores/authStore';
 import AuthenticatedLayout from '../../../components/layout/AuthenticatedLayout';
 import VideoRecorder from './VideoRecorder';
 import { interviewAPI } from '../services/interviewAPI';
-import { InterviewRecording, InterviewRecordingRequest, FileAnalysisResponse } from '../types';
+import { InterviewRecording, InterviewRecordingRequest, FileAnalysisResponse, ConversationMessage, InterviewSessionDTO } from '../types';
 
 const InterviewSimulatorPage: React.FC = () => {
   const { user } = useAuthStore();
@@ -18,6 +18,13 @@ const InterviewSimulatorPage: React.FC = () => {
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<any>(null);
+
+  // New: interactive simulation state
+  const [activeSession, setActiveSession] = useState<InterviewSessionDTO | null>(null);
+  const [conversation, setConversation] = useState<ConversationMessage[]>([]);
+  const [isSimStarting, setIsSimStarting] = useState(false);
+  const [isAnswering, setIsAnswering] = useState(false);
+  const [isEndingSession, setIsEndingSession] = useState(false);
 
   useEffect(() => {
     loadFileAnalysisData();
@@ -134,17 +141,100 @@ const InterviewSimulatorPage: React.FC = () => {
     }
   };
 
+  // ===== New: Interactive simulation helpers =====
+  const createAndStartSession = async () => {
+    try {
+      setIsSimStarting(true);
+      setError(null);
+      setSuccess(null);
+      // example initial data, can be driven from UI later
+      const session = await interviewAPI.createSession({ role: 'Frontend Developer', seniority: 'Mid' });
+      setActiveSession(session);
+      const start = await interviewAPI.startSimulation(session.sessionId);
+      // fetch history to include the stored AI question
+      const history = await interviewAPI.getConversation(session.sessionId);
+      setConversation(history);
+      // Optionally autoplay TTS using returned audioUrl
+      if (start.audioUrl) {
+        const audio = new Audio(start.audioUrl);
+        audio.play().catch(() => {});
+      }
+      setSuccess('Interview session started');
+    } catch (e: any) {
+      setError(e.message || 'Failed to start simulation');
+    } finally {
+      setIsSimStarting(false);
+    }
+  };
+
+  const uploadBlobAsAudioFile = async (blob: Blob): Promise<string> => {
+    const file = new File([blob], `answer-${Date.now()}.webm`, { type: 'audio/webm' });
+    const resp = await interviewAPI.uploadAudio(file, 'interview-segment');
+    if (!resp.success || !resp.fileUrl) throw new Error(resp.message || 'Audio upload failed');
+    return resp.fileUrl;
+  };
+
+  const stopAndSendAnswer = async () => {
+    if (!activeSession) return;
+    try {
+      setIsAnswering(true);
+      // Capture audio: for now, reuse the VideoRecorder flow; in a full impl we'd separate audio mic capture UI
+      // Here we prompt user to select an audio file as a placeholder
+      const picker = document.createElement('input');
+      picker.type = 'file';
+      picker.accept = 'audio/*,video/webm';
+      const p = new Promise<File | null>((resolve) => {
+        picker.onchange = () => resolve(picker.files && picker.files[0] ? picker.files[0] : null);
+        picker.click();
+      });
+      const picked = await p;
+      if (!picked) {
+        setIsAnswering(false);
+        return;
+      }
+      const file = picked.type.startsWith('audio') ? picked : new File([await picked.arrayBuffer()], `converted-${Date.now()}.webm`, { type: 'audio/webm' });
+      const up = await interviewAPI.uploadAudio(file, 'answer-segment');
+      if (!up.success || !up.fileUrl) throw new Error(up.message || 'Audio upload failed');
+      const res = await interviewAPI.processAnswer(activeSession.sessionId, up.fileUrl);
+      // Refresh history
+      const history = await interviewAPI.getConversation(activeSession.sessionId);
+      setConversation(history);
+      if (res.audioUrl) {
+        const audio = new Audio(res.audioUrl);
+        audio.play().catch(() => {});
+      }
+    } catch (e: any) {
+      setError(e.message || 'Failed to process answer');
+    } finally {
+      setIsAnswering(false);
+    }
+  };
+
+  const endCurrentSession = async () => {
+    if (!activeSession) return;
+    try {
+      setIsEndingSession(true);
+      const ended = await interviewAPI.endSession(activeSession.sessionId);
+      setActiveSession(ended);
+      setSuccess('Session ended');
+    } catch (e: any) {
+      setError(e.message || 'Failed to end session');
+    } finally {
+      setIsEndingSession(false);
+    }
+  };
+
   return (
     <AuthenticatedLayout>
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
-                      <h1 className="text-3xl font-bold flex items-center gap-3" style={{ color: '#384959' }}>
-            <Video className="h-8 w-8" style={{ color: '#88BDF2' }} />
-            Interview Simulator
-          </h1>
-                      <p className="mt-2" style={{ color: '#6A89A7' }}>
+            <h1 className="text-3xl font-bold flex items-center gap-3" style={{ color: '#384959' }}>
+              <Video className="h-8 w-8" style={{ color: '#88BDF2' }} />
+              Interview Simulator
+            </h1>
+            <p className="mt-2" style={{ color: '#6A89A7' }}>
               Record your video interview practice sessions and save them for later review
             </p>
             <div className="mt-4 space-x-4">
@@ -166,6 +256,27 @@ const InterviewSimulatorPage: React.FC = () => {
               >
                 Test Interview Service
               </button>
+
+              {/* New: Start interactive session */}
+              <button
+                onClick={createAndStartSession}
+                disabled={isSimStarting}
+                className="px-4 py-2 rounded-md text-sm font-medium text-white transition-colors disabled:opacity-50"
+                style={{ backgroundColor: '#6A89A7' }}
+              >
+                {isSimStarting ? 'Starting...' : 'Start Interactive Simulation'}
+              </button>
+
+              {activeSession && activeSession.status === 'ACTIVE' && (
+                <button
+                  onClick={endCurrentSession}
+                  disabled={isEndingSession}
+                  className="px-4 py-2 rounded-md text-sm font-medium text-white transition-colors disabled:opacity-50"
+                  style={{ backgroundColor: '#384959' }}
+                >
+                  {isEndingSession ? 'Ending...' : 'End Session'}
+                </button>
+              )}
             </div>
           </div>
 
@@ -235,8 +346,51 @@ const InterviewSimulatorPage: React.FC = () => {
               )}
             </div>
 
-            {/* Recordings List */}
+            {/* Right column: Files & Interactive Conversation */}
             <div>
+              {/* Conversation UI */}
+              <div className="bg-white rounded-lg p-6 shadow-lg mb-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2" style={{ color: '#384959' }}>
+                  <MessageCircle className="h-5 w-5" /> Conversation
+                </h3>
+                {!activeSession ? (
+                  <p className="text-sm" style={{ color: '#6A89A7' }}>Start an interactive simulation to see conversation here.</p>
+                ) : (
+                  <div className="space-y-3 max-h-80 overflow-auto pr-2">
+                    {conversation.map((m, idx) => (
+                      <div key={idx} className={`p-3 rounded-md ${m.speaker === 'ai' ? 'bg-gray-50' : 'bg-blue-50'}`}>
+                        <div className="text-xs mb-1" style={{ color: '#6A89A7' }}>{m.speaker.toUpperCase()} · {new Date(m.createdAt).toLocaleTimeString()}</div>
+                        <div className="text-sm" style={{ color: '#384959' }}>{m.message}</div>
+                        {m.audioUrl && (
+                          <audio src={m.audioUrl} controls className="mt-2 w-full" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {activeSession && activeSession.status === 'ACTIVE' && (
+                  <div className="mt-4 flex items-center gap-3">
+                    <button
+                      onClick={stopAndSendAnswer}
+                      disabled={isAnswering}
+                      className="px-4 py-2 rounded-md text-sm font-medium text-white transition-colors disabled:opacity-50"
+                      style={{ backgroundColor: '#88BDF2' }}
+                    >
+                      {isAnswering ? (
+                        <>
+                          <Square className="h-4 w-4" /> Processing...
+                        </>
+                      ) : (
+                        <>
+                          <Mic className="h-4 w-4" /> Answer (upload segment)
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Recordings List */}
               <div className="bg-white rounded-lg p-6 shadow-lg">
                 <h3 className="text-lg font-semibold mb-4" style={{ color: '#384959' }}>
                   Your Files & Analysis Status

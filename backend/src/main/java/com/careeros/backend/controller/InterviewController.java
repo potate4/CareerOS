@@ -280,6 +280,7 @@ public class InterviewController {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             if (authentication == null || !authentication.isAuthenticated() ||
                     authentication.getName().equals("anonymousUser")) {
+                System.err.println("❌ Authentication failed - user not authenticated");
                 return ResponseEntity.status(403)
                         .body(new MessageResponse("Authentication required to create session"));
             }

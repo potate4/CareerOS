@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { InterviewRecordingRequest, InterviewRecordingResponse, InterviewRecording, FileAnalysisResponse } from '../types';
+import { InterviewRecordingRequest, InterviewRecordingResponse, InterviewRecording, FileAnalysisResponse, InterviewSessionDTO, ConversationMessage, StartSimulationResponse, ProcessAnswerResponse } from '../types';
 import { handleApiError } from '../../../utils/apiErrorHandler';
 import { config } from '../../../config/env';
 
@@ -58,6 +58,23 @@ export const interviewAPI = {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+      });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  // Upload audio and get public URL
+  uploadAudio: async (file: File, description?: string): Promise<InterviewRecordingResponse> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (description) formData.append('description', description);
+      formData.append('category', 'interview-audio');
+      formData.append('fileType', 'audio');
+      const response = await api.post('/files/file-upload-and-get-url', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
       return response.data;
     } catch (error) {
@@ -131,6 +148,76 @@ export const interviewAPI = {
   getFileAnalysisData: async (): Promise<FileAnalysisResponse[]> => {
     try {
       const response = await api.get('/interview/files/analysis');
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  // ===== Sessions =====
+  createSession: async (initialSessionData?: Record<string, any>): Promise<InterviewSessionDTO> => {
+    try {
+      const response = await api.post('/interview/sessions', initialSessionData ? { initialSessionData: JSON.stringify(initialSessionData) } : {});
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+  listSessions: async (status?: 'ACTIVE' | 'ENDED'): Promise<InterviewSessionDTO[]> => {
+    try {
+      const response = await api.get('/interview/sessions', { params: status ? { status } : {} });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+  getSession: async (sessionId: string): Promise<InterviewSessionDTO> => {
+    try {
+      const response = await api.get(`/interview/sessions/${sessionId}`);
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+  endSession: async (sessionId: string): Promise<InterviewSessionDTO> => {
+    try {
+      const response = await api.post(`/interview/sessions/${sessionId}/end`);
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  // ===== Conversation =====
+  getConversation: async (sessionId: string): Promise<ConversationMessage[]> => {
+    try {
+      const response = await api.get(`/interview/sessions/${sessionId}/conversation`);
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+  addMessage: async (sessionId: string, speaker: 'ai' | 'user', message: string, audioUrl?: string | null): Promise<ConversationMessage> => {
+    try {
+      const response = await api.post(`/interview/sessions/${sessionId}/conversation`, { speaker, message, audioUrl });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  // ===== Simulation Flow =====
+  startSimulation: async (sessionId: string): Promise<StartSimulationResponse> => {
+    try {
+      const response = await api.post(`/interview/sessions/${sessionId}/start`);
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+  processAnswer: async (sessionId: string, audioUrl: string): Promise<ProcessAnswerResponse> => {
+    try {
+      const response = await api.post(`/interview/sessions/${sessionId}/answer`, { audioUrl });
       return response.data;
     } catch (error) {
       throw handleApiError(error);

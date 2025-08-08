@@ -115,7 +115,7 @@ public class InterviewConversationService {
 
     private String callAIToGenerateQuestion(String sessionId, Long userId, Map<String, Object> initialData, List<Map<String, String>> history) {
         try {
-            String url = aiServiceUrl + "/api/v1/interview/sim/generate-question";
+            String url = aiServiceUrl + "/api/v1/interview/generate-question";
             Map<String, Object> req = new HashMap<>();
             req.put("sessionId", sessionId);
             req.put("userId", userId);
