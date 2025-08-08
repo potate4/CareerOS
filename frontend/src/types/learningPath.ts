@@ -125,3 +125,26 @@ export interface LearningPathResponse {
   modules: LearningModule[];
   statistics: PathStatistics;
 } 
+// types/learningPath.ts
+// types/learningPath.ts
+// types/learningPath.ts
+export interface LearningPathStatsResponse {
+  userId: number;
+  username: string;
+  careerGoal: string | null;
+  currentStage: string | null;
+  overallProgress: number;
+  estimatedCompletionWeeks: number;
+  totalModules: number;
+  completedModules: number;
+  inProgressModules: number;
+  notStartedModules: number;
+  averageRating: number;
+  totalEstimatedHours: number;
+  completedHours: number;
+  message?: string; // For error cases
+}
+
+export interface MessageResponse {
+  message: string;
+}

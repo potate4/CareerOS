@@ -163,6 +163,7 @@ public class LearningPathController {
     @GetMapping("/stats")
     public ResponseEntity<?> getLearningPathStats() {
         try {
+            System.out.println("📊 Getting learning path statistics...");
             // Get current user from security context
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             

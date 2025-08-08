@@ -3,8 +3,12 @@ import axios from 'axios';
 import { 
   LearningPathRequest, 
   LearningPathResponse, 
-  ModuleProgressRequest 
+  ModuleProgressRequest ,
+  LearningPathStatsResponse,
+  MessageResponse 
 } from '../types/learningPath';
+import { LearningModule, LearningStage, PathStatistics, ExperienceLevel, LearningPace, ModuleStatus     
+} from '../types/learningPath'; 
 import { handleApiError } from '../utils/apiErrorHandler';
 import { config } from '../config/env';
 
@@ -71,7 +75,7 @@ export const learningPathAPI = {
   getCurrentLearningPath: async (): Promise<LearningPathResponse> => {
     try {
       console.log('📚 Getting current learning path...');
-      const response = await api.get('/api/path/current');
+      const response = await api.get('/path/current');
       return response.data;
     } catch (error: any) {
       console.error('❌ Failed to get current learning path:', error.response?.data);
@@ -83,7 +87,7 @@ export const learningPathAPI = {
   updateModuleProgress: async (request: ModuleProgressRequest): Promise<LearningPathResponse> => {
     try {
       console.log('📈 Updating module progress:', request);
-      const response = await api.post('/api/path/progress', request);
+      const response = await api.post('/path/progress', request);
       return response.data;
     } catch (error: any) {
       console.error('❌ Failed to update module progress:', error.response?.data);
@@ -92,22 +96,25 @@ export const learningPathAPI = {
   },
 
   // Get learning path statistics
-  getLearningPathStats: async (): Promise<any> => {
+   // services/learningPathAPI.ts
+
+  getLearningPathStats: async (): Promise<LearningPathStatsResponse> => {
     try {
-      console.log('📊 Getting learning path statistics...');
-      const response = await api.get('/api/path/stats');
+      console.log('📚 Getting current learning path...');
+      const response = await api.get('/path/stats');
       return response.data;
     } catch (error: any) {
-      console.error('❌ Failed to get learning path stats:', error.response?.data);
+      console.error('❌ Failed to get current learning path:', error.response?.data);
       throw handleApiError(error);
     }
+    
   },
 
   // Get all learning paths for user
   getAllLearningPaths: async (): Promise<LearningPathResponse[]> => {
     try {
       console.log('📚 Getting all learning paths...');
-      const response = await api.get('/api/path/all');
+      const response = await api.get('/path/all');
       return response.data;
     } catch (error: any) {
       console.error('❌ Failed to get all learning paths:', error.response?.data);
@@ -119,7 +126,7 @@ export const learningPathAPI = {
   deactivateLearningPath: async (): Promise<{ message: string }> => {
     try {
       console.log('🚫 Deactivating current learning path...');
-      const response = await api.delete('/api/path/current');
+      const response = await api.delete('/path/current');
       return response.data;
     } catch (error: any) {
       console.error('❌ Failed to deactivate learning path:', error.response?.data);
