@@ -222,8 +222,8 @@ public class InterviewController {
         }
     }
     
-    @GetMapping("/test-post")
-    public ResponseEntity<?> testPostAccess() {
+    @PostMapping("/test-post")
+    public ResponseEntity<?> testPostAccess(@RequestBody int id) {
         try {
             // Get current user from security context
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
