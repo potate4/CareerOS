@@ -121,6 +121,7 @@ public class InterviewConversationService {
             req.put("userId", userId);
             req.put("initialData", initialData);
             req.put("history", history);
+            System.out.println("history: " + history);
             HttpHeaders headers = new HttpHeaders();
             headers.set("Content-Type", "application/json");
             ResponseEntity<Map> res = restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(req, headers), Map.class);

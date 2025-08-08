@@ -126,18 +126,24 @@ async def analyze(request: VideoAnalysisRequest, background_tasks: BackgroundTas
 @router.post("/generate-question")
 async def generate_question(req: GenerateQuestionRequest):
     try:
-        # Prefer provided prompt; otherwise, derive a concise prompt from inputs
-        prompt = req.prompt
-        if not prompt:
-            parts = []
-            if req.initialData:
-                parts.append("Initial Data: " + json.dumps(req.initialData))
-            if req.history:
-                parts.append("History: " + json.dumps(req.history))
+        print(req)
+        print("--------------------------------")
+        print(req.initialData   )
+        print(req.history)
+        print("--------------------------------")
+        parts: List[str] = []
+        # Always include instruction, prefer provided prompt text
+        if req.prompt and req.prompt.strip():
+            parts.append(req.prompt.strip())
+        else:
             parts.append("You are an interview simulator. Ask a concise, relevant next question.")
-            prompt = "\n".join(parts)
-            print("PROMPT: ", prompt)
-        question = generate_interview_question(prompt)
+        # Always include context when provided
+        if req.initialData:
+            parts.append("Initial Data: " + json.dumps(req.initialData))
+        if req.history:
+            parts.append("History: " + json.dumps(req.history))
+        composed_prompt = "\n".join(parts)
+        question = generate_interview_question(composed_prompt)
         if isinstance(question, dict) and question.get("error"):
             raise HTTPException(status_code=500, detail=question.get("error"))
         return {"question": question}
