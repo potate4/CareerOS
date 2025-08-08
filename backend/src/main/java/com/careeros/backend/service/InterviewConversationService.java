@@ -134,7 +134,7 @@ public class InterviewConversationService {
 
     private String callAIToGenerateNextQuestion(Map<String, Object> payload) {
         try {
-            String url = aiServiceUrl + "/api/v1/interview/sim/next-question";
+            String url = aiServiceUrl + "/api/v1/interview/generate-question";
             HttpHeaders headers = new HttpHeaders();
             headers.set("Content-Type", "application/json");
             ResponseEntity<Map> res = restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(payload, headers), Map.class);
@@ -148,7 +148,7 @@ public class InterviewConversationService {
 
     private String callAIForTTS(String text) {
         try {
-            String url = aiServiceUrl + "/api/v1/interview/sim/tts";
+            String url = aiServiceUrl + "/api/v1/interview/tts";
             HttpHeaders headers = new HttpHeaders();
             headers.set("Content-Type", "application/json");
             Map<String, Object> req = Map.of("text", text);
@@ -163,7 +163,7 @@ public class InterviewConversationService {
 
     private String callAIForSTT(String audioUrl) {
         try {
-            String url = aiServiceUrl + "/api/v1/interview/sim/stt";
+            String url = aiServiceUrl + "/api/v1/interview/stt";
             HttpHeaders headers = new HttpHeaders();
             headers.set("Content-Type", "application/json");
             Map<String, Object> req = Map.of("audioUrl", audioUrl);
