@@ -13,6 +13,9 @@ import com.careeros.backend.service.InterviewSessionService;
 import com.careeros.backend.payload.request.CreateInterviewSessionRequest;
 import com.careeros.backend.payload.request.UpdateInterviewSessionRequest;
 import com.careeros.backend.payload.response.InterviewSessionResponse;
+import com.careeros.backend.service.InterviewConversationService;
+import com.careeros.backend.payload.request.ConversationMessageRequest;
+import com.careeros.backend.payload.response.ConversationMessageResponse;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +24,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 @CrossOrigin(origins = "*", maxAge = 3600)
@@ -33,6 +37,9 @@ public class InterviewController {
 
     @Autowired
     private InterviewSessionService interviewSessionService;
+
+    @Autowired
+    private InterviewConversationService interviewConversationService;
     
     @PostMapping("/analyze")
     public ResponseEntity<?> analyzeInterview(@RequestBody InterviewAnalysisRequest request) {
@@ -349,6 +356,81 @@ public class InterviewController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(new MessageResponse("Failed to end session: " + e.getMessage()));
+        }
+    }
+
+    // ===== Conversation Endpoints =====
+
+    @GetMapping("/sessions/{sessionId}/conversation")
+    public ResponseEntity<?> getConversation(@PathVariable String sessionId) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated() || authentication.getName().equals("anonymousUser")) {
+                return ResponseEntity.status(403).body(new MessageResponse("Authentication required to fetch conversation"));
+            }
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            List<ConversationMessageResponse> history = interviewConversationService.getConversation(sessionId, userDetails.getId());
+            return ResponseEntity.ok(history);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Failed to fetch conversation: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/sessions/{sessionId}/conversation")
+    public ResponseEntity<?> addConversationMessage(@PathVariable String sessionId, @Valid @RequestBody ConversationMessageRequest request) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated() || authentication.getName().equals("anonymousUser")) {
+                return ResponseEntity.status(403).body(new MessageResponse("Authentication required to add message"));
+            }
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            ConversationMessageResponse saved = interviewConversationService.appendMessage(sessionId, userDetails.getId(), request);
+            return ResponseEntity.ok(saved);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Failed to add message: " + e.getMessage()));
+        }
+    }
+
+    // Sim flow helpers
+
+    @PostMapping("/sessions/{sessionId}/start")
+    public ResponseEntity<?> startSimulation(@PathVariable String sessionId) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated() || authentication.getName().equals("anonymousUser")) {
+                return ResponseEntity.status(403).body(new MessageResponse("Authentication required to start simulation"));
+            }
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            // get initial session data
+            InterviewSessionResponse session = interviewSessionService.getSession(sessionId, userDetails.getId());
+            Map<String, Object> initialData;
+            try {
+                initialData = session.getSessionData() != null && !session.getSessionData().isEmpty()
+                        ? new com.fasterxml.jackson.databind.ObjectMapper().readValue(session.getSessionData(), Map.class)
+                        : Map.of();
+            } catch (Exception ex) {
+                initialData = Map.of();
+            }
+            Map<String, Object> result = interviewConversationService.generateFirstQuestionAndTTS(sessionId, userDetails.getId(), initialData);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Failed to start simulation: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/sessions/{sessionId}/answer")
+    public ResponseEntity<?> processUserAnswer(@PathVariable String sessionId, @RequestBody Map<String, String> body) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated() || authentication.getName().equals("anonymousUser")) {
+                return ResponseEntity.status(403).body(new MessageResponse("Authentication required to process answer"));
+            }
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            String audioUrl = body.get("audioUrl");
+            Map<String, Object> result = interviewConversationService.processUserAnswerAndGenerateNext(sessionId, userDetails.getId(), audioUrl);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Failed to process answer: " + e.getMessage()));
         }
     }
 } 
