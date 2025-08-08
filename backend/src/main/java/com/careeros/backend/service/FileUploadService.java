@@ -66,7 +66,7 @@ public class FileUploadService {
             UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
             Long userId = userDetails.getId();
             
-            // Generate unique filename with timestamp
+            // Generate unique filename with timestamp BEFORE extension
             String originalFilename = file.getOriginalFilename();
             if (originalFilename == null || originalFilename.trim().isEmpty()) {
                 originalFilename = "unknown_file";
@@ -76,7 +76,9 @@ public class FileUploadService {
             String cleanFilename = originalFilename.replaceAll("[^a-zA-Z0-9.-]", "_");
             
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-            String uniqueFilename = cleanFilename + "_" + timestamp;
+            String ext = getFileExtension(cleanFilename); // includes leading dot or empty
+            String baseName = ext.isEmpty() ? cleanFilename : cleanFilename.substring(0, cleanFilename.length() - ext.length());
+            String uniqueFilename = baseName + "_" + timestamp + ext;
             
             System.out.println("Original filename: " + originalFilename);
             System.out.println("Clean filename: " + cleanFilename);
@@ -125,6 +127,39 @@ public class FileUploadService {
     
     public FileUpload getFileUploadById(Long fileId) {
         return fileUploadRepository.findById(fileId).orElse(null);
+    }
+    
+    public FileUploadResponse deleteUserFile(Long fileId) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated() || 
+                authentication.getName().equals("anonymousUser")) {
+                return FileUploadResponse.error("User not authenticated");
+            }
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            Long userId = userDetails.getId();
+            
+            FileUpload fileUpload = fileUploadRepository.findById(fileId).orElse(null);
+            if (fileUpload == null) {
+                return FileUploadResponse.error("File not found");
+            }
+            if (!fileUpload.getUserId().equals(userId)) {
+                return FileUploadResponse.error("Forbidden: cannot delete file that does not belong to you");
+            }
+            
+            // Delete from Supabase first
+            deleteFromSupabase(fileUpload.getFileName());
+            // Delete DB record
+            fileUploadRepository.delete(fileUpload);
+            
+            FileUploadResponse resp = new FileUploadResponse(true, "File deleted successfully");
+            resp.setFileId(fileId.intValue());
+            resp.setFileName(fileUpload.getFileName());
+            resp.setFileUrl(fileUpload.getFileUrl());
+            return resp;
+        } catch (Exception e) {
+            return FileUploadResponse.error("Failed to delete file: " + e.getMessage());
+        }
     }
     
     private String uploadToSupabase(MultipartFile file, String filename) throws IOException {
@@ -180,6 +215,23 @@ public class FileUploadService {
             System.err.println("API Key length: " + supabaseKey.length());
             e.printStackTrace();
             throw new IOException("Error uploading to Supabase: " + e.getMessage());
+        }
+    }
+    
+    private void deleteFromSupabase(String filename) throws IOException {
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Authorization", "Bearer " + supabaseKey);
+            headers.set("apikey", supabaseKey);
+            HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
+            String deleteUrl = supabaseUrl + "/storage/v1/object/" + bucketName + "/" + filename;
+            ResponseEntity<String> response = restTemplate.exchange(deleteUrl, HttpMethod.DELETE, requestEntity, String.class);
+            if (!response.getStatusCode().is2xxSuccessful() && response.getStatusCode() != HttpStatus.NO_CONTENT) {
+                throw new IOException("Failed to delete from Supabase: " + response.getStatusCode() + " - " + response.getBody());
+            }
+        } catch (Exception e) {
+            throw new IOException("Error deleting from Supabase: " + e.getMessage());
         }
     }
     

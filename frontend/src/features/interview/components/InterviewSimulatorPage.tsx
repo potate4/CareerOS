@@ -9,6 +9,12 @@ import { ApiError } from '../../../utils/apiErrorHandler';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+const isLikelyVideo = (url: string, category?: string) => {
+  if (category && category.toLowerCase().includes('audio')) return false;
+  const lower = url.toLowerCase();
+  return lower.endsWith('.webm') || lower.endsWith('.mp4') || lower.endsWith('.mov') || lower.endsWith('.mkv');
+};
+
 const InterviewSimulatorPage: React.FC = () => {
   const { user } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
@@ -22,6 +28,7 @@ const InterviewSimulatorPage: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [selectedFileForAnalysis, setSelectedFileForAnalysis] = useState<FileAnalysisResponse | null>(null);
+  const videoPlayerRef = useRef<HTMLVideoElement | null>(null);
 
   // Interactive simulation state
   const [activeSession, setActiveSession] = useState<InterviewSessionDTO | null>(null);
@@ -160,9 +167,16 @@ const InterviewSimulatorPage: React.FC = () => {
   };
 
   const handleFileClick = (file: FileAnalysisResponse) => {
-    if (file.analysisStatus === 'COMPLETED' && file.detailedAnalysis) {
-      setSelectedFileForAnalysis(file);
-    }
+    setSelectedFileForAnalysis(file);
+    // auto-play selected video
+    setTimeout(() => {
+      try {
+        if (videoPlayerRef.current) {
+          videoPlayerRef.current.load();
+          videoPlayerRef.current.play().catch(() => {});
+        }
+      } catch {}
+    }, 0);
   };
 
   const setupSessionRecording = async () => {
@@ -481,108 +495,145 @@ const InterviewSimulatorPage: React.FC = () => {
                       <p className="text-slate-600">Start your first video interview practice session to see your files here.</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                      {fileAnalysisData.map((file) => (
-                        <div
-                          key={file.fileId}
-                          onClick={() => handleFileClick(file)}
-                          className={`relative rounded-xl border-2 p-4 transition-all duration-200 cursor-pointer hover:shadow-lg ${
-                            file.analysisStatus === 'COMPLETED' 
-                              ? 'border-slate-300 hover:border-slate-500 bg-white' 
-                              : 'border-slate-200 bg-slate-50'
-                          }`}
-                        >
-                          {/* Status Badge */}
-                          <div className="absolute top-3 right-3">
-                            {file.analysisStatus === 'COMPLETED' && (
-                              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 text-slate-700">
-                                <CheckCircle2 className="h-3 w-3" />
-                                <span className="text-xs font-medium">Ready</span>
-                              </div>
-                            )}
-                            {file.analysisStatus === 'PENDING' && (
-                              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-100 text-yellow-700">
-                                <Clock className="h-3 w-3" />
-                                <span className="text-xs font-medium">Processing</span>
-                              </div>
-                            )}
-                            {file.analysisStatus === 'FAILED' && (
-                              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700">
-                                <XCircle className="h-3 w-3" />
-                                <span className="text-xs font-medium">Failed</span>
-                              </div>
-                            )}
-                            {file.analysisStatus === 'NO_ANALYSIS' && (
-                              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-slate-200 text-slate-600">
-                                <AlertCircle className="h-3 w-3" />
-                                <span className="text-xs font-medium">No Analysis</span>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* File Icon */}
-                          <div className="p-3 rounded-lg bg-slate-100 inline-block mb-3">
-                            <Video className="h-6 w-6 text-slate-600" />
-                          </div>
-
-                          {/* File Info */}
-                          <h3 className="font-semibold text-slate-900 mb-2 pr-20 truncate">{file.originalFileName}</h3>
-                          <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
-                            <Calendar className="h-3 w-3" />
-                            {new Date(file.uploadedAt).toLocaleDateString()}
-                          </div>
-
-                          {file.analysisStatus === 'COMPLETED' && (
-                            <div className="flex items-center gap-1 text-xs text-slate-600 mb-3">
-                              <Eye className="h-3 w-3" />
-                              Click to view analysis
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {fileAnalysisData.map((file) => (
+                          <div
+                            key={file.fileId}
+                            onClick={() => handleFileClick(file)}
+                            className={`relative rounded-xl border-2 p-4 transition-all duration-200 cursor-pointer hover:shadow-lg ${
+                              file.analysisStatus === 'COMPLETED' 
+                                ? 'border-slate-300 hover:border-slate-500 bg-white' 
+                                : 'border-slate-200 bg-slate-50'
+                            }`}
+                          >
+                            {/* Status Badge */}
+                            <div className="absolute top-3 right-3">
+                              {file.analysisStatus === 'COMPLETED' && (
+                                <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 text-slate-700">
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  <span className="text-xs font-medium">Ready</span>
+                                </div>
+                              )}
+                              {file.analysisStatus === 'PENDING' && (
+                                <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-100 text-yellow-700">
+                                  <Clock className="h-3 w-3" />
+                                  <span className="text-xs font-medium">Processing</span>
+                                </div>
+                              )}
+                              {file.analysisStatus === 'FAILED' && (
+                                <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700">
+                                  <XCircle className="h-3 w-3" />
+                                  <span className="text-xs font-medium">Failed</span>
+                                </div>
+                              )}
+                              {file.analysisStatus === 'NO_ANALYSIS' && (
+                                <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-slate-200 text-slate-600">
+                                  <AlertCircle className="h-3 w-3" />
+                                  <span className="text-xs font-medium">No Analysis</span>
+                                </div>
+                              )}
                             </div>
-                          )}
 
-                          {/* Action Buttons */}
-                          <div className="flex items-center gap-2 mt-4">
-                            {file.analysisStatus === 'NO_ANALYSIS' && (
+                            {/* File Icon */}
+                            <div className="p-3 rounded-lg bg-slate-100 inline-block mb-3">
+                              <Video className="h-6 w-6 text-slate-600" />
+                            </div>
+
+                            {/* File Info */}
+                            <h3 className="font-semibold text-slate-900 mb-2 pr-20 truncate">{file.originalFileName}</h3>
+                            <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
+                              <Calendar className="h-3 w-3" />
+                              {new Date(file.uploadedAt).toLocaleDateString()}
+                            </div>
+
+                            {file.analysisStatus === 'COMPLETED' && (
+                              <div className="flex items-center gap-1 text-xs text-slate-600 mb-3">
+                                <Eye className="h-3 w-3" />
+                                Click to view analysis
+                              </div>
+                            )}
+
+                            {/* Action Buttons */}
+                            <div className="flex items-center gap-2 mt-4">
+                              {file.analysisStatus === 'NO_ANALYSIS' && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAnalyzeRecording(file);
+                                  }}
+                                  disabled={isAnalyzing}
+                                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 transition-colors"
+                                >
+                                  {isAnalyzing ? (
+                                    <div className="animate-spin h-3 w-3 border border-white border-t-transparent rounded-full" />
+                                  ) : (
+                                    <Play className="h-3 w-3" />
+                                  )}
+                                  {isAnalyzing ? 'Analyzing...' : 'Analyze'}
+                                </button>
+                              )}
+                              
+                              <a
+                                href={file.fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-600 text-white hover:bg-slate-700 transition-colors"
+                              >
+                                <Download className="h-3 w-3" />
+                                Download
+                              </a>
+                              
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleAnalyzeRecording(file);
+                                  handleDeleteRecording(file.fileId);
                                 }}
-                                disabled={isAnalyzing}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 transition-colors"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                               >
-                                {isAnalyzing ? (
-                                  <div className="animate-spin h-3 w-3 border border-white border-t-transparent rounded-full" />
-                                ) : (
-                                  <Play className="h-3 w-3" />
-                                )}
-                                {isAnalyzing ? 'Analyzing...' : 'Analyze'}
+                                <Trash2 className="h-4 w-4" />
                               </button>
-                            )}
-                            
-                            <a
-                              href={file.fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-600 text-white hover:bg-slate-700 transition-colors"
-                            >
-                              <Download className="h-3 w-3" />
-                              Download
-                            </a>
-                            
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteRecording(file.fileId);
-                              }}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Inline Viewer and Analysis */}
+                      {selectedFileForAnalysis && (
+                        <div className="mt-8">
+                          <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-sm">
+                            <div className="p-4 border-b border-slate-200">
+                              <h3 className="text-lg font-semibold text-slate-900">Recording Viewer</h3>
+                              <p className="text-sm text-slate-500">{selectedFileForAnalysis.originalFileName}</p>
+                            </div>
+                            <div className="p-4">
+                              {isLikelyVideo(selectedFileForAnalysis.fileUrl, selectedFileForAnalysis.category) ? (
+                                <video ref={videoPlayerRef} controls className="w-full rounded-xl">
+                                  <source src={selectedFileForAnalysis.fileUrl} type="video/webm" />
+                                  Your browser does not support the video element.
+                                </video>
+                              ) : (
+                                <audio controls className="w-full">
+                                  <source src={selectedFileForAnalysis.fileUrl} />
+                                  Your browser does not support the audio element.
+                                </audio>
+                              )}
+                              {selectedFileForAnalysis.analysisStatus === 'COMPLETED' && selectedFileForAnalysis.detailedAnalysis && (
+                                <div className="mt-6">
+                                  <h4 className="text-md font-semibold text-slate-900 mb-2">Analysis</h4>
+                                  <div className="prose prose-slate max-w-none">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                      {selectedFileForAnalysis.detailedAnalysis}
+                                    </ReactMarkdown>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      ))}
-                    </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

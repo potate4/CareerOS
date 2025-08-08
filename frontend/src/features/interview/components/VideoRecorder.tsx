@@ -2,6 +2,21 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Video, Square, Pause, Play, Save, Trash2, Mic, MicOff, Video as VideoIcon, VideoOff, AlertCircle } from 'lucide-react';
 import { RecordingState } from '../types';
 
+// Pick the best supported MediaRecorder mime for wide compatibility
+const getBestSupportedMime = (): string | undefined => {
+  const candidates = [
+    'video/webm;codecs=vp8,opus',
+    'video/webm;codecs=vp9,opus',
+    'video/webm'
+  ];
+  for (const m of candidates) {
+    if ((window as any).MediaRecorder && (window as any).MediaRecorder.isTypeSupported && (window as any).MediaRecorder.isTypeSupported(m)) {
+      return m;
+    }
+  }
+  return undefined;
+};
+
 interface VideoRecorderProps {
   onRecordingComplete: (videoBlob: Blob) => void;
   onReset: () => void;
@@ -38,7 +53,7 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
       });
       
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+        (videoRef.current as any).srcObject = stream;
       }
       
       setRecordingState(prev => ({ ...prev, stream }));
@@ -64,9 +79,8 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
       const stream = recordingState.stream || await requestPermissions();
       if (!stream) return;
 
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp9,opus'
-      });
+      const mime = getBestSupportedMime();
+      const mediaRecorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
       const videoChunks: Blob[] = [];
 
       mediaRecorder.ondataavailable = (event) => {
@@ -74,7 +88,8 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
       };
 
       mediaRecorder.onstop = () => {
-        const videoBlob = new Blob(videoChunks, { type: 'video/webm' });
+        const type = mime || 'video/webm';
+        const videoBlob = new Blob(videoChunks, { type });
         const videoUrl = URL.createObjectURL(videoBlob);
         
         setRecordingState(prev => ({
@@ -153,7 +168,7 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
 
   const resetRecording = () => {
     if (recordingState.mediaRecorder) {
-      recordingState.mediaRecorder.stream.getTracks().forEach(track => track.stop());
+      (recordingState.mediaRecorder.stream as MediaStream).getTracks().forEach(track => track.stop());
     }
     
     if (intervalRef.current) {
@@ -166,7 +181,7 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
     }
 
     if (videoRef.current) {
-      videoRef.current.srcObject = null;
+      (videoRef.current as any).srcObject = null;
     }
 
     setRecordingState({
@@ -189,10 +204,10 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
   const toggleCamera = async () => {
     if (isCameraOn) {
       if (recordingState.stream) {
-        recordingState.stream.getTracks().forEach(track => track.stop());
+        (recordingState.stream as MediaStream).getTracks().forEach(track => track.stop());
       }
       if (videoRef.current) {
-        videoRef.current.srcObject = null;
+        (videoRef.current as any).srcObject = null;
       }
       setIsCameraOn(false);
       setHasPermission(null);
@@ -210,25 +225,23 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
         URL.revokeObjectURL(recordingState.videoUrl);
       }
       if (recordingState.stream) {
-        recordingState.stream.getTracks().forEach(track => track.stop());
+        (recordingState.stream as MediaStream).getTracks().forEach(track => track.stop());
       }
     };
   }, []);
 
   return (
-    <div className="bg-white rounded-lg p-6 shadow-lg">
+    <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-200">
       <div className="text-center mb-6">
-        <h3 className="text-xl font-semibold mb-2" style={{ color: '#384959' }}>
-          Video Recorder
-        </h3>
-        <div className="text-3xl font-mono font-bold" style={{ color: '#88BDF2' }}>
+        <h3 className="text-xl font-semibold mb-2 text-slate-900">Video Recorder</h3>
+        <div className="text-3xl font-mono font-bold text-slate-600">
           {formatTime(recordingState.duration)}
         </div>
       </div>
 
       {/* Video Preview */}
       <div className="mb-6">
-        <div className="relative bg-gray-900 rounded-lg overflow-hidden aspect-video">
+        <div className="relative bg-slate-900 rounded-xl overflow-hidden aspect-video">
           <video
             ref={videoRef}
             autoPlay
@@ -239,10 +252,8 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
           {!isCameraOn && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center">
-                <VideoOff className="mx-auto h-12 w-12 mb-2" style={{ color: '#6A89A7' }} />
-                <p className="text-sm" style={{ color: '#6A89A7' }}>
-                  Camera is off
-                </p>
+                <VideoOff className="mx-auto h-12 w-12 mb-2 text-slate-400" />
+                <p className="text-sm text-slate-500">Camera is off</p>
               </div>
             </div>
           )}
@@ -253,14 +264,9 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
       <div className="flex justify-center mb-4">
         <button
           onClick={toggleCamera}
-          className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
-            isCameraOn 
-              ? 'text-white' 
-              : 'text-white'
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors text-white ${
+            isCameraOn ? 'bg-slate-600 hover:bg-slate-700' : 'bg-slate-900 hover:bg-slate-800'
           }`}
-          style={{ 
-            backgroundColor: isCameraOn ? '#6A89A7' : '#88BDF2' 
-          }}
         >
           {isCameraOn ? (
             <>
@@ -282,8 +288,7 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
           <button
             onClick={startRecording}
             disabled={!isCameraOn}
-            className="flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ backgroundColor: '#88BDF2' }}
+            className="flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-slate-900 hover:bg-slate-800"
           >
             <Video className="h-5 w-5" />
             Start Recording
@@ -294,16 +299,14 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
           <>
             <button
               onClick={pauseRecording}
-              className="flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium transition-colors"
-              style={{ backgroundColor: '#6A89A7' }}
+              className="flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium transition-colors bg-slate-600 hover:bg-slate-700"
             >
               <Pause className="h-5 w-5" />
               Pause
             </button>
             <button
               onClick={stopRecording}
-              className="flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium transition-colors"
-              style={{ backgroundColor: '#384959' }}
+              className="flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium transition-colors bg-slate-800 hover:bg-slate-900"
             >
               <Square className="h-5 w-5" />
               Stop
@@ -315,16 +318,14 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
           <>
             <button
               onClick={resumeRecording}
-              className="flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium transition-colors"
-              style={{ backgroundColor: '#88BDF2' }}
+              className="flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium transition-colors bg-slate-900 hover:bg-slate-800"
             >
               <Play className="h-5 w-5" />
               Resume
             </button>
             <button
               onClick={stopRecording}
-              className="flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium transition-colors"
-              style={{ backgroundColor: '#384959' }}
+              className="flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium transition-colors bg-slate-800 hover:bg-slate-900"
             >
               <Square className="h-5 w-5" />
               Stop
@@ -336,8 +337,7 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
           <>
             <button
               onClick={resetRecording}
-              className="flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium transition-colors"
-              style={{ backgroundColor: '#6A89A7' }}
+              className="flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium transition-colors bg-slate-600 hover:bg-slate-700"
             >
               <Trash2 className="h-5 w-5" />
               Reset
@@ -349,10 +349,8 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
       {/* Recording Preview */}
       {recordingState.videoUrl && (
         <div className="mt-4">
-          <h4 className="text-lg font-medium mb-2" style={{ color: '#384959' }}>
-            Recording Preview
-          </h4>
-          <video controls className="w-full rounded-lg">
+          <h4 className="text-lg font-medium mb-2 text-slate-900">Recording Preview</h4>
+          <video controls className="w-full rounded-xl">
             <source src={recordingState.videoUrl} type="video/webm" />
             Your browser does not support the video element.
           </video>
@@ -362,9 +360,9 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
       {/* Recording Status */}
       {recordingState.isRecording && (
         <div className="mt-4 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full" style={{ backgroundColor: '#FEE2E2' }}>
-            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-            <span className="text-sm font-medium text-red-700">Recording...</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100">
+            <div className="w-3 h-3 bg-slate-600 rounded-full animate-pulse"></div>
+            <span className="text-sm font-medium text-slate-700">Recording...</span>
           </div>
         </div>
       )}
@@ -372,9 +370,9 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
       {/* Permission Status */}
       {hasPermission === false && (
         <div className="mt-4 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full" style={{ backgroundColor: '#FEF3C7' }}>
-            <AlertCircle className="h-4 w-4 text-yellow-500" />
-            <span className="text-sm font-medium text-yellow-700">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100">
+            <AlertCircle className="h-4 w-4 text-slate-600" />
+            <span className="text-sm font-medium text-slate-700">
               Camera access denied. Please enable camera and microphone permissions.
             </span>
           </div>

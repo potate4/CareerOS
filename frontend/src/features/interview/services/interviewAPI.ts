@@ -103,7 +103,7 @@ export const interviewAPI = {
   },
 
   // Delete recording
-  deleteRecording: async (recordingId: number): Promise<{ message: string }> => {
+  deleteRecording: async (recordingId: number): Promise<{ success: boolean; message: string }> => {
     try {
       const response = await api.delete(`/files/upload/${recordingId}`);
       return response.data;
