@@ -40,8 +40,8 @@ api.interceptors.response.use(
 );
 
 export const interviewAPI = {
-  // Upload interview recording
-  uploadRecording: async (request: InterviewRecordingRequest): Promise<InterviewRecordingResponse> => {
+  // Upload interview recording (supports large files)
+  uploadRecording: async (request: InterviewRecordingRequest, onProgress?: (percent: number) => void): Promise<InterviewRecordingResponse> => {
     try {
       const formData = new FormData();
       formData.append('file', request.file);
@@ -57,6 +57,17 @@ export const interviewAPI = {
       const response = await api.post('/files/file-upload-and-get-url', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
+        },
+        // Disable timeout for large uploads
+        timeout: 0,
+        onUploadProgress: (evt) => {
+          if (!onProgress) return;
+          const total = evt.total || 0;
+          const loaded = evt.loaded || 0;
+          if (total > 0) {
+            const percent = Math.round((loaded / total) * 100);
+            onProgress(percent);
+          }
         },
       });
       return response.data;
@@ -75,6 +86,7 @@ export const interviewAPI = {
       formData.append('fileType', 'audio');
       const response = await api.post('/files/file-upload-and-get-url', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 0,
       });
       return response.data;
     } catch (error) {
@@ -124,7 +136,7 @@ export const interviewAPI = {
         analysisType,
         userId,
         fileId
-      });
+      }, { timeout: 0 });
       
       console.log('✅ Interview analysis response:', response.data);
       return response.data;
@@ -157,7 +169,7 @@ export const interviewAPI = {
   // ===== Sessions =====
   createSession: async (initialSessionData?: Record<string, any>): Promise<InterviewSessionDTO> => {
     try {
-      const response = await api.post('/interview/sessions', initialSessionData ? { initialSessionData: JSON.stringify(initialSessionData) } : {});
+      const response = await api.post('/interview/sessions', initialSessionData ? { initialSessionData: JSON.stringify(initialSessionData) } : {}, { timeout: 0 });
       return response.data;
     } catch (error) {
       throw handleApiError(error);
@@ -181,7 +193,7 @@ export const interviewAPI = {
   },
   endSession: async (sessionId: string): Promise<InterviewSessionDTO> => {
     try {
-      const response = await api.post(`/interview/sessions/${sessionId}/end`);
+      const response = await api.post(`/interview/sessions/${sessionId}/end`, {}, { timeout: 0 });
       return response.data;
     } catch (error) {
       throw handleApiError(error);
@@ -199,7 +211,7 @@ export const interviewAPI = {
   },
   addMessage: async (sessionId: string, speaker: 'ai' | 'user', message: string, audioUrl?: string | null): Promise<ConversationMessage> => {
     try {
-      const response = await api.post(`/interview/sessions/${sessionId}/conversation`, { speaker, message, audioUrl });
+      const response = await api.post(`/interview/sessions/${sessionId}/conversation`, { speaker, message, audioUrl }, { timeout: 0 });
       return response.data;
     } catch (error) {
       throw handleApiError(error);
@@ -209,7 +221,7 @@ export const interviewAPI = {
   // ===== Simulation Flow =====
   startSimulation: async (sessionId: string): Promise<StartSimulationResponse> => {
     try {
-      const response = await api.post(`/interview/sessions/${sessionId}/start`);
+      const response = await api.post(`/interview/sessions/${sessionId}/start`, {}, { timeout: 0 });
       return response.data;
     } catch (error) {
       throw handleApiError(error);
