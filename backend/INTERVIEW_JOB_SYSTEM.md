@@ -91,6 +91,51 @@ GET /api/interview/job/{jobId}/detail
 GET /api/interview/jobs
 ```
 
+### Get File Analysis Data
+```
+GET /api/interview/files/analysis
+```
+
+Returns all files for the current user with their most recent analysis job details. For each file:
+- If the file has analysis jobs, returns the most recent job details
+- If the file has no analysis jobs, returns file info with `analysisStatus: "NO_ANALYSIS"`
+
+**Response Example:**
+```json
+[
+  {
+    "fileId": 123,
+    "fileName": "interview_video_20231201.mp4",
+    "originalFileName": "interview.mp4",
+    "fileUrl": "https://example.com/video.mp4",
+    "category": "interview",
+    "uploadedAt": "2023-12-01T10:30:00",
+    "jobId": "uuid-here",
+    "analysisStatus": "COMPLETED",
+    "analysisType": "comprehensive",
+    "detailedAnalysis": "{\"score\": 85, \"feedback\": \"...\"}",
+    "errorMessage": null,
+    "analysisCreatedAt": "2023-12-01T10:35:00",
+    "analysisUpdatedAt": "2023-12-01T10:40:00"
+  },
+  {
+    "fileId": 124,
+    "fileName": "resume.pdf",
+    "originalFileName": "resume.pdf",
+    "fileUrl": "https://example.com/resume.pdf",
+    "category": "resume",
+    "uploadedAt": "2023-12-01T11:00:00",
+    "jobId": null,
+    "analysisStatus": "NO_ANALYSIS",
+    "analysisType": null,
+    "detailedAnalysis": null,
+    "errorMessage": null,
+    "analysisCreatedAt": null,
+    "analysisUpdatedAt": null
+  }
+]
+```
+
 ## Status Values
 
 - **PENDING**: Job created, waiting for AI processing

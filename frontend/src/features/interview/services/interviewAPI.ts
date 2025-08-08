@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { InterviewRecordingRequest, InterviewRecordingResponse, InterviewRecording } from '../types';
+import { InterviewRecordingRequest, InterviewRecordingResponse, InterviewRecording, FileAnalysisResponse } from '../types';
 import { handleApiError } from '../../../utils/apiErrorHandler';
 import { config } from '../../../config/env';
 
@@ -121,6 +121,16 @@ export const interviewAPI = {
   checkInterviewHealth: async (): Promise<any> => {
     try {
       const response = await api.get('/interview/health');
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  // Get file analysis data
+  getFileAnalysisData: async (): Promise<FileAnalysisResponse[]> => {
+    try {
+      const response = await api.get('/interview/files/analysis');
       return response.data;
     } catch (error) {
       throw handleApiError(error);

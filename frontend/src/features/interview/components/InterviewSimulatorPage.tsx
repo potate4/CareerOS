@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Video, Save, Play, Download, Trash2, AlertCircle, CheckCircle } from 'lucide-react';
+import { Video, Save, Play, Download, Trash2, AlertCircle, CheckCircle, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import { useAuthStore } from '../../../stores/authStore';
 import AuthenticatedLayout from '../../../components/layout/AuthenticatedLayout';
 import VideoRecorder from './VideoRecorder';
 import { interviewAPI } from '../services/interviewAPI';
-import { InterviewRecording, InterviewRecordingRequest } from '../types';
+import { InterviewRecording, InterviewRecordingRequest, FileAnalysisResponse } from '../types';
 
 const InterviewSimulatorPage: React.FC = () => {
   const { user } = useAuthStore();
@@ -14,21 +14,21 @@ const InterviewSimulatorPage: React.FC = () => {
   const [currentRecording, setCurrentRecording] = useState<Blob | null>(null);
   const [sessionTitle, setSessionTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [uploadedRecordings, setUploadedRecordings] = useState<InterviewRecording[]>([]);
+  const [fileAnalysisData, setFileAnalysisData] = useState<FileAnalysisResponse[]>([]);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<any>(null);
 
   useEffect(() => {
-    loadUploadedRecordings();
+    loadFileAnalysisData();
   }, []);
 
-  const loadUploadedRecordings = async () => {
+  const loadFileAnalysisData = async () => {
     try {
-      const recordings = await interviewAPI.getMyRecordings();
-      setUploadedRecordings(recordings);
+      const fileData = await interviewAPI.getFileAnalysisData();
+      setFileAnalysisData(fileData);
     } catch (err: unknown) {
-      console.error('Failed to load recordings:', err);
+      console.error('Failed to load file analysis data:', err);
     }
   };
 
@@ -70,6 +70,7 @@ const InterviewSimulatorPage: React.FC = () => {
         file,
         description: description.trim() || undefined,
         sessionTitle: sessionTitle.trim(),
+        fileType: 'video',
       };
 
       const response = await interviewAPI.uploadRecording(request);
@@ -80,8 +81,8 @@ const InterviewSimulatorPage: React.FC = () => {
         setSessionTitle('');
         setDescription('');
         
-        // Refresh the recordings list
-        await loadUploadedRecordings();
+        // Refresh the file analysis data
+        await loadFileAnalysisData();
       } else {
         setError(response.message || 'Failed to save recording');
       }
@@ -100,7 +101,7 @@ const InterviewSimulatorPage: React.FC = () => {
 
     try {
       await interviewAPI.deleteRecording(recordingId);
-      await loadUploadedRecordings();
+      await loadFileAnalysisData();
       setSuccess('Recording deleted successfully!');
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete recording';
@@ -108,19 +109,22 @@ const InterviewSimulatorPage: React.FC = () => {
     }
   };
 
-  const handleAnalyzeRecording = async (recording: InterviewRecording) => {
+  const handleAnalyzeRecording = async (fileAnalysis: FileAnalysisResponse) => {
     setIsAnalyzing(true);
     setError(null);
     setSuccess(null);
     setAnalysisResult(null);
 
     try {
-      console.log('🔍 Starting interview analysis for recording:', recording.fileUrl);
+      console.log('🔍 Starting interview analysis for file:', fileAnalysis.fileUrl);
       console.log('🔑 Current token:', localStorage.getItem('token'));
       
-      const result = await interviewAPI.analyzeInterview(recording.fileUrl, "comprehensive" ,recording.id!, user?.id!);
+      const result = await interviewAPI.analyzeInterview(fileAnalysis.fileUrl, "comprehensive", fileAnalysis.fileId, user?.id!);
       setAnalysisResult(result);
       setSuccess('Interview analysis completed successfully!');
+      
+      // Refresh the file analysis data to show updated status
+      await loadFileAnalysisData();
     } catch (err: unknown) {
       console.error('❌ Analysis error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to analyze recording';
@@ -235,61 +239,103 @@ const InterviewSimulatorPage: React.FC = () => {
             <div>
               <div className="bg-white rounded-lg p-6 shadow-lg">
                 <h3 className="text-lg font-semibold mb-4" style={{ color: '#384959' }}>
-                  Your Recordings
+                  Your Files & Analysis Status
                 </h3>
                 
-                {uploadedRecordings.length === 0 ? (
+                {fileAnalysisData.length === 0 ? (
                   <div className="text-center py-8">
                     <Video className="mx-auto h-12 w-12 mb-4" style={{ color: '#6A89A7' }} />
                     <p style={{ color: '#6A89A7' }}>
-                      No recordings yet. Start your first video interview practice session!
+                      No files yet. Start your first video interview practice session!
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {uploadedRecordings.map((recording) => (
+                    {fileAnalysisData.map((fileAnalysis) => (
                       <div
-                        key={recording.id}
+                        key={fileAnalysis.fileId}
                         className="border rounded-lg p-4"
                         style={{ borderColor: '#6A89A7' }}
                       >
                         <div className="flex items-center justify-between mb-2">
                           <h4 className="font-medium" style={{ color: '#384959' }}>
-                            {recording.sessionTitle || recording.originalFileName}
+                            {fileAnalysis.originalFileName}
                           </h4>
-                          <button
-                            onClick={() => handleDeleteRecording(recording.id!)}
-                            className="p-1 rounded-md transition-colors hover:bg-red-100"
-                            style={{ color: '#6A89A7' }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          <div className="flex items-center gap-2">
+                            {/* Analysis Status Icon */}
+                            {fileAnalysis.analysisStatus === 'COMPLETED' && (
+                              <CheckCircle2 className="h-4 w-4 text-green-500" />
+                            )}
+                            {fileAnalysis.analysisStatus === 'PENDING' && (
+                              <Clock className="h-4 w-4 text-yellow-500" />
+                            )}
+                            {fileAnalysis.analysisStatus === 'FAILED' && (
+                              <XCircle className="h-4 w-4 text-red-500" />
+                            )}
+                            {fileAnalysis.analysisStatus === 'NO_ANALYSIS' && (
+                              <AlertCircle className="h-4 w-4 text-gray-400" />
+                            )}
+                            
+                            <button
+                              onClick={() => handleDeleteRecording(fileAnalysis.fileId)}
+                              className="p-1 rounded-md transition-colors hover:bg-red-100"
+                              style={{ color: '#6A89A7' }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
                         
-                        {recording.description && (
-                          <p className="text-sm mb-2" style={{ color: '#6A89A7' }}>
-                            {recording.description}
-                          </p>
+                        <div className="flex items-center justify-between text-sm mb-2" style={{ color: '#6A89A7' }}>
+                          <span>Uploaded: {new Date(fileAnalysis.uploadedAt).toLocaleDateString()}</span>
+                          <span className="capitalize">{fileAnalysis.analysisStatus.toLowerCase().replace('_', ' ')}</span>
+                        </div>
+                        
+                        {fileAnalysis.detailedAnalysis && (
+                          <div className="mb-2 p-2 bg-gray-50 rounded text-xs" style={{ color: '#384959' }}>
+                            <strong>Analysis:</strong> {fileAnalysis.detailedAnalysis.substring(0, 100)}...
+                          </div>
                         )}
                         
                         <div className="flex items-center justify-between text-sm" style={{ color: '#6A89A7' }}>
-                          <span>{new Date(recording.uploadDate).toLocaleDateString()}</span>
+                          <span>{fileAnalysis.category}</span>
                           <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleAnalyzeRecording(recording)}
-                              disabled={isAnalyzing}
-                              className="flex items-center gap-1 px-2 py-1 rounded-md transition-colors disabled:opacity-50"
-                              style={{ backgroundColor: '#88BDF2', color: 'white' }}
-                            >
-                              {isAnalyzing ? (
-                                <div className="animate-spin h-3 w-3 border border-white border-t-transparent rounded-full"></div>
-                              ) : (
-                                <Play className="h-3 w-3" />
-                              )}
-                              {isAnalyzing ? 'Analyzing...' : 'Analyze'}
-                            </button>
+                            {fileAnalysis.analysisStatus === 'NO_ANALYSIS' && (
+                              <button
+                                onClick={() => handleAnalyzeRecording(fileAnalysis)}
+                                disabled={isAnalyzing}
+                                className="flex items-center gap-1 px-2 py-1 rounded-md transition-colors disabled:opacity-50"
+                                style={{ backgroundColor: '#88BDF2', color: 'white' }}
+                              >
+                                {isAnalyzing ? (
+                                  <div className="animate-spin h-3 w-3 border border-white border-t-transparent rounded-full"></div>
+                                ) : (
+                                  <Play className="h-3 w-3" />
+                                )}
+                                {isAnalyzing ? 'Analyzing...' : 'Analyze'}
+                              </button>
+                            )}
+                            
+                            {fileAnalysis.analysisStatus === 'COMPLETED' && (
+                              <button
+                                onClick={() => {
+                                  // Show detailed analysis
+                                  setAnalysisResult({
+                                    detailedAnalysis: fileAnalysis.detailedAnalysis,
+                                    analysisId: fileAnalysis.jobId,
+                                    status: fileAnalysis.analysisStatus
+                                  });
+                                }}
+                                className="flex items-center gap-1 px-2 py-1 rounded-md transition-colors"
+                                style={{ backgroundColor: '#6A89A7', color: 'white' }}
+                              >
+                                <CheckCircle className="h-3 w-3" />
+                                View Analysis
+                              </button>
+                            )}
+                            
                             <a
-                              href={recording.fileUrl}
+                              href={fileAnalysis.fileUrl}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="flex items-center gap-1 px-2 py-1 rounded-md transition-colors"

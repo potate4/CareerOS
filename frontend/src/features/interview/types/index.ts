@@ -32,6 +32,22 @@ export interface InterviewRecordingResponse {
   fileType?: 'video' | 'audio';
 }
 
+export interface FileAnalysisResponse {
+  fileId: number;
+  fileName: string;
+  originalFileName: string;
+  fileUrl: string;
+  category: string;
+  uploadedAt: string;
+  jobId?: string;
+  analysisStatus: 'PENDING' | 'COMPLETED' | 'FAILED' | 'NO_ANALYSIS';
+  analysisType?: string;
+  detailedAnalysis?: string;
+  errorMessage?: string;
+  analysisCreatedAt?: string;
+  analysisUpdatedAt?: string;
+}
+
 export interface RecordingState {
   isRecording: boolean;
   isPaused: boolean;
