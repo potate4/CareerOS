@@ -49,6 +49,8 @@ public class AuthTokenFilter extends OncePerRequestFilter {
 
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                     logger.info("🔑 Authentication set successfully for user: {}", username);
+                } else {
+                    logger.error("❌ JWT token validation failed");
                 }
             } else {
                 logger.warn("⚠️ No JWT token found in request");

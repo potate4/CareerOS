@@ -5,6 +5,7 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import Dashboard from './components/dashboard/Dashboard';
 import AuthPage from './components/auth/AuthPage';
 import AIServicesPage from './components/ai/AIServicesPage';
+import InterviewSimulatorPage from './features/interview/components/InterviewSimulatorPage';
 import './App.css';
 
 function App() {
@@ -30,6 +31,14 @@ function App() {
         element={
           <ProtectedRoute>
             <AIServicesPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/interview" 
+        element={
+          <ProtectedRoute>
+            <InterviewSimulatorPage />
           </ProtectedRoute>
         } 
       />
