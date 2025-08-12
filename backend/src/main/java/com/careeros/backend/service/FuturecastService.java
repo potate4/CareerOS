@@ -23,6 +23,8 @@ import org.springframework.web.client.RestTemplate;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
+import com.careeros.backend.repository.SubtaskRepository;
+import com.careeros.backend.payload.request.BreakdownMilestoneRequest;
 
 @Service
 @Transactional
@@ -53,6 +55,9 @@ public class FuturecastService {
     
     @Autowired
     private ObjectMapper objectMapper;
+    
+    @Autowired
+    private SubtaskRepository subtaskRepository;
     
     /**
      * Generate a new career roadmap using AI services
@@ -184,6 +189,52 @@ public class FuturecastService {
         FuturecastRoadmap roadmap = getRoadmapById(roadmapId, userId);
         roadmapRepository.delete(roadmap);
         logger.info("Deleted roadmap {} for user {}", roadmapId, userId);
+    }
+    
+    public List<Subtask> breakdownAndSaveSubtasks(Long milestoneId, BreakdownMilestoneRequest req, Long userId) {
+        // Verify ownership
+        Milestone milestone = milestoneRepository.findById(milestoneId)
+            .orElseThrow(() -> new RuntimeException("Milestone not found"));
+        if (!milestone.getCareerPath().getRoadmap().getUser().getId().equals(userId)) {
+            throw new RuntimeException("Access denied to this milestone");
+        }
+        // Call AI backend
+        try {
+            String url = aiServiceUrl + "/api/v1/futurecast/breakdown";
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Content-Type", "application/json");
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("goal", req.getGoal());
+            payload.put("milestoneTitle", req.getMilestoneTitle());
+            payload.put("milestoneYear", req.getMilestoneYear());
+            payload.put("timelineYears", req.getTimelineYears());
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
+            Map body = response.getBody();
+            if (body == null) throw new RuntimeException("Empty AI breakdown response");
+            List<Map<String, Object>> tasks = (List<Map<String, Object>>) body.get("tasks");
+            if (tasks == null) throw new RuntimeException("Invalid AI breakdown response");
+            // Clear existing subtasks (optional) or append – here we clear & replace
+            List<Subtask> existing = subtaskRepository.findByMilestoneId(milestoneId);
+            if (!existing.isEmpty()) subtaskRepository.deleteAll(existing);
+            // Save ordered subtasks
+            List<Subtask> saved = new ArrayList<>();
+            int pos = 1;
+            for (Map<String, Object> t : tasks) {
+                Subtask s = new Subtask();
+                s.setMilestone(milestone);
+                s.setTitle((String) t.getOrDefault("title", ""));
+                s.setDescription((String) t.getOrDefault("description", ""));
+                s.setEstimatedTime((String) t.getOrDefault("estimatedTime", ""));
+                s.setPosition(pos++);
+                saved.add(subtaskRepository.save(s));
+            }
+            return saved;
+        } catch (HttpClientErrorException e) {
+            throw new RuntimeException("AI breakdown failed: " + e.getMessage());
+        } catch (Exception e) {
+            throw new RuntimeException("AI breakdown unavailable: " + e.getMessage());
+        }
     }
     
     // Private helper methods
@@ -336,7 +387,21 @@ public class FuturecastService {
                             milestone.setPrerequisites((List<String>) milestoneData.get("prerequisites"));
                             milestone.setResources((List<String>) milestoneData.get("resources"));
                             
-                            milestoneRepository.save(milestone);
+                            Milestone savedMilestone = milestoneRepository.save(milestone);
+                            
+                            // Save subtasks
+                            List<Map<String, Object>> subtasks = (List<Map<String, Object>>) milestoneData.get("subtasks");
+                            if (subtasks != null) {
+                                for (Map<String, Object> subtaskData : subtasks) {
+                                    Subtask subtask = new Subtask();
+                                    subtask.setMilestone(savedMilestone);
+                                    subtask.setTitle((String) subtaskData.get("title"));
+                                    subtask.setDescription((String) subtaskData.get("description"));
+                                    subtask.setEstimatedTime((String) subtaskData.get("estimatedTime"));
+                                    subtask.setPosition((Integer) subtaskData.get("position"));
+                                    subtaskRepository.save(subtask);
+                                }
+                            }
                         }
                     }
                 }

@@ -3,6 +3,7 @@ package com.careeros.backend.controller;
 import com.careeros.backend.model.*;
 import com.careeros.backend.payload.request.FuturecastRequest;
 import com.careeros.backend.payload.request.UpdateMilestoneRequest;
+import com.careeros.backend.payload.request.BreakdownMilestoneRequest;
 import com.careeros.backend.payload.response.MessageResponse;
 import com.careeros.backend.repository.UserProfileRepository;
 import com.careeros.backend.security.UserDetailsImpl;
@@ -423,6 +424,30 @@ public class FuturecastController {
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body(new MessageResponse("Failed to fetch progress: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Break down a milestone into subtasks using AI and persist them
+     */
+    @PostMapping("/milestones/{milestoneId}/breakdown")
+    public ResponseEntity<?> breakdownMilestone(
+            @PathVariable Long milestoneId,
+            @Valid @RequestBody BreakdownMilestoneRequest requestBody) {
+        try {
+            // Get current user
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            Long userId = userDetails.getId();
+
+            var subtasks = futurecastService.breakdownAndSaveSubtasks(milestoneId, requestBody, userId);
+            return ResponseEntity.ok(Map.of(
+                "message", "Milestone broken down into subtasks",
+                "milestoneId", milestoneId,
+                "subtasks", subtasks
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Failed to breakdown milestone: " + e.getMessage()));
         }
     }
 } 

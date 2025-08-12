@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { futurecastAPI } from '../services/futurecastAPI';
 import { FuturecastRequestDTO, FuturecastRoadmapDTO, CareerPathDTO, RoadmapProgressDTO } from '../types';
 import AuthenticatedLayout from '../../../components/layout/AuthenticatedLayout';
@@ -175,6 +175,21 @@ export default function FuturecastPage() {
     }
   };
 
+  const breakdownMilestone = async (mId: number, title: string, year: number) => {
+    if (!roadmap) return;
+    try {
+      await futurecastAPI.breakdownMilestone(mId, {
+        goal: roadmap.careerGoal,
+        milestoneTitle: title,
+        milestoneYear: year,
+        timelineYears: roadmap.timelineYears,
+      });
+      await viewRoadmap(roadmap.id);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to breakdown milestone');
+    }
+  };
+
   const generate = async () => {
     try {
       setLoading(true);
@@ -189,7 +204,13 @@ export default function FuturecastPage() {
     }
   };
 
-  React.useEffect(() => { loadMyRoadmaps(0); }, []);
+  // StrictMode-safe one-time init
+  const initRef = useRef(false);
+  React.useEffect(() => {
+    if (initRef.current) return; // prevent double invoke in React 18 StrictMode (dev only)
+    initRef.current = true;
+    loadMyRoadmaps(0);
+  }, []);
 
   return (
     <AuthenticatedLayout>
@@ -303,15 +324,33 @@ export default function FuturecastPage() {
                       <div className="text-xs text-slate-500 mb-2">Milestones</div>
                       <div className="space-y-2">
                         {p.milestones?.map(m => (
-                          <div key={m.id} className="bg-slate-50 rounded-lg p-2 border border-slate-200 flex items-center justify-between">
-                            <div className="flex flex-col">
-                              <span className="text-sm text-slate-800">Year {m.year}: {m.title}</span>
-                              {m.expectedSalary && <span className="text-xs text-emerald-700">${m.expectedSalary.toLocaleString()}</span>}
+                          <div key={m.id} className="bg-slate-50 rounded-lg p-2 border border-slate-200 flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex flex-col">
+                                <span className="text-sm text-slate-800">Year {m.year}: {m.title}</span>
+                                {m.expectedSalary && <span className="text-xs text-emerald-700">${m.expectedSalary.toLocaleString()}</span>}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button onClick={() => toggleMilestone(m.id, !m.isCompleted)} className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded ${m.isCompleted ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}>
+                                  {m.isCompleted ? <CheckCircle2 size={14} /> : <Circle size={14} />}
+                                  {m.isCompleted ? 'Completed' : 'Mark Complete'}
+                                </button>
+                                <button onClick={() => breakdownMilestone(m.id, m.title, m.year)} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-slate-900 text-white hover:bg-slate-800">
+                                  Break it down
+                                </button>
+                              </div>
                             </div>
-                            <button onClick={() => toggleMilestone(m.id, !m.isCompleted)} className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded ${m.isCompleted ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}>
-                              {m.isCompleted ? <CheckCircle2 size={14} /> : <Circle size={14} />}
-                              {m.isCompleted ? 'Completed' : 'Mark Complete'}
-                            </button>
+                            {m.subtasks && m.subtasks.length > 0 && (
+                              <div className="pl-3 border-l-2 border-slate-300 space-y-2">
+                                {m.subtasks.map((t) => (
+                                  <div key={t.id} className="bg-white rounded-md p-2 border border-slate-200">
+                                    <div className="text-sm font-medium text-slate-800">{t.title}</div>
+                                    {t.description && <div className="text-xs text-slate-600 mt-0.5">{t.description}</div>}
+                                    {t.estimatedTime && <div className="text-xs text-emerald-700 mt-1">Estimated: {t.estimatedTime}</div>}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>

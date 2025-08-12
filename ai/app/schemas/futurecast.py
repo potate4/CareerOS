@@ -131,3 +131,27 @@ class SimpleLLMResponse(BaseModel):
     marketDemandForecast: str
     marketEmergingSkills: str
     marketRiskFactors: str
+
+# Flat schema for milestone breakdown (3-5 tasks)
+class SimpleLLMSubtasksResponse(BaseModel):
+    # Required context echoes
+    milestoneTitle: str
+    milestoneYear: int
+    goal: str
+    # 3-5 tasks (title + description + estimatedTime)
+    task1Title: str
+    task1Description: str
+    task1EstimatedTime: str
+    task2Title: str
+    task2Description: str
+    task2EstimatedTime: str
+    task3Title: str
+    task3Description: str
+    task3EstimatedTime: str
+    # Optional tasks 4 and 5 (still required by schema if used; callers should allow them to be blank if not used)
+    task4Title: str
+    task4Description: str
+    task4EstimatedTime: str
+    task5Title: str
+    task5Description: str
+    task5EstimatedTime: str

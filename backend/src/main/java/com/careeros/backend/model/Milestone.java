@@ -1,6 +1,7 @@
 package com.careeros.backend.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -86,6 +87,11 @@ public class Milestone {
     @Column(name = "priority")
     @Enumerated(EnumType.STRING)
     private Priority priority = Priority.MEDIUM;
+    
+    @OneToMany(mappedBy = "milestone", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    @JsonManagedReference
+    @OrderBy("position ASC, id ASC")
+    private List<Subtask> subtasks;
     
     @CreationTimestamp
     @Column(name = "created_at")
@@ -277,6 +283,9 @@ public class Milestone {
     public void setPriority(Priority priority) {
         this.priority = priority;
     }
+    
+    public List<Subtask> getSubtasks() { return subtasks; }
+    public void setSubtasks(List<Subtask> subtasks) { this.subtasks = subtasks; }
     
     public LocalDateTime getCreatedAt() {
         return createdAt;

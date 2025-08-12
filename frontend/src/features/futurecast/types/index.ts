@@ -8,6 +8,14 @@ export interface FuturecastRequestDTO {
   marketData?: Record<string, any>;
 }
 
+export interface SubtaskDTO {
+  id: number;
+  title: string;
+  description?: string;
+  estimatedTime?: string;
+  position?: number;
+}
+
 export interface MilestoneDTO {
   id: number;
   year: number;
@@ -17,6 +25,7 @@ export interface MilestoneDTO {
   estimatedTimeToComplete?: string;
   isCompleted?: boolean;
   completedAt?: string;
+  subtasks?: SubtaskDTO[];
 }
 
 export type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';

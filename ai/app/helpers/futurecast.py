@@ -2,7 +2,7 @@ import os
 import json
 from typing import Dict, Any, List
 from app.core.config import settings
-from app.schemas.futurecast import FuturecastRequest, FuturecastResponse, RoadmapData, CareerPath, Milestone, SimpleLLMResponse
+from app.schemas.futurecast import FuturecastRequest, FuturecastResponse, RoadmapData, CareerPath, Milestone, SimpleLLMResponse, SimpleLLMSubtasksResponse
 from app.helpers.llm import get_gemini_text_completion
 from datetime import datetime
 import re
@@ -411,4 +411,76 @@ def validate_roadmap_data(data: Dict[str, Any]) -> bool:
         
     except Exception:
         return False
+
+def create_milestone_breakdown_prompt(goal: str, milestone_title: str, milestone_year: int, timeline_years: int) -> str:
+    return f"""
+You are an expert career coach. Break down the milestone into 3-5 specific, actionable tasks.
+
+CONTEXT:
+- Goal: {goal}
+- Timeline (years): {timeline_years}
+- Milestone Year: {milestone_year}
+- Milestone Title: {milestone_title}
+
+REQUIREMENTS:
+- Output concise, specific tasks with clear outcomes
+- Include an estimated time for each task (e.g., 2-4 weeks)
+- Avoid vague tasks
+- Do NOT include markdown or explanations; follow the schema strictly
+
+Return as a JSON conforming to this schema (no defaults, fill all fields; leave task4/task5 as empty strings if not used):
+- milestoneTitle (string)
+- milestoneYear (int)
+- goal (string)
+- task1Title, task1Description, task1EstimatedTime (strings)
+- task2Title, task2Description, task2EstimatedTime (strings)
+- task3Title, task3Description, task3EstimatedTime (strings)
+- task4Title, task4Description, task4EstimatedTime (strings)
+- task5Title, task5Description, task5EstimatedTime (strings)
+"""
+
+
+def breakdown_milestone_to_subtasks(goal: str, milestone_title: str, milestone_year: int, timeline_years: int):
+    prompt = create_milestone_breakdown_prompt(goal, milestone_title, milestone_year, timeline_years)
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.0-flash',
+            contents=prompt,
+            config={
+                'temperature': 0.6,
+                'response_mime_type': 'application/json',
+                'response_schema': SimpleLLMSubtasksResponse,
+            },
+        )
+        parsed: SimpleLLMSubtasksResponse = response.parsed
+        # Normalize into a list of non-empty tasks
+        tasks = []
+        for idx in range(1, 6):
+            ttitle = getattr(parsed, f'task{idx}Title')
+            tdesc = getattr(parsed, f'task{idx}Description')
+            ttime = getattr(parsed, f'task{idx}EstimatedTime')
+            if ttitle and ttitle.strip():
+                tasks.append({
+                    'title': ttitle.strip(),
+                    'description': (tdesc or '').strip(),
+                    'estimatedTime': (ttime or '').strip(),
+                })
+        return {
+            'milestoneTitle': milestone_title,
+            'milestoneYear': milestone_year,
+            'goal': goal,
+            'tasks': tasks
+        }
+    except Exception as e:
+        # Fallback simple split
+        return {
+            'milestoneTitle': milestone_title,
+            'milestoneYear': milestone_year,
+            'goal': goal,
+            'tasks': [
+                {'title': f'Research: {milestone_title}', 'description': 'Identify key resources and scope', 'estimatedTime': '1-2 weeks'},
+                {'title': f'Practice: {milestone_title}', 'description': 'Hands-on exercises or project work', 'estimatedTime': '2-3 weeks'},
+                {'title': f'Validate: {milestone_title}', 'description': 'Assessment or small deliverable', 'estimatedTime': '1-2 weeks'},
+            ]
+        }
 
