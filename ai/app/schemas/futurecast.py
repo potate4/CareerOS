@@ -104,3 +104,30 @@ class FuturecastResponse(BaseModel):
     confidence: Optional[float] = None  # AI confidence 0-1
     lastUpdated: Optional[datetime] = None
     roadmapId: Optional[str] = None
+
+# Simple flat schema for Gemini LLM (no defaults, no complex objects)
+class SimpleLLMResponse(BaseModel):
+    goal: str
+    timelineYears: int
+    explanation: str
+    confidence: float
+    path1Id: str
+    path1Description: str
+    path1Difficulty: str
+    path1Probability: float
+    path1RiskLevel: str
+    path2Id: str
+    path2Description: str
+    path2Difficulty: str
+    path2Probability: float
+    path2RiskLevel: str
+    path3Id: str
+    path3Description: str
+    path3Difficulty: str
+    path3Probability: float
+    path3RiskLevel: str
+    recommendedPathId: str
+    marketSalaryTrends: str
+    marketDemandForecast: str
+    marketEmergingSkills: str
+    marketRiskFactors: str
