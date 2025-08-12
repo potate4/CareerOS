@@ -25,5 +25,21 @@ export const futurecastAPI = {
   getProgress: async (roadmapId: number): Promise<RoadmapProgressDTO> => {
     const { data } = await api.get(`/futurecast/roadmaps/${roadmapId}/progress`);
     return data;
-  }
+  },
+  deleteRoadmap: async (roadmapId: number): Promise<{ message: string }> => {
+    const { data } = await api.delete(`/futurecast/roadmaps/${roadmapId}`);
+    return data;
+  },
+  getUserProfile: async (): Promise<{ hasProfile: boolean; profile?: any }> => {
+    const { data } = await api.get('/futurecast/user-profile');
+    return data;
+  },
+  saveUserProfile: async (profile: any): Promise<{ message: string; profile: any }> => {
+    const { data } = await api.post('/futurecast/user-profile', profile);
+    return data;
+  },
+  getMarketData: async (careerGoal: string, industry?: string): Promise<{ marketData: any; timestamp: string }> => {
+    const { data } = await api.get('/futurecast/market-data', { params: { careerGoal, industry } });
+    return data;
+  },
 }; 
