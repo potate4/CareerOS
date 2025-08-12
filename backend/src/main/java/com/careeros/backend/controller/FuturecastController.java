@@ -4,6 +4,7 @@ import com.careeros.backend.model.*;
 import com.careeros.backend.payload.request.FuturecastRequest;
 import com.careeros.backend.payload.request.UpdateMilestoneRequest;
 import com.careeros.backend.payload.request.BreakdownMilestoneRequest;
+import com.careeros.backend.payload.request.UpdateSubtaskRequest;
 import com.careeros.backend.payload.response.MessageResponse;
 import com.careeros.backend.repository.UserProfileRepository;
 import com.careeros.backend.security.UserDetailsImpl;
@@ -448,6 +449,60 @@ public class FuturecastController {
             ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(new MessageResponse("Failed to breakdown milestone: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Update subtask completion
+     */
+    @PutMapping("/subtasks/{subtaskId}")
+    public ResponseEntity<?> updateSubtask(
+            @PathVariable Long subtaskId,
+            @Valid @RequestBody UpdateSubtaskRequest requestBody) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            Long userId = userDetails.getId();
+            Subtask updated = futurecastService.updateSubtaskProgress(subtaskId, requestBody.getIsCompleted(), requestBody.getUserNotes(), userId);
+            return ResponseEntity.ok(Map.of(
+                "message", "Subtask updated",
+                "subtask", updated
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Failed to update subtask: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/subtasks/{subtaskId}/complete")
+    public ResponseEntity<?> completeSubtask(@PathVariable Long subtaskId) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            Long userId = userDetails.getId();
+            Subtask updated = futurecastService.updateSubtaskProgress(subtaskId, true, null, userId);
+            return ResponseEntity.ok(Map.of(
+                "message", "Subtask completed",
+                "subtaskId", updated.getId(),
+                "completedAt", updated.getCompletedAt()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Failed to complete subtask: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/subtasks/{subtaskId}/uncomplete")
+    public ResponseEntity<?> uncompleteSubtask(@PathVariable Long subtaskId) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            Long userId = userDetails.getId();
+            Subtask updated = futurecastService.updateSubtaskProgress(subtaskId, false, null, userId);
+            return ResponseEntity.ok(Map.of(
+                "message", "Subtask marked incomplete",
+                "subtaskId", updated.getId()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Failed to uncomplete subtask: " + e.getMessage()));
         }
     }
 } 

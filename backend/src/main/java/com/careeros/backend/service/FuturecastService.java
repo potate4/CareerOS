@@ -25,6 +25,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import com.careeros.backend.repository.SubtaskRepository;
 import com.careeros.backend.payload.request.BreakdownMilestoneRequest;
+import com.careeros.backend.payload.request.UpdateSubtaskRequest;
 
 @Service
 @Transactional
@@ -235,6 +236,19 @@ public class FuturecastService {
         } catch (Exception e) {
             throw new RuntimeException("AI breakdown unavailable: " + e.getMessage());
         }
+    }
+    
+    public Subtask updateSubtaskProgress(Long subtaskId, Boolean isCompleted, String userNotes, Long userId) {
+        Subtask subtask = subtaskRepository.findById(subtaskId)
+            .orElseThrow(() -> new RuntimeException("Subtask not found"));
+        // Verify ownership via milestone -> path -> roadmap -> user
+        if (!subtask.getMilestone().getCareerPath().getRoadmap().getUser().getId().equals(userId)) {
+            throw new RuntimeException("Access denied to this subtask");
+        }
+        subtask.setIsCompleted(isCompleted);
+        if (userNotes != null) subtask.setUserNotes(userNotes);
+        if (isCompleted) subtask.setCompletedAt(LocalDateTime.now()); else subtask.setCompletedAt(null);
+        return subtaskRepository.save(subtask);
     }
     
     // Private helper methods

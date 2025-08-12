@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { futurecastAPI } from '../services/futurecastAPI';
-import { FuturecastRequestDTO, FuturecastRoadmapDTO, CareerPathDTO, RoadmapProgressDTO } from '../types';
+import { FuturecastRequestDTO, FuturecastRoadmapDTO, CareerPathDTO, RoadmapProgressDTO, SubtaskDTO } from '../types';
 import AuthenticatedLayout from '../../../components/layout/AuthenticatedLayout';
 import { CheckCircle2, Circle, ArrowRight, Crown } from 'lucide-react';
 
@@ -204,6 +204,22 @@ export default function FuturecastPage() {
     }
   };
 
+  const toggleSubtask = async (subtaskId: number, isCompleted: boolean) => {
+    try {
+      // Try PUT first (consistent with milestone update path)
+      await futurecastAPI.updateSubtask(subtaskId, { isCompleted });
+      if (roadmap) await viewRoadmap(roadmap.id);
+    } catch (e: any) {
+      try {
+        if (isCompleted) await futurecastAPI.markSubtaskComplete(subtaskId);
+        else await futurecastAPI.markSubtaskUncomplete(subtaskId);
+        if (roadmap) await viewRoadmap(roadmap.id);
+      } catch (err: any) {
+        setError(err?.message || 'Failed to update subtask');
+      }
+    }
+  };
+
   // StrictMode-safe one-time init
   const initRef = useRef(false);
   React.useEffect(() => {
@@ -342,11 +358,17 @@ export default function FuturecastPage() {
                             </div>
                             {m.subtasks && m.subtasks.length > 0 && (
                               <div className="pl-3 border-l-2 border-slate-300 space-y-2">
-                                {m.subtasks.map((t) => (
-                                  <div key={t.id} className="bg-white rounded-md p-2 border border-slate-200">
-                                    <div className="text-sm font-medium text-slate-800">{t.title}</div>
-                                    {t.description && <div className="text-xs text-slate-600 mt-0.5">{t.description}</div>}
-                                    {t.estimatedTime && <div className="text-xs text-emerald-700 mt-1">Estimated: {t.estimatedTime}</div>}
+                                {m.subtasks.map((t: SubtaskDTO) => (
+                                  <div key={t.id} className="bg-white rounded-md p-2 border border-slate-200 flex items-center justify-between">
+                                    <div>
+                                      <div className={`text-sm font-medium ${t.estimatedTime ? 'mb-0.5' : ''} ${t?.description ? '' : ''} ${t && t['isCompleted'] ? 'line-through text-slate-400' : 'text-slate-800'}`}>{t.title}</div>
+                                      {t.description && <div className="text-xs text-slate-600">{t.description}</div>}
+                                      {t.estimatedTime && <div className="text-xs text-emerald-700">Estimated: {t.estimatedTime}</div>}
+                                    </div>
+                                    <button onClick={() => toggleSubtask(t.id, !(t as any).isCompleted)} className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded ${ (t as any).isCompleted ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700 hover:bg-slate-300' }`}>
+                                      {(t as any).isCompleted ? <CheckCircle2 size={14} /> : <Circle size={14} />}
+                                      {(t as any).isCompleted ? 'Done' : 'Mark Done'}
+                                    </button>
                                   </div>
                                 ))}
                               </div>

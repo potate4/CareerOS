@@ -54,4 +54,16 @@ export const futurecastAPI = {
     const { data } = await api.get('/futurecast/market-data', { params: { careerGoal, industry } });
     return data;
   },
+  updateSubtask: async (subtaskId: number, body: { isCompleted: boolean; userNotes?: string }): Promise<{ message: string; subtask?: any }> => {
+    const { data } = await api.put(`/futurecast/subtasks/${subtaskId}`, body);
+    return data;
+  },
+  markSubtaskComplete: async (subtaskId: number): Promise<{ message: string; subtaskId: number; completedAt?: string }> => {
+    const { data } = await api.post(`/futurecast/subtasks/${subtaskId}/complete`);
+    return data;
+  },
+  markSubtaskUncomplete: async (subtaskId: number): Promise<{ message: string; subtaskId: number }> => {
+    const { data } = await api.post(`/futurecast/subtasks/${subtaskId}/uncomplete`);
+    return data;
+  },
 }; 

@@ -32,6 +32,16 @@ public class Subtask {
     @Column(name = "position")
     private Integer position; // order within milestone
 
+    // Completion tracking
+    @Column(name = "is_completed")
+    private Boolean isCompleted = false;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
+    @Column(name = "user_notes", length = 1000)
+    private String userNotes;
+
     @CreationTimestamp
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -67,6 +77,15 @@ public class Subtask {
 
     public Integer getPosition() { return position; }
     public void setPosition(Integer position) { this.position = position; }
+
+    public Boolean getIsCompleted() { return isCompleted; }
+    public void setIsCompleted(Boolean isCompleted) { this.isCompleted = isCompleted; }
+
+    public LocalDateTime getCompletedAt() { return completedAt; }
+    public void setCompletedAt(LocalDateTime completedAt) { this.completedAt = completedAt; }
+
+    public String getUserNotes() { return userNotes; }
+    public void setUserNotes(String userNotes) { this.userNotes = userNotes; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
