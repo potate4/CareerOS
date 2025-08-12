@@ -2,6 +2,7 @@ package com.careeros.backend.controller;
 
 import com.careeros.backend.model.*;
 import com.careeros.backend.payload.request.FuturecastRequest;
+import com.careeros.backend.payload.request.UpdateMilestoneRequest;
 import com.careeros.backend.payload.response.MessageResponse;
 import com.careeros.backend.repository.UserProfileRepository;
 import com.careeros.backend.security.UserDetailsImpl;
@@ -164,25 +165,16 @@ public class FuturecastController {
     @PutMapping("/milestones/{milestoneId}")
     public ResponseEntity<?> updateMilestoneProgress(
             @PathVariable Long milestoneId,
-            @RequestBody Map<String, Object> updateData) {
+            @Valid @RequestBody UpdateMilestoneRequest requestBody) {
         try {
             // Get current user
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
             Long userId = userDetails.getId();
             
-            // Extract update data
-            Boolean isCompleted = (Boolean) updateData.get("isCompleted");
-            String userNotes = (String) updateData.get("userNotes");
-            
-            if (isCompleted == null) {
-                return ResponseEntity.badRequest()
-                        .body(new MessageResponse("isCompleted field is required"));
-            }
-            
             // Update milestone
             Milestone updatedMilestone = futurecastService.updateMilestoneProgress(
-                milestoneId, isCompleted, userNotes, userId);
+                milestoneId, requestBody.getIsCompleted(), requestBody.getUserNotes(), userId);
             
             return ResponseEntity.ok(Map.of(
                 "message", "Milestone updated successfully",
@@ -198,6 +190,45 @@ public class FuturecastController {
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body(new MessageResponse("Failed to update milestone: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Mark milestone complete (shortcut)
+     */
+    @PostMapping("/milestones/{milestoneId}/complete")
+    public ResponseEntity<?> completeMilestone(@PathVariable Long milestoneId) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            Long userId = userDetails.getId();
+            Milestone updated = futurecastService.updateMilestoneProgress(milestoneId, true, null, userId);
+            return ResponseEntity.ok(Map.of(
+                "message", "Milestone marked complete",
+                "milestoneId", updated.getId(),
+                "completedAt", updated.getCompletedAt()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Failed to complete milestone: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Mark milestone incomplete (shortcut)
+     */
+    @PostMapping("/milestones/{milestoneId}/uncomplete")
+    public ResponseEntity<?> uncompleteMilestone(@PathVariable Long milestoneId) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            Long userId = userDetails.getId();
+            Milestone updated = futurecastService.updateMilestoneProgress(milestoneId, false, null, userId);
+            return ResponseEntity.ok(Map.of(
+                "message", "Milestone marked incomplete",
+                "milestoneId", updated.getId()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Failed to uncomplete milestone: " + e.getMessage()));
         }
     }
     

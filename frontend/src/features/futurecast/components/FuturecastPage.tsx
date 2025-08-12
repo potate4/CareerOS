@@ -159,10 +159,19 @@ export default function FuturecastPage() {
 
   const toggleMilestone = async (milestoneId: number, isCompleted: boolean) => {
     try {
-      await futurecastAPI.updateMilestone(milestoneId, { isCompleted });
+      if (isCompleted) {
+        await futurecastAPI.markMilestoneComplete(milestoneId);
+      } else {
+        await futurecastAPI.markMilestoneUncomplete(milestoneId);
+      }
       if (roadmap) await viewRoadmap(roadmap.id);
     } catch (e: any) {
-      setError(e?.message || 'Failed to update milestone');
+      try {
+        await futurecastAPI.updateMilestone(milestoneId, { isCompleted });
+        if (roadmap) await viewRoadmap(roadmap.id);
+      } catch (err: any) {
+        setError(err?.message || 'Failed to update milestone');
+      }
     }
   };
 

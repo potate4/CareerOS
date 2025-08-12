@@ -22,6 +22,14 @@ export const futurecastAPI = {
     const { data } = await api.put(`/futurecast/milestones/${milestoneId}`, body);
     return data;
   },
+  markMilestoneComplete: async (milestoneId: number): Promise<{ message: string; milestoneId: number; completedAt?: string }> => {
+    const { data } = await api.post(`/futurecast/milestones/${milestoneId}/complete`);
+    return data;
+  },
+  markMilestoneUncomplete: async (milestoneId: number): Promise<{ message: string; milestoneId: number }> => {
+    const { data } = await api.post(`/futurecast/milestones/${milestoneId}/uncomplete`);
+    return data;
+  },
   getProgress: async (roadmapId: number): Promise<RoadmapProgressDTO> => {
     const { data } = await api.get(`/futurecast/roadmaps/${roadmapId}/progress`);
     return data;
