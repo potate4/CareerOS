@@ -13,7 +13,7 @@ export const config = {
   enableDebugLogging: import.meta.env.VITE_DEBUG_LOGGING === 'true',
   
   // Timeouts
-  requestTimeout: parseInt(import.meta.env.VITE_REQUEST_TIMEOUT || '10000'),
+  requestTimeout: parseInt(import.meta.env.VITE_REQUEST_TIMEOUT || '15000'),
   
   // Auth Configuration
   tokenKey: 'token',
