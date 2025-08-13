@@ -59,13 +59,32 @@ export interface RecordingState {
   stream: MediaStream | null;
 }
 
-export interface InterviewSession {
-  id: string;
-  title: string;
-  startTime: Date;
-  endTime?: Date;
-  duration: number;
-  status: 'recording' | 'paused' | 'completed' | 'saved';
-  recordingUrl?: string;
-  fileType: 'video' | 'audio';
+export interface InterviewSessionDTO {
+  sessionId: string;
+  userId: number;
+  status: 'ACTIVE' | 'ENDED';
+  sessionData?: string;
+  createdAt: string;
+  updatedAt: string;
+  endedAt?: string;
+}
+
+export interface ConversationMessage {
+  sessionId: string;
+  userId: number;
+  speaker: 'ai' | 'user';
+  message: string;
+  audioUrl?: string | null;
+  createdAt: string;
+}
+
+export interface StartSimulationResponse {
+  question: string;
+  audioUrl?: string | null;
+}
+
+export interface ProcessAnswerResponse {
+  transcript: string;
+  nextQuestion: string;
+  audioUrl?: string | null;
 } 

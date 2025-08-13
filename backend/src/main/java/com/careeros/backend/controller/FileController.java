@@ -141,6 +141,20 @@ public class FileController {
         }
     }
 
+    @DeleteMapping("/upload/{fileId}")
+    public ResponseEntity<FileUploadResponse> deleteFileUpload(@PathVariable Long fileId) {
+        try {
+            FileUploadResponse response = fileUploadService.deleteUserFile(fileId);
+            if (response.isSuccess()) {
+                return ResponseEntity.ok(response);
+            } else {
+                return ResponseEntity.badRequest().body(response);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(FileUploadResponse.error("Failed to delete file upload: " + e.getMessage()));
+        }
+    }
+    
     @GetMapping("/test-supabase")
     public ResponseEntity<?> testSupabaseConnection() {
         try {
@@ -162,38 +176,38 @@ public class FileController {
 
     @GetMapping("/test-supabase-bucket")
     public ResponseEntity<?> testSupabaseBucket() {
-        try {
-            RestTemplate restTemplate = new RestTemplate();
-            
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Authorization", "Bearer " + fileUploadService.getSupabaseKey());
-            headers.set("apikey", fileUploadService.getSupabaseKey());
-            
-            HttpEntity<String> requestEntity = new HttpEntity<>(headers);
-            
-            // Test bucket access by trying to list objects
-            String testUrl = fileUploadService.getSupabaseUrl() + "/storage/v1/object/list/" + fileUploadService.getBucketName();
-            
-            ResponseEntity<String> response = restTemplate.exchange(
-                testUrl,
-                HttpMethod.GET,
-                requestEntity,
-                String.class
-            );
-            
-            return ResponseEntity.ok(Map.of(
-                "success", true,
-                "message", "Supabase bucket accessible",
-                "status", response.getStatusCode().toString(),
-                "response", response.getBody()
-            ));
-            
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of(
-                "success", false,
-                "message", "Supabase bucket access failed: " + e.getMessage(),
-                "error", e.getClass().getSimpleName()
-            ));
-        }
+      try {
+        RestTemplate restTemplate = new RestTemplate();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "Bearer " + fileUploadService.getSupabaseKey());
+        headers.set("apikey", fileUploadService.getSupabaseKey());
+
+        HttpEntity<String> requestEntity = new HttpEntity<>(headers);
+
+        // Test bucket access by trying to list objects
+        String testUrl = fileUploadService.getSupabaseUrl() + "/storage/v1/object/list/" + fileUploadService.getBucketName();
+
+        ResponseEntity<String> response = restTemplate.exchange(
+            testUrl,
+            HttpMethod.GET,
+            requestEntity,
+            String.class
+        );
+
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", "Supabase bucket accessible",
+            "status", response.getStatusCode().toString(),
+            "response", response.getBody()
+        ));
+
+      } catch (Exception e) {
+        return ResponseEntity.badRequest().body(Map.of(
+            "success", false,
+            "message", "Supabase bucket access failed: " + e.getMessage(),
+            "error", e.getClass().getSimpleName()
+        ));
+      }
     }
 } 

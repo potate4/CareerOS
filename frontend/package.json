@@ -28,7 +28,9 @@
     "react-oauth": "^0.0.1",
     "react-router-dom": "^7.1.2",
     "recharts": "^2.15.1",
-    "zustand": "^5.0.3"
+    "zustand": "^5.0.3",
+    "react-markdown": "^9.0.3",
+    "remark-gfm": "^4.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

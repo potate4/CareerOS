@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { InterviewRecordingRequest, InterviewRecordingResponse, InterviewRecording, FileAnalysisResponse } from '../types';
+import { InterviewRecordingRequest, InterviewRecordingResponse, InterviewRecording, FileAnalysisResponse, InterviewSessionDTO, ConversationMessage, StartSimulationResponse, ProcessAnswerResponse } from '../types';
 import { handleApiError } from '../../../utils/apiErrorHandler';
 import { config } from '../../../config/env';
 
@@ -40,8 +40,8 @@ api.interceptors.response.use(
 );
 
 export const interviewAPI = {
-  // Upload interview recording
-  uploadRecording: async (request: InterviewRecordingRequest): Promise<InterviewRecordingResponse> => {
+  // Upload interview recording (supports large files)
+  uploadRecording: async (request: InterviewRecordingRequest, onProgress?: (percent: number) => void): Promise<InterviewRecordingResponse> => {
     try {
       const formData = new FormData();
       formData.append('file', request.file);
@@ -58,6 +58,35 @@ export const interviewAPI = {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        // Disable timeout for large uploads
+        timeout: 0,
+        onUploadProgress: (evt) => {
+          if (!onProgress) return;
+          const total = evt.total || 0;
+          const loaded = evt.loaded || 0;
+          if (total > 0) {
+            const percent = Math.round((loaded / total) * 100);
+            onProgress(percent);
+          }
+        },
+      });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  // Upload audio and get public URL
+  uploadAudio: async (file: File, description?: string): Promise<InterviewRecordingResponse> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (description) formData.append('description', description);
+      formData.append('category', 'interview-audio');
+      formData.append('fileType', 'audio');
+      const response = await api.post('/files/file-upload-and-get-url', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 0,
       });
       return response.data;
     } catch (error) {
@@ -86,7 +115,7 @@ export const interviewAPI = {
   },
 
   // Delete recording
-  deleteRecording: async (recordingId: number): Promise<{ message: string }> => {
+  deleteRecording: async (recordingId: number): Promise<{ success: boolean; message: string }> => {
     try {
       const response = await api.delete(`/files/upload/${recordingId}`);
       return response.data;
@@ -107,7 +136,7 @@ export const interviewAPI = {
         analysisType,
         userId,
         fileId
-      });
+      }, { timeout: 0 });
       
       console.log('✅ Interview analysis response:', response.data);
       return response.data;
@@ -131,6 +160,77 @@ export const interviewAPI = {
   getFileAnalysisData: async (): Promise<FileAnalysisResponse[]> => {
     try {
       const response = await api.get('/interview/files/analysis');
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  // ===== Sessions =====
+  createSession: async (initialSessionData?: Record<string, any>): Promise<InterviewSessionDTO> => {
+    try {
+      const response = await api.post('/interview/sessions', initialSessionData ? { initialSessionData: JSON.stringify(initialSessionData) } : {}, { timeout: 0 });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+  listSessions: async (status?: 'ACTIVE' | 'ENDED'): Promise<InterviewSessionDTO[]> => {
+    try {
+      const response = await api.get('/interview/sessions', { params: status ? { status } : {} });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+  getSession: async (sessionId: string): Promise<InterviewSessionDTO> => {
+    try {
+      const response = await api.get(`/interview/sessions/${sessionId}`);
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+  endSession: async (sessionId: string): Promise<InterviewSessionDTO> => {
+    try {
+      const response = await api.post(`/interview/sessions/${sessionId}/end`, {}, { timeout: 0 });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  // ===== Conversation =====
+  getConversation: async (sessionId: string): Promise<ConversationMessage[]> => {
+    try {
+      const response = await api.get(`/interview/sessions/${sessionId}/conversation`);
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+  addMessage: async (sessionId: string, speaker: 'ai' | 'user', message: string, audioUrl?: string | null): Promise<ConversationMessage> => {
+    try {
+      const response = await api.post(`/interview/sessions/${sessionId}/conversation`, { speaker, message, audioUrl }, { timeout: 0 });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  // ===== Simulation Flow =====
+  startSimulation: async (sessionId: string): Promise<StartSimulationResponse> => {
+    try {
+      const response = await api.post(`/interview/sessions/${sessionId}/start`, {}, { timeout: 0 });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+  processAnswer: async (sessionId: string, audioUrl: string): Promise<any> => {
+    try {
+      const response = await api.post(`/interview/sessions/${sessionId}/answer`, { audioUrl }, { timeout: 15000, validateStatus: () => true });
+      // If server returns 202, forward body (jobId/status). If 200, forward body (legacy immediate result).
       return response.data;
     } catch (error) {
       throw handleApiError(error);
