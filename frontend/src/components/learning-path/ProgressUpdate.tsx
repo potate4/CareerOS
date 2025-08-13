@@ -10,7 +10,9 @@ import {
   Pause,
   AlertCircle,
   ThumbsUp,
-  ThumbsDown
+  ThumbsDown,
+  RefreshCw,
+  Zap
 } from 'lucide-react';
 import { learningPathAPI } from '../../services/learningPathAPI';
 import { LearningPathResponse, LearningModule, ModuleStatus, ModuleProgressRequest } from '../../types/learningPath';
@@ -21,6 +23,7 @@ const ProgressUpdate: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [progressData, setProgressData] = useState<ModuleProgressRequest>({
     moduleId: 0,
     progressPercentage: 0,
@@ -36,10 +39,12 @@ const ProgressUpdate: React.FC = () => {
   const fetchCurrentLearningPath = async () => {
     try {
       setLoading(true);
+      setError(null);
       const path = await learningPathAPI.getCurrentLearningPath();
       setLearningPath(path);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch learning path:', err);
+      setError(err.message || 'Failed to load learning path');
     } finally {
       setLoading(false);
     }
@@ -49,8 +54,8 @@ const ProgressUpdate: React.FC = () => {
     setSelectedModule(module);
     setProgressData({
       moduleId: module.id,
-      progressPercentage: module.progressPercentage,
-      status: module.status,
+      progressPercentage: module.progressPercentage || 0,
+      status: module.status || ModuleStatus.NOT_STARTED,
       userRating: module.userRating,
       userFeedback: module.userFeedback || ''
     });
@@ -85,6 +90,7 @@ const ProgressUpdate: React.FC = () => {
     if (!selectedModule) return;
 
     setUpdating(true);
+    setError(null);
     try {
       await learningPathAPI.updateModuleProgress(progressData);
       setShowSuccess(true);
@@ -92,8 +98,17 @@ const ProgressUpdate: React.FC = () => {
       
       // Refresh the learning path data
       await fetchCurrentLearningPath();
-    } catch (error) {
+      
+      // Update the selected module with new data
+      if (learningPath) {
+        const updatedModule = learningPath.modules?.find(m => m.id === selectedModule.id);
+        if (updatedModule) {
+          setSelectedModule(updatedModule);
+        }
+      }
+    } catch (error: any) {
       console.error('Failed to update progress:', error);
+      setError(error.message || 'Failed to update progress');
     } finally {
       setUpdating(false);
     }
@@ -147,10 +162,19 @@ const ProgressUpdate: React.FC = () => {
             <AlertCircle className="h-8 w-8 text-slate-400" />
           </div>
           <h3 className="text-lg font-semibold text-slate-800 mb-2">No Learning Path Found</h3>
-          <p className="text-slate-600 mb-6">Generate a learning path to start updating progress.</p>
-          <button className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all">
-            Generate New Path
-          </button>
+          <p className="text-slate-600 mb-6">{error || 'Generate a learning path to start updating progress.'}</p>
+          <div className="flex gap-3 justify-center">
+            <button 
+              onClick={fetchCurrentLearningPath}
+              className="px-6 py-3 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-all flex items-center gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </button>
+            <button className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all">
+              Generate New Path
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -170,6 +194,14 @@ const ProgressUpdate: React.FC = () => {
               <p className="text-slate-600">Track your learning journey and provide feedback</p>
             </div>
           </div>
+          
+          {/* AI Generated Badge */}
+          {learningPath.aiGenerated && (
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
+              <Zap className="h-4 w-4" />
+              AI-Powered Learning Path
+            </div>
+          )}
         </div>
 
         {showSuccess && (
@@ -179,35 +211,51 @@ const ProgressUpdate: React.FC = () => {
           </div>
         )}
 
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-red-600" />
+            <span className="text-red-800 font-medium">{error}</span>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Module Selection */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
               <h3 className="text-lg font-semibold text-slate-800 mb-4">Select Module</h3>
               
-              <div className="space-y-3">
-                {learningPath.modules.map((module) => (
-                  <button
-                    key={module.id}
-                    onClick={() => handleModuleSelect(module)}
-                    className={`w-full text-left p-4 rounded-lg border transition-all ${
-                      selectedModule?.id === module.id
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 mb-2">
-                      {getStatusIcon(module.status)}
-                      <h4 className="font-medium text-slate-800">{module.title}</h4>
-                    </div>
-                    <p className="text-sm text-slate-600 mb-2">{module.description}</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-500">{module.skillFocus}</span>
-                      <span className="text-sm font-medium text-slate-700">{module.progressPercentage}%</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
+              {learningPath.modules && learningPath.modules.length > 0 ? (
+                <div className="space-y-3">
+                  {learningPath.modules.map((module) => (
+                    <button
+                      key={module.id}
+                      onClick={() => handleModuleSelect(module)}
+                      className={`w-full text-left p-4 rounded-lg border transition-all ${
+                        selectedModule?.id === module.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        {getStatusIcon(module.status || ModuleStatus.NOT_STARTED)}
+                        <h4 className="font-medium text-slate-800">{module.title}</h4>
+                      </div>
+                      <p className="text-sm text-slate-600 mb-2">{module.description}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-slate-500">{module.skillFocus || 'General'}</span>
+                        <span className="text-sm font-medium text-slate-700">{module.progressPercentage || 0}%</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 mb-3">
+                    <AlertCircle className="h-6 w-6 text-slate-400" />
+                  </div>
+                  <p className="text-slate-600 text-sm">No modules available</p>
+                </div>
+              )}
             </div>
           </div>
 

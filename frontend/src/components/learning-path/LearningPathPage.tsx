@@ -8,10 +8,13 @@ import {
   Plus,
   Target,
   Clock,
-  Award
+  Award,
+  Brain,
+  Sparkles
 } from 'lucide-react';
 import AuthenticatedLayout from '../layout/AuthenticatedLayout';
 import GenerateLearningPath from './GenerateLearningPath';
+import AIGenerateLearningPath from './AIGenerateLearningPath';
 import CurrentStatus from './CurrentStatus';
 import ProgressUpdate from './ProgressUpdate';
 import Statistics from './Statistics';
@@ -22,18 +25,26 @@ const LearningPathPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState(() => {
     const path = location.pathname;
     if (path.includes('/generate')) return 'generate';
+    if (path.includes('/ai-generate')) return 'ai-generate';
     if (path.includes('/current')) return 'current';
     if (path.includes('/progress')) return 'progress';
     if (path.includes('/stats')) return 'stats';
-    return 'generate';
+    return 'ai-generate'; // Default to AI-powered generation
   });
 
   const tabs = [
     {
+      id: 'ai-generate',
+      name: 'AI Generate Path',
+      icon: Brain,
+      description: 'AI-powered learning path generation',
+      path: '/learning-path/ai-generate'
+    },
+    {
       id: 'generate',
-      name: 'Generate Path',
-      icon: Plus,
-      description: 'Create new learning path',
+      name: 'Basic Generate',
+      icon: Sparkles,
+      description: 'Traditional learning path generation',
       path: '/learning-path/generate'
     },
     {
@@ -163,7 +174,8 @@ const LearningPathPage: React.FC = () => {
           {/* Content Area */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 min-h-[600px]">
             <Routes>
-              <Route path="/" element={<Navigate to="/learning-path/generate" replace />} />
+              <Route path="/" element={<Navigate to="/learning-path/ai-generate" replace />} />
+              <Route path="/ai-generate" element={<AIGenerateLearningPath />} />
               <Route path="/generate" element={<GenerateLearningPath />} />
               <Route path="/current" element={<CurrentStatus />} />
               <Route path="/progress" element={<ProgressUpdate />} />

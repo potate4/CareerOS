@@ -71,6 +71,16 @@ export interface LearningModule {
   createdAt: string;
   updatedAt: string;
   resources: LearningResource[];
+  
+  // New AI-related fields
+  skillMasteryLevel?: number;
+  prerequisites?: string;
+  marketRelevanceScore?: number;
+  timeSpentHours?: number;
+  lastPracticeDate?: string;
+  nextPracticeDate?: string;
+  aiRecommended?: boolean;
+  adaptationPriority?: number;
 }
 
 export interface PathStatistics {
@@ -95,6 +105,13 @@ export interface LearningPath {
   updatedAt: string;
   modules: LearningModule[];
   statistics: PathStatistics;
+  
+  // New AI-related fields
+  aiGenerated?: boolean;
+  lastAiUpdate?: string;
+  marketDemandScore?: number;
+  currentMarketTrends?: string;
+  interviewPerformanceScore?: number;
 }
 
 export interface LearningPathRequest {
@@ -124,10 +141,97 @@ export interface LearningPathResponse {
   updatedAt: string;
   modules: LearningModule[];
   statistics: PathStatistics;
-} 
-// types/learningPath.ts
-// types/learningPath.ts
-// types/learningPath.ts
+  
+  // New AI-related fields
+  aiGenerated?: boolean;
+  lastAiUpdate?: string;
+  marketDemandScore?: number;
+  currentMarketTrends?: string;
+  interviewPerformanceScore?: number;
+}
+
+// New AI-specific interfaces
+export interface AILearningPathRequest extends Omit<LearningPathRequest, 'currentSkills'> {
+  userId?: number;
+  username?: string;
+  email?: string;
+  currentSkills: Record<string, number>; // skill_name -> mastery_level (0.0 to 1.0)
+  interviewPerformance?: InterviewPerformance;
+  marketTrends?: MarketTrend[];
+  learningHistory?: LearningHistory;
+}
+
+export interface InterviewPerformance {
+  overallScore?: number;
+  technicalScore?: number;
+  communicationScore?: number;
+  problemSolvingScore?: number;
+  lastInterviewDate?: string;
+}
+
+export interface MarketTrend {
+  skillName: string;
+  demandScore: number;
+  salaryTrend: 'INCREASING' | 'DECREASING' | 'STABLE';
+  jobPostingsCount?: number;
+  growthRatePercentage?: number;
+  trendingDirection: 'UP' | 'DOWN' | 'STABLE';
+}
+
+export interface LearningHistory {
+  completedModules: number;
+  totalHoursSpent: number;
+  averageRating: number;
+  lastActivityDate?: string;
+}
+
+export interface AILearningPathResponse {
+  modules: AILearningModule[];
+  estimatedWeeks: number;
+  marketDemandScore: number;
+  marketTrends: string;
+  skillGapAnalysis: SkillGapAnalysis;
+  learningStrategy: string;
+}
+
+export interface AILearningModule {
+  title: string;
+  description: string;
+  skillFocus: string;
+  difficultyLevel: string;
+  estimatedHours: number;
+  marketRelevance: number;
+  prerequisites?: string;
+}
+
+export interface SkillGapAnalysis {
+  totalSkillsRequired: number;
+  currentSkills: number;
+  skillsToLearn: number;
+  prioritySkills: string[];
+  estimatedTimeToMastery: string;
+}
+
+export interface AdaptationRequest {
+  learningPathId: number;
+  currentProgress: number;
+  currentStage: string;
+  estimatedCompletionWeeks: number;
+  recentProgress: any[];
+  updatedSkillLevels: Record<string, number>;
+  marketChanges: any;
+}
+
+export interface AdaptationResponse {
+  updatedModules: any[];
+  newModules: AILearningModule[];
+  overallProgress: number;
+  currentStage: string;
+  estimatedWeeks: number;
+  adaptationReason: string;
+}
+
+// Enhanced statistics response
 export interface LearningPathStatsResponse {
   userId: number;
   username: string;
@@ -142,9 +246,45 @@ export interface LearningPathStatsResponse {
   averageRating: number;
   totalEstimatedHours: number;
   completedHours: number;
+  
+  // AI-specific stats
+  aiGenerated?: boolean;
+  marketDemandScore?: number;
+  lastAiUpdate?: string;
+  nextAdaptationDate?: string;
+  interviewPerformanceScore?: number;
+  
   message?: string; // For error cases
 }
 
 export interface MessageResponse {
   message: string;
+}
+
+// Skill mastery tracking
+export interface SkillMastery {
+  id: number;
+  skillName: string;
+  masteryLevel: number;
+  experienceHours: number;
+  lastAssessmentDate?: string;
+  assessmentScore?: number;
+  marketDemandLevel?: number;
+  trendingUp: boolean;
+}
+
+// Market trends
+export interface MarketTrendData {
+  id: number;
+  skillName: string;
+  demandScore: number;
+  salaryTrend: string;
+  jobPostingsCount?: number;
+  growthRatePercentage?: number;
+  trendingDirection: string;
+  marketRegion?: string;
+  industryFocus?: string;
+  lastUpdated: string;
+  dataSource?: string;
+  confidenceScore?: number;
 }

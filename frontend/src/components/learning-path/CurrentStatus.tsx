@@ -11,7 +11,9 @@ import {
   TrendingUp,
   Calendar,
   Award,
-  Zap
+  Zap,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 import { learningPathAPI } from '../../services/learningPathAPI';
 import { LearningPathResponse, LearningModule, ModuleStatus, DifficultyLevel, LearningStage } from '../../types/learningPath';
@@ -20,6 +22,7 @@ const CurrentStatus: React.FC = () => {
   const [learningPath, setLearningPath] = useState<LearningPathResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchCurrentLearningPath();
@@ -28,13 +31,21 @@ const CurrentStatus: React.FC = () => {
   const fetchCurrentLearningPath = async () => {
     try {
       setLoading(true);
+      setError(null);
       const path = await learningPathAPI.getCurrentLearningPath();
       setLearningPath(path);
-    } catch (err) {
-      setError('No active learning path found. Generate one to get started!');
+    } catch (err: any) {
+      console.error('Failed to fetch learning path:', err);
+      setError(err.message || 'No active learning path found. Generate one to get started!');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchCurrentLearningPath();
+    setRefreshing(false);
   };
 
   const getStatusIcon = (status: ModuleStatus) => {
@@ -108,9 +119,23 @@ const CurrentStatus: React.FC = () => {
           </div>
           <h3 className="text-lg font-semibold text-slate-800 mb-2">No Learning Path Found</h3>
           <p className="text-slate-600 mb-6">{error}</p>
-          <button className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all">
-            Generate New Path
-          </button>
+          <div className="flex gap-3 justify-center">
+            <button 
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="px-6 py-3 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-all flex items-center gap-2"
+            >
+              {refreshing ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Refresh
+            </button>
+            <button className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all">
+              Generate New Path
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -127,12 +152,18 @@ const CurrentStatus: React.FC = () => {
                 {learningPath.careerGoal}
               </h2>
               <p className="text-slate-600">
-                Current Stage: <span className="font-semibold capitalize">{learningPath.currentStage.toLowerCase()}</span>
+                Current Stage: <span className="font-semibold capitalize">{learningPath.currentStage?.toLowerCase() || 'Foundation'}</span>
+                {learningPath.aiGenerated && (
+                  <span className="ml-2 inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs">
+                    <Zap className="h-3 w-3" />
+                    AI Generated
+                  </span>
+                )}
               </p>
             </div>
             <div className="text-right">
               <div className="text-3xl font-bold text-slate-800">
-                {Math.round(learningPath.overallProgress)}%
+                {Math.round(learningPath.overallProgress || 0)}%
               </div>
               <div className="text-sm text-slate-600">Overall Progress</div>
             </div>
@@ -141,8 +172,8 @@ const CurrentStatus: React.FC = () => {
           {/* Progress Bar */}
           <div className="w-full bg-slate-200 rounded-full h-3 mb-4">
             <div 
-              className={`h-3 rounded-full transition-all duration-500 ${getProgressColor(learningPath.overallProgress)}`}
-              style={{ width: `${learningPath.overallProgress}%` }}
+              className={`h-3 rounded-full transition-all duration-500 ${getProgressColor(learningPath.overallProgress || 0)}`}
+              style={{ width: `${learningPath.overallProgress || 0}%` }}
             ></div>
           </div>
 
@@ -155,7 +186,7 @@ const CurrentStatus: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-slate-600">Total Modules</p>
-                  <p className="text-lg font-semibold text-slate-800">{learningPath.statistics.totalModules}</p>
+                  <p className="text-lg font-semibold text-slate-800">{learningPath.statistics?.totalModules || 0}</p>
                 </div>
               </div>
             </div>
@@ -167,7 +198,7 @@ const CurrentStatus: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-slate-600">Completed</p>
-                  <p className="text-lg font-semibold text-slate-800">{learningPath.statistics.completedModules}</p>
+                  <p className="text-lg font-semibold text-slate-800">{learningPath.statistics?.completedModules || 0}</p>
                 </div>
               </div>
             </div>
@@ -175,11 +206,11 @@ const CurrentStatus: React.FC = () => {
             <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-purple-100">
-                  <Clock className="h-5 w-5 text-purple-600" />
+                  <Calendar className="h-5 w-5 text-purple-600" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-slate-600">Time Left</p>
-                  <p className="text-lg font-semibold text-slate-800">{learningPath.estimatedCompletionWeeks} weeks</p>
+                  <p className="text-lg font-semibold text-slate-800">{learningPath.estimatedCompletionWeeks || 12} weeks</p>
                 </div>
               </div>
             </div>
@@ -191,7 +222,7 @@ const CurrentStatus: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-slate-600">Avg Rating</p>
-                  <p className="text-lg font-semibold text-slate-800">{learningPath.statistics.averageRating.toFixed(1)}</p>
+                  <p className="text-lg font-semibold text-slate-800">{(learningPath.statistics?.averageRating || 0).toFixed(1)}</p>
                 </div>
               </div>
             </div>
@@ -200,111 +231,135 @@ const CurrentStatus: React.FC = () => {
 
         {/* Modules Grid */}
         <div className="space-y-6">
-          <h3 className="text-xl font-semibold text-slate-800 mb-4">Learning Modules</h3>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {learningPath.modules.map((module) => (
-              <div key={module.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      {getStatusIcon(module.status)}
-                      <h4 className="text-lg font-semibold text-slate-800">{module.title}</h4>
-                    </div>
-                    <p className="text-slate-600 text-sm mb-3">{module.description}</p>
-                    
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(module.difficultyLevel)}`}>
-                        {module.difficultyLevel.toLowerCase()}
-                      </span>
-                      <span className="text-xs text-slate-500">
-                        {module.estimatedHours}h • {module.skillFocus}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {module.userRating && (
-                    <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                      <span className="text-sm font-medium text-slate-700">{module.userRating}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Progress Bar */}
-                <div className="mb-4">
-                  <div className="flex justify-between text-sm text-slate-600 mb-1">
-                    <span>Progress</span>
-                    <span>{module.progressPercentage}%</span>
-                  </div>
-                  <div className="w-full bg-slate-200 rounded-full h-2">
-                    <div 
-                      className={`h-2 rounded-full transition-all duration-300 ${getProgressColor(module.progressPercentage)}`}
-                      style={{ width: `${module.progressPercentage}%` }}
-                    ></div>
-                  </div>
-                </div>
-
-                {/* Status Badge */}
-                <div className="flex items-center justify-between mb-4">
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(module.status)}`}>
-                    {module.status.replace('_', ' ').toLowerCase()}
-                  </span>
-                  <span className="text-xs text-slate-500">Module {module.orderIndex}</span>
-                </div>
-
-                {/* Learning Resources */}
-                {module.resources.length > 0 && (
-                  <div className="space-y-2">
-                    <h5 className="text-sm font-medium text-slate-700">Resources:</h5>
-                    <div className="space-y-2">
-                      {module.resources.slice(0, 3).map((resource) => (
-                        <div key={resource.id} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
-                          <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                          <span className="text-sm text-slate-700 flex-1 truncate">{resource.title}</span>
-                          <a 
-                            href={resource.url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-700"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        </div>
-                      ))}
-                      {module.resources.length > 3 && (
-                        <div className="text-xs text-slate-500 text-center">
-                          +{module.resources.length - 3} more resources
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="flex gap-2 mt-4">
-                  {module.status === ModuleStatus.NOT_STARTED && (
-                    <button className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
-                      Start Module
-                    </button>
-                  )}
-                  {module.status === ModuleStatus.IN_PROGRESS && (
-                    <button className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm">
-                      Continue
-                    </button>
-                  )}
-                  {module.status === ModuleStatus.COMPLETED && (
-                    <button className="flex-1 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors text-sm">
-                      Review
-                    </button>
-                  )}
-                  <button className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm">
-                    Details
-                  </button>
-                </div>
-              </div>
-            ))}
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-semibold text-slate-800">Learning Modules</h3>
+            <button 
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+            >
+              {refreshing ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-600"></div>
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Refresh
+            </button>
           </div>
+          
+          {learningPath.modules && learningPath.modules.length > 0 ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {learningPath.modules.map((module) => (
+                <div key={module.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        {getStatusIcon(module.status)}
+                        <h4 className="text-lg font-semibold text-slate-800">{module.title}</h4>
+                      </div>
+                      <p className="text-slate-600 text-sm mb-3">{module.description}</p>
+                      
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(module.difficultyLevel)}`}>
+                          {module.difficultyLevel?.toLowerCase() || 'beginner'}
+                        </span>
+                        <span className="text-xs text-slate-500">
+                          {module.estimatedHours || 8}h • {module.skillFocus || 'General'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {module.userRating && (
+                      <div className="flex items-center gap-1">
+                        <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                        <span className="text-sm font-medium text-slate-700">{module.userRating}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="mb-4">
+                    <div className="flex justify-between text-sm text-slate-600 mb-1">
+                      <span>Progress</span>
+                      <span>{module.progressPercentage || 0}%</span>
+                    </div>
+                    <div className="w-full bg-slate-200 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full transition-all duration-300 ${getProgressColor(module.progressPercentage || 0)}`}
+                        style={{ width: `${module.progressPercentage || 0}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* Status Badge */}
+                  <div className="flex items-center justify-between mb-4">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(module.status)}`}>
+                      {module.status?.replace('_', ' ').toLowerCase() || 'not started'}
+                    </span>
+                    <span className="text-xs text-slate-500">Module {module.orderIndex || 1}</span>
+                  </div>
+
+                  {/* Learning Resources */}
+                  {module.resources && module.resources.length > 0 && (
+                    <div className="space-y-2">
+                      <h5 className="text-sm font-medium text-slate-700">Resources:</h5>
+                      <div className="space-y-2">
+                        {module.resources.slice(0, 3).map((resource) => (
+                          <div key={resource.id} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
+                            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                            <span className="text-sm text-slate-700 flex-1 truncate">{resource.title}</span>
+                            <a 
+                              href={resource.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-700"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          </div>
+                        ))}
+                        {module.resources.length > 3 && (
+                          <div className="text-xs text-slate-500 text-center">
+                            +{module.resources.length - 3} more resources
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 mt-4">
+                    {module.status === ModuleStatus.NOT_STARTED && (
+                      <button className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                        Start Module
+                      </button>
+                    )}
+                    {module.status === ModuleStatus.IN_PROGRESS && (
+                      <button className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm">
+                        Continue
+                      </button>
+                    )}
+                    {module.status === ModuleStatus.COMPLETED && (
+                      <button className="flex-1 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors text-sm">
+                        Review
+                      </button>
+                    )}
+                    <button className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm">
+                      Details
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 mb-4">
+                <AlertCircle className="h-8 w-8 text-slate-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-800 mb-2">No Modules Available</h3>
+              <p className="text-slate-600">No learning modules have been created for this path yet.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

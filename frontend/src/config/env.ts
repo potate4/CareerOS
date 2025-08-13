@@ -2,6 +2,9 @@ export const config = {
   // API Configuration
   apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:8081/api',
   
+  // AI Service Configuration (Python Backend)
+  aiApiUrl: import.meta.env.VITE_AI_API_URL || 'http://localhost:8000',
+  
   // App Configuration
   appName: import.meta.env.VITE_APP_NAME || 'CareerOS',
   appVersion: import.meta.env.VITE_APP_VERSION || '1.0.0',

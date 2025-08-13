@@ -54,6 +54,34 @@ public class LearningModule {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
     
+    // New fields for enhanced system
+    @Column(name = "skill_mastery_level")
+    private Double skillMasteryLevel = 0.0;
+    
+    @Column(name = "prerequisites", columnDefinition = "TEXT")
+    private String prerequisites;
+    
+    @Column(name = "market_relevance_score")
+    private Double marketRelevanceScore;
+    
+    @Column(name = "time_spent_hours")
+    private Double timeSpentHours = 0.0;
+    
+    @Column(name = "last_practice_date")
+    private LocalDateTime lastPracticeDate;
+    
+    @Column(name = "practice_frequency_days")
+    private Integer practiceFrequencyDays = 3;
+    
+    @Column(name = "next_practice_date")
+    private LocalDateTime nextPracticeDate;
+    
+    @Column(name = "ai_recommended")
+    private Boolean aiRecommended = false;
+    
+    @Column(name = "adaptation_priority")
+    private Integer adaptationPriority = 1;
+    
     @OneToMany(mappedBy = "learningModule", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<LearningResource> resources;
     
@@ -70,6 +98,7 @@ public class LearningModule {
     public LearningModule() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
+        this.nextPracticeDate = LocalDateTime.now().plusDays(this.practiceFrequencyDays);
     }
     
     public LearningModule(String title, String description, String skillFocus, 
@@ -201,6 +230,79 @@ public class LearningModule {
     
     public void setResources(List<LearningResource> resources) {
         this.resources = resources;
+    }
+    
+    // New getters and setters
+    public Double getSkillMasteryLevel() {
+        return skillMasteryLevel;
+    }
+    
+    public void setSkillMasteryLevel(Double skillMasteryLevel) {
+        this.skillMasteryLevel = skillMasteryLevel;
+    }
+    
+    public String getPrerequisites() {
+        return prerequisites;
+    }
+    
+    public void setPrerequisites(String prerequisites) {
+        this.prerequisites = prerequisites;
+    }
+    
+    public Double getMarketRelevanceScore() {
+        return marketRelevanceScore;
+    }
+    
+    public void setMarketRelevanceScore(Double marketRelevanceScore) {
+        this.marketRelevanceScore = marketRelevanceScore;
+    }
+    
+    public Double getTimeSpentHours() {
+        return timeSpentHours;
+    }
+    
+    public void setTimeSpentHours(Double timeSpentHours) {
+        this.timeSpentHours = timeSpentHours;
+    }
+    
+    public LocalDateTime getLastPracticeDate() {
+        return lastPracticeDate;
+    }
+    
+    public void setLastPracticeDate(LocalDateTime lastPracticeDate) {
+        this.lastPracticeDate = lastPracticeDate;
+    }
+    
+    public Integer getPracticeFrequencyDays() {
+        return practiceFrequencyDays;
+    }
+    
+    public void setPracticeFrequencyDays(Integer practiceFrequencyDays) {
+        this.practiceFrequencyDays = practiceFrequencyDays;
+    }
+    
+    public LocalDateTime getNextPracticeDate() {
+        return nextPracticeDate;
+    }
+    
+    public void setNextPracticeDate(LocalDateTime nextPracticeDate) {
+        this.nextPracticeDate = nextPracticeDate;
+    }
+    
+    public Boolean getAiRecommended() {
+        return aiRecommended;
+    }
+    
+    public void setAiRecommended(Boolean aiRecommended) {
+        this.aiRecommended = aiRecommended;
+    }
+    
+    public Integer getAdaptationPriority() {
+        return adaptationPriority;
+    }
+    
+    public void setAdaptationPriority(Integer adaptationPriority) {
+        this.adaptationPriority = adaptationPriority;
     }
     
     // JPA Lifecycle methods

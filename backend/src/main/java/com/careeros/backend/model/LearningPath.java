@@ -38,6 +38,31 @@ public class LearningPath {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
     
+    // New fields for enhanced system
+    @Column(name = "ai_generated", columnDefinition = "BOOLEAN DEFAULT FALSE")
+    private Boolean aiGenerated = false;
+    
+    @Column(name = "last_ai_update")
+    private LocalDateTime lastAiUpdate;
+    
+    @Column(name = "market_demand_score")
+    private Double marketDemandScore;
+    
+    @Column(name = "skill_mastery_threshold")
+    private Double skillMasteryThreshold = 0.8;
+    
+    @Column(name = "adaptation_frequency_days")
+    private Integer adaptationFrequencyDays = 7;
+    
+    @Column(name = "next_adaptation_date")
+    private LocalDateTime nextAdaptationDate;
+    
+    @Column(name = "interview_performance_score")
+    private Double interviewPerformanceScore;
+    
+    @Column(name = "current_market_trends", columnDefinition = "TEXT")
+    private String currentMarketTrends;
+    
     @OneToMany(mappedBy = "learningPath", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<LearningModule> modules;
     
@@ -50,6 +75,7 @@ public class LearningPath {
     public LearningPath() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
+        this.nextAdaptationDate = LocalDateTime.now().plusDays(this.adaptationFrequencyDays);
     }
     
     public LearningPath(User user, String careerGoal) {
@@ -138,6 +164,71 @@ public class LearningPath {
     
     public void setModules(List<LearningModule> modules) {
         this.modules = modules;
+    }
+    
+    // New getters and setters
+    public Boolean getAiGenerated() {
+        return aiGenerated;
+    }
+    
+    public void setAiGenerated(Boolean aiGenerated) {
+        this.aiGenerated = aiGenerated;
+    }
+    
+    public LocalDateTime getLastAiUpdate() {
+        return lastAiUpdate;
+    }
+    
+    public void setLastAiUpdate(LocalDateTime lastAiUpdate) {
+        this.lastAiUpdate = lastAiUpdate;
+    }
+    
+    public Double getMarketDemandScore() {
+        return marketDemandScore;
+    }
+    
+    public void setMarketDemandScore(Double marketDemandScore) {
+        this.marketDemandScore = marketDemandScore;
+    }
+    
+    public Double getSkillMasteryThreshold() {
+        return skillMasteryThreshold;
+    }
+    
+    public void setSkillMasteryThreshold(Double skillMasteryThreshold) {
+        this.skillMasteryThreshold = skillMasteryThreshold;
+    }
+    
+    public Integer getAdaptationFrequencyDays() {
+        return adaptationFrequencyDays;
+    }
+    
+    public void setAdaptationFrequencyDays(Integer adaptationFrequencyDays) {
+        this.adaptationFrequencyDays = adaptationFrequencyDays;
+    }
+    
+    public LocalDateTime getNextAdaptationDate() {
+        return nextAdaptationDate;
+    }
+    
+    public void setNextAdaptationDate(LocalDateTime nextAdaptationDate) {
+        this.nextAdaptationDate = nextAdaptationDate;
+    }
+    
+    public Double getInterviewPerformanceScore() {
+        return interviewPerformanceScore;
+    }
+    
+    public void setInterviewPerformanceScore(Double interviewPerformanceScore) {
+        this.interviewPerformanceScore = interviewPerformanceScore;
+    }
+    
+    public String getCurrentMarketTrends() {
+        return currentMarketTrends;
+    }
+    
+    public void setCurrentMarketTrends(String currentMarketTrends) {
+        this.currentMarketTrends = currentMarketTrends;
     }
     
     // JPA Lifecycle methods

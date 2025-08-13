@@ -19,6 +19,13 @@ public class LearningPathResponse {
     private List<LearningModuleResponse> modules;
     private PathStatistics statistics;
     
+    // New AI-related fields
+    private Boolean aiGenerated;
+    private LocalDateTime lastAiUpdate;
+    private Double marketDemandScore;
+    private String currentMarketTrends;
+    private Double interviewPerformanceScore;
+    
     // Nested classes
     public static class LearningModuleResponse {
         private Long id;
@@ -33,6 +40,16 @@ public class LearningPathResponse {
         private String userFeedback;
         private Integer orderIndex;
         private List<LearningResourceResponse> resources;
+        
+        // New AI-related fields
+        private Double skillMasteryLevel;
+        private String prerequisites;
+        private Double marketRelevanceScore;
+        private Double timeSpentHours;
+        private LocalDateTime lastPracticeDate;
+        private LocalDateTime nextPracticeDate;
+        private Boolean aiRecommended;
+        private Integer adaptationPriority;
         
         // Constructors
         public LearningModuleResponse() {}
@@ -49,6 +66,16 @@ public class LearningPathResponse {
             this.userRating = module.getUserRating();
             this.userFeedback = module.getUserFeedback();
             this.orderIndex = module.getOrderIndex();
+            
+            // New AI-related fields
+            this.skillMasteryLevel = module.getSkillMasteryLevel();
+            this.prerequisites = module.getPrerequisites();
+            this.marketRelevanceScore = module.getMarketRelevanceScore();
+            this.timeSpentHours = module.getTimeSpentHours();
+            this.lastPracticeDate = module.getLastPracticeDate();
+            this.nextPracticeDate = module.getNextPracticeDate();
+            this.aiRecommended = module.getAiRecommended();
+            this.adaptationPriority = module.getAdaptationPriority();
             
             if (module.getResources() != null) {
                 this.resources = module.getResources().stream()
@@ -93,6 +120,31 @@ public class LearningPathResponse {
         
         public List<LearningResourceResponse> getResources() { return resources; }
         public void setResources(List<LearningResourceResponse> resources) { this.resources = resources; }
+        
+        // New AI-related getters and setters
+        public Double getSkillMasteryLevel() { return skillMasteryLevel; }
+        public void setSkillMasteryLevel(Double skillMasteryLevel) { this.skillMasteryLevel = skillMasteryLevel; }
+        
+        public String getPrerequisites() { return prerequisites; }
+        public void setPrerequisites(String prerequisites) { this.prerequisites = prerequisites; }
+        
+        public Double getMarketRelevanceScore() { return marketRelevanceScore; }
+        public void setMarketRelevanceScore(Double marketRelevanceScore) { this.marketRelevanceScore = marketRelevanceScore; }
+        
+        public Double getTimeSpentHours() { return timeSpentHours; }
+        public void setTimeSpentHours(Double timeSpentHours) { this.timeSpentHours = timeSpentHours; }
+        
+        public LocalDateTime getLastPracticeDate() { return lastPracticeDate; }
+        public void setLastPracticeDate(LocalDateTime lastPracticeDate) { this.lastPracticeDate = lastPracticeDate; }
+        
+        public LocalDateTime getNextPracticeDate() { return nextPracticeDate; }
+        public void setNextPracticeDate(LocalDateTime nextPracticeDate) { this.nextPracticeDate = nextPracticeDate; }
+        
+        public Boolean getAiRecommended() { return aiRecommended; }
+        public void setAiRecommended(Boolean aiRecommended) { this.aiRecommended = aiRecommended; }
+        
+        public Integer getAdaptationPriority() { return adaptationPriority; }
+        public void setAdaptationPriority(Integer adaptationPriority) { this.adaptationPriority = adaptationPriority; }
     }
     
     public static class LearningResourceResponse {
@@ -226,6 +278,13 @@ public class LearningPathResponse {
         this.createdAt = learningPath.getCreatedAt();
         this.updatedAt = learningPath.getUpdatedAt();
         
+        // New AI-related fields
+        this.aiGenerated = learningPath.getAiGenerated();
+        this.lastAiUpdate = learningPath.getLastAiUpdate();
+        this.marketDemandScore = learningPath.getMarketDemandScore();
+        this.currentMarketTrends = learningPath.getCurrentMarketTrends();
+        this.interviewPerformanceScore = learningPath.getInterviewPerformanceScore();
+        
         if (learningPath.getModules() != null) {
             this.modules = learningPath.getModules().stream()
                 .map(LearningModuleResponse::new)
@@ -264,4 +323,20 @@ public class LearningPathResponse {
     
     public PathStatistics getStatistics() { return statistics; }
     public void setStatistics(PathStatistics statistics) { this.statistics = statistics; }
+    
+    // New AI-related getters and setters
+    public Boolean getAiGenerated() { return aiGenerated; }
+    public void setAiGenerated(Boolean aiGenerated) { this.aiGenerated = aiGenerated; }
+    
+    public LocalDateTime getLastAiUpdate() { return lastAiUpdate; }
+    public void setLastAiUpdate(LocalDateTime lastAiUpdate) { this.lastAiUpdate = lastAiUpdate; }
+    
+    public Double getMarketDemandScore() { return marketDemandScore; }
+    public void setMarketDemandScore(Double marketDemandScore) { this.marketDemandScore = marketDemandScore; }
+    
+    public String getCurrentMarketTrends() { return currentMarketTrends; }
+    public void setCurrentMarketTrends(String currentMarketTrends) { this.currentMarketTrends = currentMarketTrends; }
+    
+    public Double getInterviewPerformanceScore() { return interviewPerformanceScore; }
+    public void setInterviewPerformanceScore(Double interviewPerformanceScore) { this.interviewPerformanceScore = interviewPerformanceScore; }
 } 
