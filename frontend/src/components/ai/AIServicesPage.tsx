@@ -178,7 +178,7 @@ const AIServicesPage: React.FC = () => {
         headers['Authorization'] = `Bearer ${token}`;
       }
       
-      const response = await fetch('http://localhost:8080/api/ai/test-auth', {
+      const response = await fetch('http://localhost:8081/api/ai/test-auth', {
         headers
       });
       const data = await response.json();
