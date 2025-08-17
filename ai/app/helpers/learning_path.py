@@ -23,6 +23,10 @@ from datetime import datetime, timedelta
 import re
 from app.core.qdrant import qdrantClient
 from app.core.config import settings
+from qdrant_client.http import models as rest
+from app.helpers.semantic_chunker import create_semantic_chunks_80
+from app.helpers.qdrant_functions import upload_to_qdrant
+from app.schemas.learning_path import FileUploadInfo
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -48,7 +52,6 @@ class LearningPathAI:
     def _ensure_collections(self):
         """Ensure Qdrant collections exist"""
         try:
-            # Check if collections exist, create if not
             collections = self.qdrant_client.get_collections().collections
             collection_names = [col.name for col in collections]
             
@@ -58,6 +61,23 @@ class LearningPathAI:
                     vectors_config=VectorParams(size=384, distance=Distance.COSINE)
                 )
                 logger.info(f"Created collection: {self.learning_materials_collection}")
+
+                # Create payload indexes
+                self.qdrant_client.create_payload_index(
+                    collection_name=self.learning_materials_collection,
+                    field_name="user_id",
+                    field_schema=rest.PayloadSchemaType.INTEGER
+                )
+                self.qdrant_client.create_payload_index(
+                    collection_name=self.learning_materials_collection,
+                    field_name="file_id",
+                    field_schema=rest.PayloadSchemaType.KEYWORD
+                )
+                self.qdrant_client.create_payload_index(
+                    collection_name=self.learning_materials_collection,
+                    field_name="is_active",
+                    field_schema=rest.PayloadSchemaType.BOOLEAN
+                )
             
             if self.module_content_collection not in collection_names:
                 self.qdrant_client.create_collection(
@@ -68,6 +88,7 @@ class LearningPathAI:
                 
         except Exception as e:
             logger.error(f"Error ensuring collections: {e}")
+
     
     async def analyze_career_goal_and_skills(self, career_goal: str, current_skills: List[str], 
                                           experience_level: str, user_materials: List[Dict]) -> Dict[str, Any]:
@@ -175,7 +196,6 @@ class LearningPathAI:
                 
                 if content:
                     # Use semantic chunking from semantic_chunker.py
-                    from app.helpers.semantic_chunker import create_semantic_chunks_80
                     
                     # Create semantic chunks
                     semantic_chunks = create_semantic_chunks_80(content["text"])
@@ -192,10 +212,8 @@ class LearningPathAI:
                     # Index chunks using qdrant_functions.py
                     print(f"CHUNKS SIZE: {len(semantic_chunks)}")
                     print(semantic_chunks)
-                    from app.helpers.qdrant_functions import upload_to_qdrant
                     
                     # Create FileUploadInfo object for qdrant_functions
-                    from app.schemas.learning_path import FileUploadInfo
                     file_info = FileUploadInfo(
                         user_id=user_id,
                         file_id=file_id,
@@ -209,6 +227,7 @@ class LearningPathAI:
                     logger.info(f"Uploading chunks to Qdrant")
                     # Upload chunks to Qdrant
                     upload_to_qdrant(
+                       
                         file_create=file_info,
                         page_no="1",  # Single page for now
                         semantic_chunks=semantic_chunks,

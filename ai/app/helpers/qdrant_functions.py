@@ -58,12 +58,12 @@ def upload_to_qdrant(file_create:FileUploadInfo,page_no:str, semantic_chunks, su
     for semantic_chunk in semantic_chunks:
         # Create payload from File object fields
         payload = {
-            "file_id": str(file_create.file_id),
+            "file_id": file_create.file_id,
             "content": semantic_chunk.page_content,
-            "file_url": str(file_create.file_url),
-            "file_name": str(file_create.file_name),
+            "file_url": file_create.file_url,
+            "file_name": file_create.file_name,
             "page_no": page_no,
-            "user_id": str(file_create.user_id),
+            "user_id": file_create.user_id,
             "is_active": True
         }
 
