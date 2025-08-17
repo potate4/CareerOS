@@ -4,6 +4,7 @@ import com.careeros.backend.model.*;
 import com.careeros.backend.payload.request.LearningPathRequest;
 import com.careeros.backend.payload.request.ModuleProgressRequest;
 import com.careeros.backend.payload.response.LearningPathResponse;
+import com.careeros.backend.payload.response.AILearningPathResponse;
 import com.careeros.backend.repository.LearningPathRepository;
 import com.careeros.backend.repository.LearningModuleRepository;
 import com.careeros.backend.repository.SkillRepository;
@@ -66,20 +67,9 @@ public class LearningPathService {
             deactivateExistingLearningPaths(userId);
             
             // Call AI service for intelligent path generation
-            Map<String, Object> aiRequest = createAILearningPathRequest(userId, request);
+            AILearningPathResponse aiResponse = callAILearningPathGeneration(userId, request);
             
-            System.out.println("🤖 Calling AI service for learning path generation...");
-            
-            JsonNode aiResponse = webClient.post()
-                .uri(aiServiceUrl + "/api/v1/learning-path/generate")
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(aiRequest)
-                .retrieve()
-                .bodyToMono(JsonNode.class)
-                .timeout(Duration.ofSeconds(60))
-                .block();
-            
-            if (aiResponse != null && aiResponse.has("path_response")) {
+            if (aiResponse != null && aiResponse.getModules() != null && !aiResponse.getModules().isEmpty()) {
                 return createLearningPathFromAIResponse(user, aiResponse, request);
             } else {
                 System.out.println("⚠️ AI service unavailable, falling back to hardcoded generation");
@@ -91,6 +81,196 @@ public class LearningPathService {
             System.out.println("⚠️ Falling back to hardcoded generation");
             return generateFallbackLearningPath(userId, request);
         }
+    }
+    
+    /**
+     * Call the Python AI service to generate learning path
+     * @param userId The user ID
+     * @param request The learning path request
+     * @return AILearningPathResponse from the AI service
+     */
+    private AILearningPathResponse callAILearningPathGeneration(Long userId, LearningPathRequest request) {
+        try {
+            // Convert request to AI service format
+            String learningPathInfo = request.toAIRequestString();
+            
+            System.out.println("🤖 Calling Python AI service for learning path generation...");
+            System.out.println("📝 Learning path info: " + learningPathInfo);
+            
+            // Create request for AI service
+            Map<String, Object> aiRequest = new HashMap<>();
+            aiRequest.put("user_id", userId.intValue());
+            aiRequest.put("learning_path_info", learningPathInfo);
+            
+            JsonNode aiResponse = webClient.post()
+                .uri(aiServiceUrl + "/api/v1/learning-path/generate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(aiRequest)
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .timeout(Duration.ofSeconds(60))
+                .block();
+            
+            if (aiResponse != null && aiResponse.has("modules")) {
+                return parseAILearningPathResponse(aiResponse);
+            } else {
+                System.out.println("⚠️ AI service response format unexpected");
+                return null;
+            }
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error calling AI service: " + e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Parse AI service response to AILearningPathResponse
+     * @param aiResponse The JSON response from AI service
+     * @return Parsed AILearningPathResponse
+     */
+    private AILearningPathResponse parseAILearningPathResponse(JsonNode aiResponse) {
+        try {
+            List<AILearningPathResponse.AILearningModule> modules = new ArrayList<>();
+            JsonNode modulesNode = aiResponse.get("modules");
+            
+            if (modulesNode.isArray()) {
+                for (JsonNode moduleNode : modulesNode) {
+                    String moduleName = moduleNode.get("module_name").asText();
+                    String moduleDescription = moduleNode.get("module_description").asText();
+                    
+                    AILearningPathResponse.AILearningModule module = 
+                        new AILearningPathResponse.AILearningModule(moduleName, moduleDescription);
+                    modules.add(module);
+                }
+            }
+            
+            System.out.println("✅ Parsed " + modules.size() + " modules from AI service");
+            return new AILearningPathResponse(modules);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error parsing AI response: " + e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Create learning path from AI service response
+     */
+    private LearningPathResponse createLearningPathFromAIResponse(User user, AILearningPathResponse aiResponse, LearningPathRequest request) {
+        try {
+            // Create new learning path
+            LearningPath learningPath = new LearningPath(user, request.getCareerGoal());
+            
+            // Set estimated completion weeks based on number of modules and learning pace
+            int estimatedWeeks = calculateEstimatedWeeksFromModules(aiResponse.getModules(), request.getLearningPace());
+            learningPath.setEstimatedCompletionWeeks(estimatedWeeks);
+            
+            // Save learning path first
+            final LearningPath savedLearningPath = learningPathRepository.save(learningPath);
+            
+            // Create modules from AI response
+            List<LearningModule> learningModules = new ArrayList<>();
+            
+            for (AILearningPathResponse.AILearningModule aiModule : aiResponse.getModules()) {
+                LearningModule module = createModuleFromAIResponse(aiModule, savedLearningPath, request.getExperienceLevel());
+                learningModules.add(module);
+                learningModuleRepository.save(module);
+            }
+            
+            System.out.println("✅ Created learning path with " + learningModules.size() + " AI-generated modules");
+            
+            return new LearningPathResponse(savedLearningPath);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error processing AI response: " + e.getMessage());
+            throw new RuntimeException("Failed to create learning path from AI response");
+        }
+    }
+    
+    /**
+     * Create learning module from AI response
+     */
+    private LearningModule createModuleFromAIResponse(AILearningPathResponse.AILearningModule aiModule, LearningPath learningPath, LearningPathRequest.ExperienceLevel experienceLevel) {
+        String title = aiModule.getModule_name();
+        String description = aiModule.getModule_description();
+        String skillFocus = extractSkillFocusFromTitle(title);
+        
+        // Map experience level to difficulty level
+        LearningModule.DifficultyLevel difficulty = mapExperienceLevelToDifficulty(experienceLevel);
+        
+        // Estimate hours based on difficulty and description length
+        int estimatedHours = estimateHoursFromDescription(description, difficulty);
+        
+        LearningModule module = new LearningModule(title, description, skillFocus, difficulty, estimatedHours);
+        module.setOrderIndex(1); // Will be set properly when all modules are created
+        module.setLearningPath(learningPath);
+        
+        return module;
+    }
+    
+    /**
+     * Extract skill focus from module title
+     */
+    private String extractSkillFocusFromTitle(String title) {
+        // Simple extraction - could be enhanced with NLP
+        if (title.toLowerCase().contains("javascript")) return "JavaScript";
+        if (title.toLowerCase().contains("react")) return "React";
+        if (title.toLowerCase().contains("node")) return "Node.js";
+        if (title.toLowerCase().contains("python")) return "Python";
+        if (title.toLowerCase().contains("java")) return "Java";
+        if (title.toLowerCase().contains("sql")) return "SQL";
+        if (title.toLowerCase().contains("docker")) return "Docker";
+        if (title.toLowerCase().contains("aws")) return "AWS";
+        return "General";
+    }
+    
+    /**
+     * Map experience level to difficulty level
+     */
+    private LearningModule.DifficultyLevel mapExperienceLevelToDifficulty(LearningPathRequest.ExperienceLevel experienceLevel) {
+        switch (experienceLevel) {
+            case BEGINNER: return LearningModule.DifficultyLevel.BEGINNER;
+            case INTERMEDIATE: return LearningModule.DifficultyLevel.INTERMEDIATE;
+            case ADVANCED: return LearningModule.DifficultyLevel.ADVANCED;
+            case EXPERT: return LearningModule.DifficultyLevel.EXPERT;
+            default: return LearningModule.DifficultyLevel.INTERMEDIATE;
+        }
+    }
+    
+    /**
+     * Estimate hours from module description and difficulty
+     */
+    private int estimateHoursFromDescription(String description, LearningModule.DifficultyLevel difficulty) {
+        int baseHours = getBaseHoursForDifficulty(difficulty);
+        
+        // Adjust based on description length (simple heuristic)
+        int descriptionLength = description.length();
+        if (descriptionLength > 200) {
+            baseHours = (int) (baseHours * 1.2);
+        } else if (descriptionLength < 100) {
+            baseHours = (int) (baseHours * 0.8);
+        }
+        
+        return Math.max(1, baseHours);
+    }
+    
+    /**
+     * Calculate estimated weeks from AI modules
+     */
+    private int calculateEstimatedWeeksFromModules(List<AILearningPathResponse.AILearningModule> modules, LearningPathRequest.LearningPace learningPace) {
+        int totalModules = modules.size();
+        
+        // Assume 2-3 modules per week based on learning pace
+        int modulesPerWeek = 2;
+        switch (learningPace) {
+            case SLOW: modulesPerWeek = 1; break;
+            case MODERATE: modulesPerWeek = 2; break;
+            case FAST: modulesPerWeek = 3; break;
+            case INTENSIVE: modulesPerWeek = 4; break;
+        }
+        
+        return Math.max(1, (int) Math.ceil((double) totalModules / modulesPerWeek));
     }
     
     /**

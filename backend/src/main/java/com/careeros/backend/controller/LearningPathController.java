@@ -2,18 +2,25 @@ package com.careeros.backend.controller;
 
 import com.careeros.backend.payload.request.LearningPathRequest;
 import com.careeros.backend.payload.request.ModuleProgressRequest;
+import com.careeros.backend.payload.request.AILearningPathRequest;
 import com.careeros.backend.payload.response.LearningPathResponse;
+import com.careeros.backend.payload.response.AILearningPathResponse;
 import com.careeros.backend.model.LearningPath;
 import com.careeros.backend.payload.response.MessageResponse;
 import com.careeros.backend.security.UserDetailsImpl;
 import com.careeros.backend.service.LearningPathService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.http.MediaType;
+import com.fasterxml.jackson.databind.JsonNode;
+import java.time.Duration;
 
 import java.util.Map;
 import java.util.HashMap;
@@ -28,6 +35,73 @@ public class LearningPathController {
     
     @Autowired
     private LearningPathService learningPathService;
+    
+    @Value("${ai.service.url:http://localhost:8000}")
+    private String aiServiceUrl;
+    
+    private final WebClient webClient;
+    
+    public LearningPathController() {
+        this.webClient = WebClient.builder()
+            .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
+            .build();
+    }
+    
+    /**
+     * Generate a learning path using AI service directly
+     * @param request The AI learning path request
+     * @return ResponseEntity containing the AI-generated learning path
+     */
+    @PostMapping("/ai-generate")
+    public ResponseEntity<?> generateAILearningPath(@Valid @RequestBody AILearningPathRequest request) {
+        try {
+            System.out.println("🤖 Generating AI learning path for user: " + request.getUser_id());
+            System.out.println("📝 Learning path info: " + request.getLearning_path_info());
+            
+            // Call Python AI service directly
+            JsonNode aiResponse = webClient.post()
+                .uri(aiServiceUrl + "/api/v1/learning-path/generate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .timeout(Duration.ofSeconds(60))
+                .block();
+            
+            if (aiResponse != null && aiResponse.has("modules")) {
+                // Parse the response to match our schema
+                List<AILearningPathResponse.AILearningModule> modules = new ArrayList<>();
+                JsonNode modulesNode = aiResponse.get("modules");
+                
+                if (modulesNode.isArray()) {
+                    for (JsonNode moduleNode : modulesNode) {
+                        String moduleName = moduleNode.get("module_name").asText();
+                        String moduleDescription = moduleNode.get("module_description").asText();
+                        
+                        AILearningPathResponse.AILearningModule module = 
+                            new AILearningPathResponse.AILearningModule(moduleName, moduleDescription);
+                        modules.add(module);
+                    }
+                }
+                
+                AILearningPathResponse response = new AILearningPathResponse(modules);
+                System.out.println("✅ AI learning path generated successfully with " + modules.size() + " modules");
+                
+                return ResponseEntity.ok(response);
+                
+            } else {
+                System.err.println("❌ AI service response format unexpected");
+                return ResponseEntity.badRequest()
+                    .body(new MessageResponse("AI service response format unexpected"));
+            }
+            
+        } catch (Exception e) {
+            System.err.println("❌ Failed to generate AI learning path: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("Failed to generate AI learning path: " + e.getMessage()));
+        }
+    }
     
     /**
      * Generate a personalized learning path based on career goal and current skills
@@ -468,7 +542,9 @@ public class LearningPathController {
                 "timestamp", java.time.LocalDateTime.now().toString(),
                 "version", "1.0.0",
                 "ai_integration", "enabled",
+                "ai_service_url", aiServiceUrl,
                 "endpoints", Map.of(
+                    "aiGeneratePath", "POST /api/path/ai-generate",
                     "generatePath", "POST /api/path/learning",
                     "getCurrentPath", "GET /api/path/current",
                     "updateProgress", "POST /api/path/progress",

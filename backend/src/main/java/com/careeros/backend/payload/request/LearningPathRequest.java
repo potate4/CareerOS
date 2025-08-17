@@ -4,6 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.List;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 public class LearningPathRequest {
     
@@ -51,6 +53,38 @@ public class LearningPathRequest {
         this.currentSkills = currentSkills;
         this.experienceLevel = experienceLevel;
         this.learningPace = learningPace;
+    }
+    
+    /**
+     * Convert the learning path request to a JSON string for AI service
+     * @return JSON string representation of the learning path request
+     */
+    public String toAIRequestString() {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            ObjectNode node = mapper.createObjectNode();
+            
+            node.put("career_goal", this.careerGoal);
+            node.put("experience_level", this.experienceLevel.name());
+            node.put("learning_pace", this.learningPace.name());
+            node.put("additional_notes", this.additionalNotes != null ? this.additionalNotes : "");
+            
+            // Convert current skills list to JSON array
+            node.set("current_skills", mapper.valueToTree(this.currentSkills));
+            
+            return mapper.writeValueAsString(node);
+        } catch (Exception e) {
+            // Fallback to simple string concatenation
+            StringBuilder sb = new StringBuilder();
+            sb.append("Career Goal: ").append(this.careerGoal).append(". ");
+            sb.append("Experience Level: ").append(this.experienceLevel.name()).append(". ");
+            sb.append("Learning Pace: ").append(this.learningPace.name()).append(". ");
+            sb.append("Current Skills: ").append(String.join(", ", this.currentSkills)).append(". ");
+            if (this.additionalNotes != null && !this.additionalNotes.trim().isEmpty()) {
+                sb.append("Additional Notes: ").append(this.additionalNotes);
+            }
+            return sb.toString();
+        }
     }
     
     // Getters and Setters
