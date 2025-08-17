@@ -9,11 +9,17 @@ import com.careeros.backend.repository.LearningModuleRepository;
 import com.careeros.backend.repository.SkillRepository;
 import com.careeros.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.http.MediaType;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.time.Duration;
 
 @Service
 @Transactional
@@ -31,24 +37,226 @@ public class LearningPathService {
     @Autowired
     private UserRepository userRepository;
     
+    @Value("${ai.service.url:http://localhost:8001}")
+    private String aiServiceUrl;
+    
+    private final WebClient webClient;
+    private final ObjectMapper objectMapper;
+    
+    public LearningPathService() {
+        this.webClient = WebClient.builder()
+            .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
+            .build();
+        this.objectMapper = new ObjectMapper();
+    }
+    
     /**
-     * Generate a personalized learning path based on career goal and current skills
+     * Generate a personalized learning path using AI backend
      * @param userId The user ID
      * @param request The learning path request containing career goal and current skills
      * @return LearningPathResponse containing the generated learning path
      */
     public LearningPathResponse generateLearningPath(Long userId, LearningPathRequest request) {
+        try {
+            // Get user
+            User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+            
+            // Deactivate any existing active learning paths
+            deactivateExistingLearningPaths(userId);
+            
+            // Call AI service for intelligent path generation
+            Map<String, Object> aiRequest = createAILearningPathRequest(userId, request);
+            
+            System.out.println("🤖 Calling AI service for learning path generation...");
+            
+            JsonNode aiResponse = webClient.post()
+                .uri(aiServiceUrl + "/api/v1/learning-path/generate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(aiRequest)
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .timeout(Duration.ofSeconds(60))
+                .block();
+            
+            if (aiResponse != null && aiResponse.has("path_response")) {
+                return createLearningPathFromAIResponse(user, aiResponse, request);
+            } else {
+                System.out.println("⚠️ AI service unavailable, falling back to hardcoded generation");
+                return generateFallbackLearningPath(userId, request);
+            }
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error calling AI service: " + e.getMessage());
+            System.out.println("⚠️ Falling back to hardcoded generation");
+            return generateFallbackLearningPath(userId, request);
+        }
+    }
+    
+    /**
+     * Create AI request for learning path generation
+     */
+    private Map<String, Object> createAILearningPathRequest(Long userId, LearningPathRequest request) {
+        Map<String, Object> aiRequest = new HashMap<>();
+        aiRequest.put("user_id", userId.intValue());
+        aiRequest.put("career_goal", request.getCareerGoal());
+        aiRequest.put("current_skills", request.getCurrentSkills());
+        aiRequest.put("experience_level", request.getExperienceLevel().name());
+        aiRequest.put("learning_pace", request.getLearningPace().name());
+        aiRequest.put("uploaded_files", new ArrayList<>()); // Will be populated when file upload is implemented
+        aiRequest.put("additional_notes", request.getAdditionalNotes());
+        
+        return aiRequest;
+    }
+    
+    /**
+     * Create learning path from AI service response
+     */
+    private LearningPathResponse createLearningPathFromAIResponse(User user, JsonNode aiResponse, LearningPathRequest request) {
+        try {
+            JsonNode pathResponse = aiResponse.get("path_response");
+            JsonNode modules = pathResponse.get("modules");
+            
+            // Create new learning path
+            LearningPath learningPath = new LearningPath(user, request.getCareerGoal());
+            learningPath.setEstimatedCompletionWeeks(pathResponse.get("overall_estimated_weeks").asInt());
+            
+            // Save learning path first
+            final LearningPath savedLearningPath = learningPathRepository.save(learningPath);
+            
+            // Create modules from AI response
+            List<LearningModule> learningModules = new ArrayList<>();
+            
+            if (modules.isArray()) {
+                for (JsonNode moduleNode : modules) {
+                    LearningModule module = createModuleFromAIResponse(moduleNode, savedLearningPath);
+                    learningModules.add(module);
+                    learningModuleRepository.save(module);
+                }
+            }
+            
+            System.out.println("✅ Created learning path with " + learningModules.size() + " AI-generated modules");
+            
+            return new LearningPathResponse(savedLearningPath);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error processing AI response: " + e.getMessage());
+            throw new RuntimeException("Failed to create learning path from AI response");
+        }
+    }
+    
+    /**
+     * Create learning module from AI response
+     */
+    private LearningModule createModuleFromAIResponse(JsonNode moduleNode, LearningPath learningPath) {
+        String title = moduleNode.get("title").asText();
+        String description = moduleNode.get("description").asText();
+        String skillFocus = moduleNode.get("skill_focus").asText();
+        
+        // Map AI difficulty to our enum
+        LearningModule.DifficultyLevel difficulty = mapAIDifficultyToEnum(
+            moduleNode.get("difficulty_level").asText()
+        );
+        
+        int estimatedHours = moduleNode.get("estimated_hours").asInt();
+        int orderIndex = moduleNode.get("order_index").asInt();
+        
+        LearningModule module = new LearningModule(title, description, skillFocus, difficulty, estimatedHours);
+        module.setOrderIndex(orderIndex);
+        module.setLearningPath(learningPath);
+        
+        // Create learning resources from AI response
+        JsonNode resources = moduleNode.get("resources");
+        if (resources != null) {
+            List<LearningResource> learningResources = createResourcesFromAIResponse(resources, module);
+            module.setResources(learningResources);
+        }
+        
+        return module;
+    }
+    
+    /**
+     * Create learning resources from AI response
+     */
+    private List<LearningResource> createResourcesFromAIResponse(JsonNode resourcesNode, LearningModule module) {
+        List<LearningResource> resources = new ArrayList<>();
+        
+        // Process online resources
+        JsonNode onlineResources = resourcesNode.get("online_resources");
+        if (onlineResources != null && onlineResources.isArray()) {
+            for (JsonNode resourceNode : onlineResources) {
+                try {
+                    String title = resourceNode.get("title").asText();
+                    String url = resourceNode.get("url").asText();
+                    String platform = resourceNode.get("platform").asText();
+                    
+                    // Map AI resource type to our enum
+                    LearningResource.ResourceType type = mapAIResourceTypeToEnum(
+                        resourceNode.get("type").asText()
+                    );
+                    
+                    LearningResource resource = new LearningResource(title, title, url, type, platform);
+                    resource.setLearningModule(module);
+                    
+                    // Set additional properties if available
+                    if (resourceNode.has("duration_minutes")) {
+                        resource.setDurationMinutes(resourceNode.get("duration_minutes").asInt());
+                    }
+                    if (resourceNode.has("is_free")) {
+                        resource.setIsFree(resourceNode.get("is_free").asBoolean());
+                    }
+                    if (resourceNode.has("difficulty")) {
+                        resource.setDifficultyLevel(
+                            LearningResource.DifficultyLevel.valueOf(
+                                resourceNode.get("difficulty").asText().toUpperCase()
+                            )
+                        );
+                    }
+                    
+                    resources.add(resource);
+                } catch (Exception e) {
+                    System.err.println("⚠️ Error processing resource: " + e.getMessage());
+                }
+            }
+        }
+        
+        return resources;
+    }
+    
+    /**
+     * Map AI difficulty level to our enum
+     */
+    private LearningModule.DifficultyLevel mapAIDifficultyToEnum(String aiDifficulty) {
+        try {
+            return LearningModule.DifficultyLevel.valueOf(aiDifficulty.toUpperCase());
+        } catch (Exception e) {
+            return LearningModule.DifficultyLevel.INTERMEDIATE; // Default
+        }
+    }
+    
+    /**
+     * Map AI resource type to our enum
+     */
+    private LearningResource.ResourceType mapAIResourceTypeToEnum(String aiType) {
+        try {
+            return LearningResource.ResourceType.valueOf(aiType.toUpperCase());
+        } catch (Exception e) {
+            return LearningResource.ResourceType.ARTICLE; // Default
+        }
+    }
+    
+    /**
+     * Fallback learning path generation (original hardcoded logic)
+     */
+    private LearningPathResponse generateFallbackLearningPath(Long userId, LearningPathRequest request) {
         // Get user
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("User not found"));
         
-        // Deactivate any existing active learning paths
-        deactivateExistingLearningPaths(userId);
-        
         // Create new learning path
         LearningPath learningPath = new LearningPath(user, request.getCareerGoal());
         
-        // Determine required skills based on career goal
+        // Determine required skills based on career goal (hardcoded)
         List<String> requiredSkills = mapCareerGoalToSkills(request.getCareerGoal());
         
         // Get user's current skills
@@ -85,54 +293,144 @@ public class LearningPathService {
     }
     
     /**
-     * Get the current active learning path for a user
-     * @param userId The user ID
-     * @return LearningPathResponse containing the active learning path
+     * Process uploaded learning materials using AI service
      */
-    public LearningPathResponse getCurrentLearningPath(Long userId) {
-        LearningPath learningPath = learningPathRepository.findActiveLearningPathByUserId(userId)
-            .orElseThrow(() -> new RuntimeException("No active learning path found for user"));
-        
-        return new LearningPathResponse(learningPath);
+    public Map<String, Object> processLearningMaterials(Long userId, List<Map<String, Object>> fileInfos) {
+        try {
+            Map<String, Object> request = new HashMap<>();
+            request.put("user_id", userId.intValue());
+            request.put("files", fileInfos);
+            
+            System.out.println("🤖 Processing learning materials via AI service...");
+            
+            JsonNode response = webClient.post()
+                .uri(aiServiceUrl + "/api/v1/learning-path/process-materials")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .timeout(Duration.ofSeconds(120))
+                .block();
+            
+            if (response != null) {
+                Map<String, Object> result = objectMapper.convertValue(response, Map.class);
+                System.out.println("✅ Materials processed successfully");
+                return result;
+            } else {
+                throw new RuntimeException("No response from AI service");
+            }
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error processing materials: " + e.getMessage());
+            throw new RuntimeException("Failed to process learning materials: " + e.getMessage());
+        }
     }
     
     /**
-     * Update module progress and adapt the learning path
-     * @param userId The user ID
-     * @param request The module progress request
-     * @return LearningPathResponse containing the updated learning path
+     * Chat with learning resources using AI service
      */
-    public LearningPathResponse updateModuleProgress(Long userId, ModuleProgressRequest request) {
-        // Get the module
-        LearningModule module = learningModuleRepository.findById(request.getModuleId())
-            .orElseThrow(() -> new RuntimeException("Module not found"));
-        
-        // Verify the module belongs to the user's learning path
-        if (!module.getLearningPath().getUser().getId().equals(userId)) {
-            throw new RuntimeException("Module does not belong to user's learning path");
+    public Map<String, Object> chatWithLearningResources(Long userId, Long moduleId, String query, List<Map<String, String>> chatHistory) {
+        try {
+            Map<String, Object> request = new HashMap<>();
+            request.put("user_id", userId.intValue());
+            request.put("module_id", moduleId.intValue());
+            request.put("query", query);
+            request.put("chat_history", chatHistory != null ? chatHistory : new ArrayList<>());
+            
+            System.out.println("🤖 Processing chat query via AI service...");
+            
+            JsonNode response = webClient.post()
+                .uri(aiServiceUrl + "/api/v1/learning-path/chat")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .timeout(Duration.ofSeconds(30))
+                .block();
+            
+            if (response != null) {
+                Map<String, Object> result = objectMapper.convertValue(response, Map.class);
+                System.out.println("✅ Chat response generated successfully");
+                return result;
+            } else {
+                throw new RuntimeException("No response from AI service");
+            }
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error in chat functionality: " + e.getMessage());
+            throw new RuntimeException("Chat functionality failed: " + e.getMessage());
         }
-        
-        // Update module progress
-        module.setProgressPercentage(request.getProgressPercentage());
-        module.setStatus(request.getStatus());
-        
-        if (request.getUserRating() != null) {
-            module.setUserRating(request.getUserRating());
+    }
+    
+    /**
+     * Generate assessment using AI service
+     */
+    public Map<String, Object> generateAssessment(Long userId, Long moduleId, String skillFocus, String difficultyLevel) {
+        try {
+            Map<String, Object> request = new HashMap<>();
+            request.put("user_id", userId.intValue());
+            request.put("module_id", moduleId.intValue());
+            request.put("skill_focus", skillFocus);
+            request.put("difficulty_level", difficultyLevel);
+            
+            System.out.println("🤖 Generating assessment via AI service...");
+            
+            JsonNode response = webClient.post()
+                .uri(aiServiceUrl + "/api/v1/learning-path/generate-assessment")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .timeout(Duration.ofSeconds(60))
+                .block();
+            
+            if (response != null) {
+                Map<String, Object> result = objectMapper.convertValue(response, Map.class);
+                System.out.println("✅ Assessment generated successfully");
+                return result;
+            } else {
+                throw new RuntimeException("No response from AI service");
+            }
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error generating assessment: " + e.getMessage());
+            throw new RuntimeException("Assessment generation failed: " + e.getMessage());
         }
-        
-        if (request.getUserFeedback() != null) {
-            module.setUserFeedback(request.getUserFeedback());
+    }
+    
+    /**
+     * Submit and evaluate assessment using AI service
+     */
+    public Map<String, Object> evaluateAssessment(Long userId, String assessmentId, Map<String, Object> responses) {
+        try {
+            Map<String, Object> request = new HashMap<>();
+            request.put("user_id", userId.intValue());
+            request.put("assessment_id", assessmentId);
+            request.put("responses", responses);
+            
+            System.out.println("🤖 Evaluating assessment via AI service...");
+            
+            JsonNode response = webClient.post()
+                .uri(aiServiceUrl + "/api/v1/learning-path/submit-assessment")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .timeout(Duration.ofSeconds(60))
+                .block();
+            
+            if (response != null) {
+                Map<String, Object> result = objectMapper.convertValue(response, Map.class);
+                System.out.println("✅ Assessment evaluated successfully");
+                return result;
+            } else {
+                throw new RuntimeException("No response from AI service");
+            }
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error evaluating assessment: " + e.getMessage());
+            throw new RuntimeException("Assessment evaluation failed: " + e.getMessage());
         }
-        
-        learningModuleRepository.save(module);
-        
-        // Update overall learning path progress
-        updateLearningPathProgress(module.getLearningPath());
-        
-        // Adapt the learning path based on progress and feedback
-        adaptLearningPath(module.getLearningPath());
-        
-        return new LearningPathResponse(module.getLearningPath());
     }
     
     /**
@@ -470,6 +768,57 @@ public class LearningPathService {
         learningPathRepository.save(learningPath);
     }
     
+    /**
+     * Get the current active learning path for a user
+     * @param userId The user ID
+     * @return LearningPathResponse containing the active learning path
+     */
+    public LearningPathResponse getCurrentLearningPath(Long userId) {
+        LearningPath learningPath = learningPathRepository.findActiveLearningPathByUserId(userId)
+            .orElseThrow(() -> new RuntimeException("No active learning path found for user"));
+        
+        return new LearningPathResponse(learningPath);
+    }
+    
+    /**
+     * Update module progress and adapt the learning path
+     * @param userId The user ID
+     * @param request The module progress request
+     * @return LearningPathResponse containing the updated learning path
+     */
+    public LearningPathResponse updateModuleProgress(Long userId, ModuleProgressRequest request) {
+        // Get the module
+        LearningModule module = learningModuleRepository.findById(request.getModuleId())
+            .orElseThrow(() -> new RuntimeException("Module not found"));
+        
+        // Verify the module belongs to the user's learning path
+        if (!module.getLearningPath().getUser().getId().equals(userId)) {
+            throw new RuntimeException("Module does not belong to user's learning path");
+        }
+        
+        // Update module progress
+        module.setProgressPercentage(request.getProgressPercentage());
+        module.setStatus(request.getStatus());
+        
+        if (request.getUserRating() != null) {
+            module.setUserRating(request.getUserRating());
+        }
+        
+        if (request.getUserFeedback() != null) {
+            module.setUserFeedback(request.getUserFeedback());
+        }
+        
+        learningModuleRepository.save(module);
+        
+        // Update overall learning path progress
+        updateLearningPathProgress(module.getLearningPath());
+        
+        // Adapt the learning path based on progress and feedback
+        adaptLearningPath(module.getLearningPath());
+        
+        return new LearningPathResponse(module.getLearningPath());
+    }
+
     /**
      * Get all learning paths for a user
      * @param userId The user ID

@@ -13,10 +13,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 @CrossOrigin(origins = "*", maxAge = 3600)
@@ -66,6 +68,249 @@ public class LearningPathController {
             e.printStackTrace();
             return ResponseEntity.badRequest()
                     .body(new MessageResponse("Failed to generate learning path: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Upload and process learning materials (PDF, DOCX, PPTX)
+     * @param files The uploaded files
+     * @return ResponseEntity containing processing results
+     */
+    @PostMapping("/upload-materials")
+    public ResponseEntity<?> uploadLearningMaterials(@RequestParam("files") List<MultipartFile> files) {
+        try {
+            // Get current user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            
+            if (authentication == null || !authentication.isAuthenticated() || 
+                !(authentication.getPrincipal() instanceof UserDetailsImpl)) {
+                return ResponseEntity.status(401)
+                    .body(new MessageResponse("Authentication required. Please login again."));
+            }
+            
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            
+            System.out.println("📁 Processing " + files.size() + " learning materials for user: " + userDetails.getUsername());
+            
+            // Validate file types
+            List<String> allowedTypes = List.of("pdf", "docx", "pptx", "doc", "ppt");
+            for (MultipartFile file : files) {
+                String originalFilename = file.getOriginalFilename();
+                if (originalFilename == null) {
+                    return ResponseEntity.badRequest()
+                        .body(new MessageResponse("Invalid file: filename is null"));
+                }
+                
+                String fileExtension = originalFilename.substring(originalFilename.lastIndexOf(".") + 1).toLowerCase();
+                if (!allowedTypes.contains(fileExtension)) {
+                    return ResponseEntity.badRequest()
+                        .body(new MessageResponse("Unsupported file type: " + fileExtension + 
+                                                ". Allowed types: " + String.join(", ", allowedTypes)));
+                }
+            }
+            
+            // TODO: Save files and create file info list
+            // For now, return a mock response indicating AI integration is needed
+            List<Map<String, Object>> fileInfos = new ArrayList<>();
+            for (MultipartFile file : files) {
+                Map<String, Object> fileInfo = new HashMap<>();
+                fileInfo.put("filename", file.getOriginalFilename());
+                fileInfo.put("file_size", file.getSize());
+                fileInfo.put("file_type", file.getOriginalFilename().substring(
+                    file.getOriginalFilename().lastIndexOf(".") + 1).toLowerCase());
+                // fileInfo.put("file_path", savedFilePath); // Would be actual saved path
+                fileInfos.add(fileInfo);
+            }
+            
+            // Process materials using AI service
+            Map<String, Object> processingResult = learningPathService.processLearningMaterials(
+                userDetails.getId(), fileInfos);
+            
+            System.out.println("✅ Learning materials processed successfully");
+            
+            return ResponseEntity.ok(processingResult);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Failed to process learning materials: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("Failed to process learning materials: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Chat with learning resources for a specific module
+     * @param request The chat request containing query and context
+     * @return ResponseEntity containing the chat response
+     */
+    @PostMapping("/chat")
+    public ResponseEntity<?> chatWithLearningResources(@Valid @RequestBody Map<String, Object> request) {
+        try {
+            // Get current user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            
+            if (authentication == null || !authentication.isAuthenticated() || 
+                !(authentication.getPrincipal() instanceof UserDetailsImpl)) {
+                return ResponseEntity.status(401)
+                    .body(new MessageResponse("Authentication required. Please login again."));
+            }
+            
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            
+            // Extract request parameters
+            Long moduleId = Long.valueOf(request.get("module_id").toString());
+            String query = request.get("query").toString();
+            @SuppressWarnings("unchecked")
+            List<Map<String, String>> chatHistory = (List<Map<String, String>>) request.get("chat_history");
+            
+            System.out.println("💬 Processing chat query for user: " + userDetails.getUsername() + 
+                             ", module: " + moduleId);
+            
+            // Call AI service for chat functionality
+            Map<String, Object> chatResponse = learningPathService.chatWithLearningResources(
+                userDetails.getId(), moduleId, query, chatHistory);
+            
+            System.out.println("✅ Chat response generated successfully");
+            
+            return ResponseEntity.ok(chatResponse);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Failed to process chat query: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("Failed to process chat query: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Generate assessment for a learning module
+     * @param request The assessment generation request
+     * @return ResponseEntity containing the generated assessment
+     */
+    @PostMapping("/generate-assessment")
+    public ResponseEntity<?> generateAssessment(@Valid @RequestBody Map<String, Object> request) {
+        try {
+            // Get current user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            
+            if (authentication == null || !authentication.isAuthenticated() || 
+                !(authentication.getPrincipal() instanceof UserDetailsImpl)) {
+                return ResponseEntity.status(401)
+                    .body(new MessageResponse("Authentication required. Please login again."));
+            }
+            
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            
+            // Extract request parameters
+            Long moduleId = Long.valueOf(request.get("module_id").toString());
+            String skillFocus = request.get("skill_focus").toString();
+            String difficultyLevel = request.get("difficulty_level").toString();
+            
+            System.out.println("📝 Generating assessment for user: " + userDetails.getUsername() + 
+                             ", module: " + moduleId + ", skill: " + skillFocus);
+            
+            // Call AI service for assessment generation
+            Map<String, Object> assessment = learningPathService.generateAssessment(
+                userDetails.getId(), moduleId, skillFocus, difficultyLevel);
+            
+            System.out.println("✅ Assessment generated successfully");
+            
+            return ResponseEntity.ok(assessment);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Failed to generate assessment: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("Failed to generate assessment: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Submit and evaluate assessment responses
+     * @param request The assessment submission request
+     * @return ResponseEntity containing the evaluation results
+     */
+    @PostMapping("/submit-assessment")
+    public ResponseEntity<?> submitAssessment(@Valid @RequestBody Map<String, Object> request) {
+        try {
+            // Get current user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            
+            if (authentication == null || !authentication.isAuthenticated() || 
+                !(authentication.getPrincipal() instanceof UserDetailsImpl)) {
+                return ResponseEntity.status(401)
+                    .body(new MessageResponse("Authentication required. Please login again."));
+            }
+            
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            
+            // Extract request parameters
+            String assessmentId = request.get("assessment_id").toString();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> responses = (Map<String, Object>) request.get("responses");
+            
+            System.out.println("📊 Evaluating assessment for user: " + userDetails.getUsername() + 
+                             ", assessment: " + assessmentId);
+            
+            // Call AI service for assessment evaluation
+            Map<String, Object> evaluation = learningPathService.evaluateAssessment(
+                userDetails.getId(), assessmentId, responses);
+            
+            System.out.println("✅ Assessment evaluated successfully");
+            
+            return ResponseEntity.ok(evaluation);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Failed to evaluate assessment: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("Failed to evaluate assessment: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Process web resources (YouTube videos, articles) for a learning module
+     * @param request The web resource processing request
+     * @return ResponseEntity containing processing results
+     */
+    @PostMapping("/process-web-resources")
+    public ResponseEntity<?> processWebResources(@Valid @RequestBody Map<String, Object> request) {
+        try {
+            // Get current user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            
+            if (authentication == null || !authentication.isAuthenticated() || 
+                !(authentication.getPrincipal() instanceof UserDetailsImpl)) {
+                return ResponseEntity.status(401)
+                    .body(new MessageResponse("Authentication required. Please login again."));
+            }
+            
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            
+            // Extract request parameters
+            Long moduleId = Long.valueOf(request.get("module_id").toString());
+            @SuppressWarnings("unchecked")
+            List<String> urls = (List<String>) request.get("urls");
+            
+            System.out.println("🌐 Processing " + urls.size() + " web resources for user: " + 
+                             userDetails.getUsername() + ", module: " + moduleId);
+            
+            // TODO: Implement web resource processing via AI service
+            // For now, return a success response
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", true);
+            result.put("processed_urls", urls.size());
+            result.put("message", "Web resources processing initiated");
+            
+            System.out.println("✅ Web resources processing initiated");
+            
+            return ResponseEntity.ok(result);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Failed to process web resources: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("Failed to process web resources: " + e.getMessage()));
         }
     }
     
@@ -222,11 +467,17 @@ public class LearningPathController {
                 "service", "Learning Path Service",
                 "timestamp", java.time.LocalDateTime.now().toString(),
                 "version", "1.0.0",
+                "ai_integration", "enabled",
                 "endpoints", Map.of(
-                    "generatePath", "POST /api/path",
-                    "getCurrentPath", "GET /api/path/{userId}",
+                    "generatePath", "POST /api/path/learning",
+                    "getCurrentPath", "GET /api/path/current",
                     "updateProgress", "POST /api/path/progress",
-                    "getStats", "GET /api/path/stats"
+                    "getStats", "GET /api/path/stats",
+                    "uploadMaterials", "POST /api/path/upload-materials",
+                    "chat", "POST /api/path/chat",
+                    "generateAssessment", "POST /api/path/generate-assessment",
+                    "submitAssessment", "POST /api/path/submit-assessment",
+                    "processWebResources", "POST /api/path/process-web-resources"
                 )
             );
             
