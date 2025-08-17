@@ -26,9 +26,9 @@ from app.core.config import settings
 from qdrant_client.http import models as rest
 from app.helpers.semantic_chunker import create_semantic_chunks_80
 from app.helpers.qdrant_functions import upload_to_qdrant
-from app.schemas.learning_path import FileUploadInfo
+from app.schemas.learning_path import FileUploadInfo, LearningModuleGenerateResponse
 
-from app.helpers.llm import get_gemini_text_completion, get_gemini_text_completion_with_search
+from app.helpers.llm import get_gemini_text_completion, get_gemini_text_completion_with_search, get_structured_response_learning_modules
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -280,13 +280,14 @@ class LearningPathAI:
             return None
 
 
-    async def get_learning_path(self, query: str, user_id: int, limit: int = 10) -> Dict[str, Any]:
+    async def get_learning_path(self, learning_path_info: str) -> Dict[str, Any]:
         """Get learning path for a specific user"""
         try:
             prompt = f"""
-            Get learning path for the user {user_id} with the query {query}
+            Create a list of learning modules (2-10) based on the learning path info: {learning_path_info}
+            Return the list of learning modules in a structured format.
             """
-            response = get_gemini_text_completion_with_search(prompt)
+            response = get_structured_response_learning_modules(prompt)
             return response
         except Exception as e:
             logger.error(f"Error in get_learning_path: {e}")

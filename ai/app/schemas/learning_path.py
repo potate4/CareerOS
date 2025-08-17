@@ -63,3 +63,28 @@ class LearningMaterialsSearchResponse(BaseModel):
     total_results: int
     processing_time_seconds: Optional[float] = None
     timestamp: datetime = Field(default_factory=datetime.now) 
+  
+  
+# Module creation
+
+
+class LearningModuleGenerateRequest(BaseModel):
+    user_id: int
+    learning_path_info : str
+    
+
+    
+class LearningModule(BaseModel):
+    module_name: str
+    module_description: str
+    
+    
+
+class LearningModuleGenerateResponse(BaseModel):
+    modules: List[LearningModule]
+
+
+
+    
+    
+    

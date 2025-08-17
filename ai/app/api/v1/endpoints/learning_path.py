@@ -15,7 +15,9 @@ from app.schemas.learning_path import (
     FileIndexingResponse,
     FileIndexingResult,
     LearningMaterialsSearchRequest,
-    LearningMaterialsSearchResponse
+    LearningMaterialsSearchResponse,
+    LearningModuleGenerateRequest,
+    LearningModuleGenerateResponse
 )
 
 # Configure logging
@@ -111,3 +113,35 @@ async def search_learning_materials(
     except Exception as e:
         logger.error(f"Error in search functionality: {e}")
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+
+@router.post("/generate", response_model=LearningModuleGenerateResponse)
+async def generate_learning_path(
+    request: LearningModuleGenerateRequest,
+):
+    """
+    Generate a learning path with modules based on user's learning path info
+    """
+    try:
+        logger.info(f"Generating learning path for user {request.user_id}")
+        start_time = time.time()
+        
+        # Generate learning path using AI helper
+        learning_path_result = await learning_ai.get_learning_path(
+            learning_path_info=request.learning_path_info
+        )
+        
+        processing_time = time.time() - start_time
+        
+        if not learning_path_result:
+            raise HTTPException(status_code=500, detail="Failed to generate learning path")
+        
+        logger.info(f"Learning path generated in {processing_time:.2f}s for user {request.user_id}")
+        
+        return LearningModuleGenerateResponse(
+            modules=learning_path_result if learning_path_result else []
+        )
+        
+    except Exception as e:
+        logger.error(f"Error generating learning path: {e}")
+        raise HTTPException(status_code=500, detail=f"Learning path generation failed: {str(e)}")

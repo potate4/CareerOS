@@ -7,6 +7,7 @@ import json
 from app.core.config import settings
 import numpy as np
 from app.schemas.interview import Transcript, AudioAnalysis, Pause, Emotion, InterviewFeedback
+from app.schemas.learning_path import LearningModule
 from typing import List
 from google import genai 
 from google.genai import types
@@ -67,6 +68,24 @@ def get_structured_response_transcript(prompt: str):
         'temperature': 1,
         'response_mime_type': 'application/json',
         'response_schema': list[Transcript],
+        },
+    )
+
+    parsed_response = response.parsed
+    
+    return parsed_response
+
+
+def get_structured_response_learning_modules(prompt: str):
+    
+    
+    response = client.models.generate_content(
+        model='gemini-2.0-flash',
+        contents=prompt,
+        config={
+        'temperature': 1,
+        'response_mime_type': 'application/json',
+        'response_schema': list[LearningModule],
         },
     )
 
