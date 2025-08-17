@@ -70,6 +70,7 @@ public class WebSecurityConfig {
             .authorizeHttpRequests(auth -> {
                 System.out.println("🔧 Setting up request authorization...");
                 auth.requestMatchers("/api/auth/**").permitAll()
+                    .requestMatchers("/api/path/**").permitAll()
                     .requestMatchers("/api/test/**").permitAll()
                     .requestMatchers("/api/ai/health").permitAll()
                     .requestMatchers("/api/ai/status").permitAll()
@@ -77,6 +78,12 @@ public class WebSecurityConfig {
                     .requestMatchers("/api/interview/health").permitAll()
                     .requestMatchers("/api/interview/test-auth").permitAll()
                     .requestMatchers("/api/interview/analysis-callback").permitAll()
+                    .requestMatchers("/api/path/health").permitAll()
+                    .requestMatchers("/api/path/test").permitAll()
+                    .requestMatchers("/api/path/learning").permitAll()
+                    .requestMatchers("/api/path/current").permitAll()
+                    .requestMatchers("/api/path/progress").permitAll()
+                    .requestMatchers("/api/path/stats").permitAll()
                     .anyRequest().authenticated();
                 System.out.println("🔧 Authorization configured - /api/interview/analyze requires authentication");
             });

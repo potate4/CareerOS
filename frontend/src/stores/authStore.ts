@@ -50,6 +50,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       localStorage.setItem(config.tokenKey, response.token);
       localStorage.setItem(config.userKey, JSON.stringify(userData));
+      //console.log('User logged in:', response.token, config.tokenKey, userData);
       set({ user: userData });
     } catch (error) {
       console.error('Login error:', error);
