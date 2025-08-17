@@ -7,4 +7,4 @@ api_router_v1.include_router(interview.router, prefix="/interview", tags=["inter
 api_router_v1.include_router(files.router, prefix="/files", tags=["files"])
 api_router_v1.include_router(futurecast.router, prefix="/futurecast", tags=["futurecast"])
 
-api_router_v1.include_router(learning_path.router, prefix="/learning-path", tags=["learning-path"])
+# api_router_v1.include_router(learning_path.router, prefix="/learning-path", tags=["learning-path"])

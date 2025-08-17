@@ -55,6 +55,7 @@ function App() {
             <FuturecastPage />
           </ProtectedRoute>
         }
+        />
 
       <Route 
         path="/learning-path/*" 
