@@ -27,6 +27,8 @@ from qdrant_client.http import models as rest
 from app.helpers.semantic_chunker import create_semantic_chunks_80
 from app.helpers.qdrant_functions import upload_to_qdrant
 from app.schemas.learning_path import FileUploadInfo
+
+from app.helpers.llm import get_gemini_text_completion, get_gemini_text_completion_with_search
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -75,6 +77,11 @@ class LearningPathAI:
                     field_name="is_active",
                     field_schema=rest.PayloadSchemaType.BOOLEAN
                 )
+                self.qdrant_client.create_payload_index(
+                    collection_name=self.learning_materials_collection,
+                    field_name="module_id",
+                    field_schema=rest.PayloadSchemaType.KEYWORD
+                )
             
             if self.module_content_collection not in collection_names:
                 self.qdrant_client.create_collection(
@@ -87,7 +94,7 @@ class LearningPathAI:
             logger.error(f"Error ensuring collections: {e}")
 
     
-    async def process_learning_materials(self, file_url: str, file_id: str, file_name: str, file_type: str, user_id: int) -> Dict[str, Any]:
+    async def process_learning_materials(self, file_url: str, file_id: str, file_name: str, file_type: str, user_id: int, module_id: int) -> Dict[str, Any]:
         """Process and index a single learning material from URL"""
         try:
             self._ensure_collections()
@@ -118,7 +125,8 @@ class LearningPathAI:
                         file_url=file_url,  # Use URL as file_path
                         file_type=file_type,
                         file_size=content.get("file_size", 0),
-                        upload_date=datetime.now()
+                        upload_date=datetime.now(),
+                        module_id=module_id
                     )
                     
                     logger.info(f"Uploading chunks to Qdrant")
@@ -271,6 +279,19 @@ class LearningPathAI:
             logger.error(f"Error extracting content from URL {file_url}: {e}")
             return None
 
+
+    async def get_learning_path(self, query: str, user_id: int, limit: int = 10) -> Dict[str, Any]:
+        """Get learning path for a specific user"""
+        try:
+            prompt = f"""
+            Get learning path for the user {user_id} with the query {query}
+            """
+            response = get_gemini_text_completion_with_search(prompt)
+            return response
+        except Exception as e:
+            logger.error(f"Error in get_learning_path: {e}")
+            return None
+        
 
         """Fallback evaluation when AI analysis fails"""
         return {

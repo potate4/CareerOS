@@ -43,7 +43,8 @@ def upload_to_qdrant(file_create:FileUploadInfo,page_no:str, semantic_chunks, su
             "is_active": True,
             "file_type": file_create.file_type,
             "file_size": file_create.file_size,
-            "upload_date": file_create.upload_date
+            "upload_date": file_create.upload_date,
+            "module_id": file_create.module_id
         }
 
         str_to_embed = summaries[summary_index] + "\n" + semantic_chunk.page_content

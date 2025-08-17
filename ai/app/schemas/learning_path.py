@@ -15,6 +15,7 @@ class FileUploadInfo(BaseModel):
     file_size: Optional[int] = None
     file_url: Optional[str] = None
     upload_date: Optional[datetime] = None
+    module_id: Optional[int] = None
 
 # Index File Endpoint Schemas
 class FileIndexingRequest(BaseModel):
