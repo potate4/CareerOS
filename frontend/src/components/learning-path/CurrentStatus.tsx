@@ -15,14 +15,17 @@ import {
   MessageCircle,
   Brain,
   FileText,
-  Upload
+  Upload,
+  List
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { learningPathAPI } from '../../services/learningPathAPI';
 import { LearningPathResponse, LearningModule, ModuleStatus, DifficultyLevel, LearningStage } from '../../types/learningPath';
 import LearningChat from './LearningChat';
 import AssessmentModal from './AssessmentModal';
 
 const CurrentStatus: React.FC = () => {
+  const navigate = useNavigate();
   const [learningPath, setLearningPath] = useState<LearningPathResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -166,6 +169,17 @@ const CurrentStatus: React.FC = () => {
               <div className="text-3xl font-bold text-blue-600">{learningPath.overallProgress?.toFixed(0) || 0}%</div>
               <div className="text-sm text-slate-600">Overall Progress</div>
             </div>
+          </div>
+
+          {/* View All Paths Link */}
+          <div className="mt-4 pt-4 border-t border-blue-100">
+            <button
+              onClick={() => navigate('/learning-path/all-paths')}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+            >
+              <List className="h-4 w-4" />
+              View All Learning Paths
+            </button>
           </div>
 
           {/* Progress Bar */}

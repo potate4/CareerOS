@@ -8,13 +8,15 @@ import {
   Plus,
   Target,
   Clock,
-  Award
+  Award,
+  List
 } from 'lucide-react';
 import AuthenticatedLayout from '../layout/AuthenticatedLayout';
 import GenerateLearningPath from './GenerateLearningPath';
 import CurrentStatus from './CurrentStatus';
 import ProgressUpdate from './ProgressUpdate';
 import Statistics from './Statistics';
+import AllLearningPaths from './AllLearningPaths';
 
 const LearningPathPage: React.FC = () => {
   const location = useLocation();
@@ -25,6 +27,7 @@ const LearningPathPage: React.FC = () => {
     if (path.includes('/current')) return 'current';
     if (path.includes('/progress')) return 'progress';
     if (path.includes('/stats')) return 'stats';
+    if (path.includes('/all-paths')) return 'all-paths';
     return 'generate';
   });
 
@@ -56,6 +59,13 @@ const LearningPathPage: React.FC = () => {
       icon: BarChart3,
       description: 'View detailed stats',
       path: '/learning-path/stats'
+    },
+    {
+      id: 'all-paths',
+      name: 'All Learning Paths',
+      icon: List,
+      description: 'View all saved learning paths',
+      path: '/learning-path/all-paths'
     }
   ];
 
@@ -168,6 +178,7 @@ const LearningPathPage: React.FC = () => {
               <Route path="/current" element={<CurrentStatus />} />
               <Route path="/progress" element={<ProgressUpdate />} />
               <Route path="/stats" element={<Statistics />} />
+              <Route path="/all-paths" element={<AllLearningPaths />} />
             </Routes>
           </div>
         </div>

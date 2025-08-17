@@ -10,11 +10,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 public class LearningPathRequest {
     
     @NotBlank(message = "Career goal is required")
-    @Size(min = 3, max = 100, message = "Career goal must be between 3 and 100 characters")
     private String careerGoal;
-    
-    @NotNull(message = "Current skills are required")
-    private List<String> currentSkills;
     
     @NotNull(message = "Experience level is required")
     private ExperienceLevel experienceLevel;
@@ -22,7 +18,10 @@ public class LearningPathRequest {
     @NotNull(message = "Learning pace is required")
     private LearningPace learningPace;
     
-    @Size(max = 500, message = "Additional notes must not exceed 500 characters")
+    @NotNull(message = "Current skills are required")
+    @Size(min = 1, message = "At least one current skill is required")
+    private List<String> currentSkills;
+    
     private String additionalNotes;
     
     // Enums
@@ -31,33 +30,65 @@ public class LearningPathRequest {
     }
     
     public enum LearningPace {
-        SLOW(1), MODERATE(2), FAST(3), INTENSIVE(4);
-        
-        private final int pace;
-        
-        LearningPace(int pace) {
-            this.pace = pace;
-        }
-        
-        public int getPace() {
-            return pace;
-        }
+        SLOW, MODERATE, FAST
     }
     
     // Constructors
     public LearningPathRequest() {}
     
-    public LearningPathRequest(String careerGoal, List<String> currentSkills, 
-                              ExperienceLevel experienceLevel, LearningPace learningPace) {
+    public LearningPathRequest(String careerGoal, ExperienceLevel experienceLevel, 
+                              LearningPace learningPace, List<String> currentSkills, String additionalNotes) {
         this.careerGoal = careerGoal;
-        this.currentSkills = currentSkills;
         this.experienceLevel = experienceLevel;
+        this.learningPace = learningPace;
+        this.currentSkills = currentSkills;
+        this.additionalNotes = additionalNotes;
+    }
+    
+    // Getters and Setters
+    public String getCareerGoal() {
+        return careerGoal;
+    }
+    
+    public void setCareerGoal(String careerGoal) {
+        this.careerGoal = careerGoal;
+    }
+    
+    public ExperienceLevel getExperienceLevel() {
+        return experienceLevel;
+    }
+    
+    public void setExperienceLevel(ExperienceLevel experienceLevel) {
+        this.experienceLevel = experienceLevel;
+    }
+    
+    public LearningPace getLearningPace() {
+        return learningPace;
+    }
+    
+    public void setLearningPace(LearningPace learningPace) {
         this.learningPace = learningPace;
     }
     
+    public List<String> getCurrentSkills() {
+        return currentSkills;
+    }
+    
+    public void setCurrentSkills(List<String> currentSkills) {
+        this.currentSkills = currentSkills;
+    }
+    
+    public String getAdditionalNotes() {
+        return additionalNotes;
+    }
+    
+    public void setAdditionalNotes(String additionalNotes) {
+        this.additionalNotes = additionalNotes;
+    }
+    
     /**
-     * Convert the learning path request to a JSON string for AI service
-     * @return JSON string representation of the learning path request
+     * Convert the request to a string for AI processing
+     * @return JSON string representation of the request
      */
     public String toAIRequestString() {
         try {
@@ -85,46 +116,5 @@ public class LearningPathRequest {
             }
             return sb.toString();
         }
-    }
-    
-    // Getters and Setters
-    public String getCareerGoal() {
-        return careerGoal;
-    }
-    
-    public void setCareerGoal(String careerGoal) {
-        this.careerGoal = careerGoal;
-    }
-    
-    public List<String> getCurrentSkills() {
-        return currentSkills;
-    }
-    
-    public void setCurrentSkills(List<String> currentSkills) {
-        this.currentSkills = currentSkills;
-    }
-    
-    public ExperienceLevel getExperienceLevel() {
-        return experienceLevel;
-    }
-    
-    public void setExperienceLevel(ExperienceLevel experienceLevel) {
-        this.experienceLevel = experienceLevel;
-    }
-    
-    public LearningPace getLearningPace() {
-        return learningPace;
-    }
-    
-    public void setLearningPace(LearningPace learningPace) {
-        this.learningPace = learningPace;
-    }
-    
-    public String getAdditionalNotes() {
-        return additionalNotes;
-    }
-    
-    public void setAdditionalNotes(String additionalNotes) {
-        this.additionalNotes = additionalNotes;
     }
 } 

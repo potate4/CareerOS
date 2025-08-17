@@ -19,15 +19,11 @@ public class LearningPath {
     @Column(name = "career_goal", nullable = false)
     private String careerGoal;
     
-    @Column(name = "current_stage", columnDefinition = "VARCHAR(20) CHECK (current_stage IN ('BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'))")
-    @Enumerated(EnumType.STRING)
-    private LearningStage currentStage;
+    @Column(name = "experience_level")
+    private String experienceLevel;
     
-    @Column(name = "overall_progress")
-    private Double overallProgress = 0.0;
-    
-    @Column(name = "estimated_completion_weeks")
-    private Integer estimatedCompletionWeeks;
+    @Column(name = "learning_pace")
+    private String learningPace;
     
     @Column(name = "is_active")
     private Boolean isActive = true;
@@ -35,28 +31,20 @@ public class LearningPath {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
     
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-    
     @OneToMany(mappedBy = "learningPath", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<LearningModule> modules;
-    
-    // Enums
-    public enum LearningStage {
-        BEGINNER, INTERMEDIATE, ADVANCED, EXPERT
-    }
     
     // Constructors
     public LearningPath() {
         this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
     }
     
-    public LearningPath(User user, String careerGoal) {
+    public LearningPath(User user, String careerGoal, String experienceLevel, String learningPace) {
         this();
         this.user = user;
         this.careerGoal = careerGoal;
-        this.currentStage = LearningStage.BEGINNER;
+        this.experienceLevel = experienceLevel;
+        this.learningPace = learningPace;
     }
     
     // Getters and Setters
@@ -84,28 +72,20 @@ public class LearningPath {
         this.careerGoal = careerGoal;
     }
     
-    public LearningStage getCurrentStage() {
-        return currentStage;
+    public String getExperienceLevel() {
+        return experienceLevel;
     }
     
-    public void setCurrentStage(LearningStage currentStage) {
-        this.currentStage = currentStage;
+    public void setExperienceLevel(String experienceLevel) {
+        this.experienceLevel = experienceLevel;
     }
     
-    public Double getOverallProgress() {
-        return overallProgress;
+    public String getLearningPace() {
+        return learningPace;
     }
     
-    public void setOverallProgress(Double overallProgress) {
-        this.overallProgress = overallProgress;
-    }
-    
-    public Integer getEstimatedCompletionWeeks() {
-        return estimatedCompletionWeeks;
-    }
-    
-    public void setEstimatedCompletionWeeks(Integer estimatedCompletionWeeks) {
-        this.estimatedCompletionWeeks = estimatedCompletionWeeks;
+    public void setLearningPace(String learningPace) {
+        this.learningPace = learningPace;
     }
     
     public Boolean getIsActive() {
@@ -124,25 +104,11 @@ public class LearningPath {
         this.createdAt = createdAt;
     }
     
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-    
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-    
     public List<LearningModule> getModules() {
         return modules;
     }
     
     public void setModules(List<LearningModule> modules) {
         this.modules = modules;
-    }
-    
-    // JPA Lifecycle methods
-    @PreUpdate
-    public void preUpdate() {
-        this.updatedAt = LocalDateTime.now();
     }
 } 
