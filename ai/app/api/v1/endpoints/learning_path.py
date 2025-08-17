@@ -32,7 +32,12 @@ from app.schemas.learning_path import (
     SearchQuery,
     SearchResult,
     BulkOperationRequest,
-    BulkOperationResponse
+    BulkOperationResponse,
+    FileIndexingRequest,
+    FileIndexingResponse,
+    FileIndexingResult,
+    LearningMaterialsSearchRequest,
+    LearningMaterialsSearchResponse
 )
 
 # Configure logging
@@ -160,58 +165,47 @@ async def generate_learning_path(
         logger.error(f"Error generating learning path: {e}")
         raise HTTPException(status_code=500, detail=f"Learning path generation failed: {str(e)}")
 
-@router.post("/index-file")
+@router.post("/index-file", response_model=FileIndexingResponse)
 async def index_file(
-    request: dict,
+    request: FileIndexingRequest,
 ):
     """
     Index a single file from URL for learning materials
     """
     try:
-        user_id = request.get('user_id')
-        file_url = request.get('file_url')
-        file_id = request.get('file_id')
-        file_name = request.get('file_name')
-        file_type = request.get('file_type')
-        
-        # Validate required fields
-        if not all([user_id, file_url, file_id, file_name, file_type]):
-            raise HTTPException(
-                status_code=400, 
-                detail="Missing required fields: user_id, file_url, file_id, file_name, file_type"
-            )
-        
-
-        # Validate file type
-        allowed_types = {'pdf', 'docx', 'pptx', 'doc', 'ppt'}
-        if file_type.lower() not in allowed_types:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Unsupported file type: {file_type}. Allowed: {', '.join(allowed_types)}"
-            )
-        
-        logger.info(f"Indexing file {file_name} for user {user_id}")
+        logger.info(f"Indexing file {request.file_name} for user {request.user_id}")
         start_time = time.time()
         
         # Process and index the file
         processing_result = await learning_ai.process_learning_materials(
-            file_url=file_url,
-            file_id=file_id,
-            file_name=file_name,
-            file_type=file_type,
-            user_id=user_id
+            file_url=request.file_url,
+            file_id=request.file_id,
+            file_name=request.file_name,
+            file_type=request.file_type,
+            user_id=request.user_id
         )
         
         processing_time = time.time() - start_time
-        processing_result['processing_time_seconds'] = processing_time
         
-        logger.info(f"File indexing completed in {processing_time:.2f}s for user {user_id}")
+        # Create indexing result
+        indexing_result = FileIndexingResult(
+            file_id=request.file_id,
+            file_name=request.file_name,
+            file_type=request.file_type,
+            chunks_processed=processing_result.get('total_chunks', 0),
+            chunks_indexed=processing_result.get('indexed_successfully', 0),
+            processing_status="completed" if processing_result.get('indexed_successfully', 0) > 0 else "failed",
+            metadata=processing_result
+        )
         
-        return {
-            "success": True,
-            "message": f"Successfully indexed file {file_name}",
-            "result": processing_result
-        }
+        logger.info(f"File indexing completed in {processing_time:.2f}s for user {request.user_id}")
+        
+        return FileIndexingResponse(
+            success=True,
+            message=f"Successfully indexed file {request.file_name}",
+            result=indexing_result,
+            processing_time_seconds=processing_time
+        )
         
     except Exception as e:
         logger.error(f"Error indexing file: {e}")
@@ -346,43 +340,33 @@ async def chat_with_learning_resources(
         logger.error(f"Error in chat functionality: {e}")
         raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
 
-@router.post("/search")
+@router.post("/search", response_model=LearningMaterialsSearchResponse)
 async def search_learning_materials(
-    request: dict,
+    request: LearningMaterialsSearchRequest,
 ):
     """
     Search learning materials using RAG for a specific user
     """
     try:
-        user_id = request.get('user_id')
-        query = request.get('query')
-        limit = request.get('limit', 10)
-        
-        # Validate required fields
-        if not all([user_id, query]):
-            raise HTTPException(
-                status_code=400, 
-                detail="Missing required fields: user_id, query"
-            )
-        
-
-        # Validate limit
-        if limit < 1 or limit > 50:
-            limit = 10  # Default to 10 if invalid
-        
-        logger.info(f"Searching materials for user {user_id}: {query}")
+        logger.info(f"Searching materials for user {request.user_id}: {request.query}")
+        start_time = time.time()
         
         # Search learning materials
         search_result = await learning_ai.search_learning_materials(
-            query=query,
-            user_id=user_id,
-            limit=limit
+            query=request.query,
+            user_id=request.user_id,
+            limit=request.limit
         )
         
-        return {
-            "success": True,
-            "search_result": search_result
-        }
+        processing_time = time.time() - start_time
+        
+        return LearningMaterialsSearchResponse(
+            success=True,
+            search_result=search_result,
+            query=request.query,
+            total_results=len(search_result) if isinstance(search_result, list) else 0,
+            processing_time_seconds=processing_time
+        )
         
     except Exception as e:
         logger.error(f"Error in search functionality: {e}")
@@ -572,17 +556,16 @@ async def get_module_details(
         logger.error(f"Error fetching module details: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch module details: {str(e)}")
 
-@router.post("/search", response_model=List[SearchResult])
+@router.post("/search-content", response_model=List[SearchResult])
 async def search_learning_content(
     request: SearchQuery,
 ):
     """
-    Search through learning materials and resources
+    Search through learning materials and resources using vector similarity
     """
     try:
         logger.info(f"Searching content for user {request.user_id}: {request.query}")
-        
-      
+        start_time = time.time()
         
         # Generate query embedding
         query_embedding = learning_ai.embedding_model.encode(request.query).tolist()
@@ -627,7 +610,8 @@ async def search_learning_content(
         # Sort by relevance
         search_results.sort(key=lambda x: x.relevance_score, reverse=True)
         
-        logger.info(f"Found {len(search_results)} search results")
+        processing_time = time.time() - start_time
+        logger.info(f"Found {len(search_results)} search results in {processing_time:.2f}s")
         return search_results[:request.limit]
         
     except Exception as e:

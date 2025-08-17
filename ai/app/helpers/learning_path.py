@@ -200,19 +200,6 @@ class LearningPathAI:
                     # Create semantic chunks
                     semantic_chunks = create_semantic_chunks_80(content["text"])
                     
-                    # # Prepare chunks for indexing
-                    # chunks = []
-                    # for i, chunk in enumerate(semantic_chunks):
-                    #     chunks.append({
-                    #         'content': chunk.page_content,
-                    #         'chunk_index': i,
-                    #         'metadata': content["metadata"]
-                    #     })
-                    
-                    # Index chunks using qdrant_functions.py
-                    print(f"CHUNKS SIZE: {len(semantic_chunks)}")
-                    print(semantic_chunks)
-                    
                     # Create FileUploadInfo object for qdrant_functions
                     file_info = FileUploadInfo(
                         user_id=user_id,
