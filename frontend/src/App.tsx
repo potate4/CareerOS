@@ -6,7 +6,11 @@ import Dashboard from './components/dashboard/Dashboard';
 import AuthPage from './components/auth/AuthPage';
 import AIServicesPage from './components/ai/AIServicesPage';
 import InterviewSimulatorPage from './features/interview/components/InterviewSimulatorPage';
+
 import FuturecastPage from './features/futurecast/components/FuturecastPage';
+
+import LearningPathPage from './components/learning-path/LearningPathPage';
+
 import './App.css';
 
 function App() {
@@ -43,6 +47,7 @@ function App() {
           </ProtectedRoute>
         } 
       />
+
       <Route
         path="/futurecast"
         element={
@@ -50,6 +55,15 @@ function App() {
             <FuturecastPage />
           </ProtectedRoute>
         }
+
+      <Route 
+        path="/learning-path/*" 
+        element={
+          <ProtectedRoute>
+            <LearningPathPage />
+          </ProtectedRoute>
+        } 
+
       />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

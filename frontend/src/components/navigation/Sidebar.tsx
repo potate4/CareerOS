@@ -9,7 +9,8 @@ import {
   Target,
   TrendingUp,
   FileText,
-  Users
+  Users,
+  BookOpen
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -28,10 +29,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
       description: 'Overview and analytics'
     },
     {
-      name: 'LifeScript',
-      href: '/lifescript',
-      icon: Home,
-      description: 'AI Journaling and Reflection'
+      name: 'Learning Path',
+      href: '/learning-path',
+      icon: BookOpen,
+      description: 'AI Learning Path Generator'
     },
     {
       name: 'AI Services',
@@ -46,10 +47,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
       description: 'AI Interview Simulator'
     },
     {
-      name: 'Learning Flow',
-      href: '/learning',
-      icon: Briefcase,
-      description: 'AI Learning Path Generator'
+      name: 'LifeScript',
+      href: '/lifescript',
+      icon: Home,
+      description: 'AI Journaling and Reflection'
     },
     {
       name: 'FutureCast',
@@ -96,7 +97,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   ];
 
   const isActive = (href: string) => {
-    return location.pathname === href;
+    return location.pathname.startsWith(href);
   };
 
   return (
