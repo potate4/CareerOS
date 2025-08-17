@@ -114,6 +114,13 @@
 			<artifactId>jjwt-api</artifactId>
 			<version>0.11.5</version>
 		</dependency>		  
+		
+		<!-- Hypersistence Utils for JSON support -->
+		<dependency>
+			<groupId>io.hypersistence</groupId>
+			<artifactId>hypersistence-utils-hibernate-62</artifactId>
+			<version>3.5.1</version>
+		</dependency>
 	</dependencies>
 
 	<build>
