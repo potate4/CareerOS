@@ -15,5 +15,9 @@ class Settings(BaseSettings):
     AUDIO_SEG_DIR: str = os.getenv("AUDIO_SEG_DIR")
     BACKEND_URL: str = os.getenv("BACKEND_URL")
     BACKEND_JWT_SECRET: str = os.getenv("BACKEND_JWT_SECRET")
+    QDRANT_HOST: str = os.getenv("QDRANT_HOST")
+    QDRANT_API_KEY: str = os.getenv("QDRANT_API_KEY")
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY") or ""
+    EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL") or ""
 
 settings = Settings()

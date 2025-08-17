@@ -41,11 +41,14 @@ class ModuleStatus(str, Enum):
 
 # File Upload Schema
 class FileUploadInfo(BaseModel):
-    filename: str
-    file_path: str
-    file_type: str  # pdf, docx, pptx
-    file_size: int
-    upload_date: datetime
+    user_id: Optional[int] = None
+    file_id: Optional[str] = None
+    file_name: Optional[str] = None
+    file_path: Optional[str] = None
+    file_type: Optional[str] = None
+    file_size: Optional[int] = None
+    file_url: Optional[str] = None
+    upload_date: Optional[datetime] = None
 
 # Request Schemas
 
