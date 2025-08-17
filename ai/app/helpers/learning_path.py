@@ -314,6 +314,7 @@ class LearningPathAI:
             )
             
             # Format results with metadata
+            print(f"RESULTS: {results}")
             formatted_results = []
             for result in results:
                 formatted_results.append({
@@ -322,15 +323,17 @@ class LearningPathAI:
                     'source': result.payload.get('source', ''),
                     'filename': result.payload.get('file_name', ''),
                     'file_type': result.payload.get('type', ''),
-                    'chunk_index': result.payload.get('chunk_index', 0),
                     'relevance_score': result.score,
-                    'metadata': {
-                        'user_id': result.payload.get('user_id', ''),
-                        'file_id': result.payload.get('file_id', ''),
-                        'upload_date': result.payload.get('created_at', ''),
-                        'page_no': result.payload.get('page_no', ''),
-                        'is_active': result.payload.get('is_active', True)
-                    }
+                    'file_url': result.payload.get('file_url', ''),
+                    'file_name': result.payload.get('file_name', ''),
+                    'file_type': result.payload.get('file_type', ''),
+                    'file_size': result.payload.get('file_size', ''),
+                    'user_id': result.payload.get('user_id', ''),
+                    'file_id': result.payload.get('file_id', ''),
+                    'upload_date': result.payload.get('created_at', ''),
+                    'page_no': result.payload.get('page_no', ''),
+                    'is_active': result.payload.get('is_active', True)
+                
                 })
             
             return {
