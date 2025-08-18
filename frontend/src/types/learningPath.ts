@@ -36,3 +36,27 @@ export interface LearningPathRequest {
   currentSkills: string[];
   additionalNotes?: string;
 }
+
+// Chat-related types
+export interface ChatMessage {
+  speaker: 'user' | 'ai';
+  message: string;
+  timestamp: string;
+}
+
+export interface LearningChatRequest {
+  userId: number;
+  moduleId: number;
+  userQuery: string;
+  chatHistory?: ChatMessage[];
+}
+
+export interface LearningChatResponse {
+  success: boolean;
+  message: string;
+  reply: string;
+  userId: number;
+  moduleId: number;
+  processingTimeSeconds: number;
+  timestamp: string;
+}

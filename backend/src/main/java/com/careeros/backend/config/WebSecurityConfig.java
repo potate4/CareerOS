@@ -84,6 +84,7 @@ public class WebSecurityConfig {
                     .requestMatchers("/api/path/current").permitAll()
                     .requestMatchers("/api/path/progress").permitAll()
                     .requestMatchers("/api/path/stats").permitAll()
+                    .requestMatchers("/api/learning-chat/**").permitAll()
                     .anyRequest().authenticated();
                 System.out.println("🔧 Authorization configured - /api/interview/analyze requires authentication");
             });

@@ -85,8 +85,8 @@ class LearningModuleGenerateResponse(BaseModel):
 
 # Chat Endpoint Schemas
 class ChatMessage(BaseModel):
-    role: str = Field(..., description="Role of the message sender (user/assistant)")
-    content: str = Field(..., description="Content of the message")
+    speaker: str = Field(..., description="Role of the message sender (user/assistant)")
+    message: str = Field(..., description="Content of the message")
     timestamp: datetime = Field(default_factory=datetime.now, description="Timestamp of the message")
 
 class ChatRequest(BaseModel):

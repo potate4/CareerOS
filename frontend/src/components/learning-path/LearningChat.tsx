@@ -10,15 +10,9 @@ import {
   BookOpen,
   ExternalLink
 } from 'lucide-react';
-
-interface ChatMessage {
-  id: string;
-  type: 'user' | 'ai';
-  message: string;
-  timestamp: Date;
-  sources?: string[];
-  relevanceScores?: number[];
-}
+import { learningPathAPI } from '../../services/learningPathAPI';
+import { ChatMessage, LearningChatRequest } from '../../types/learningPath';
+import { useAuthStore } from '../../stores/authStore';
 
 interface LearningChatProps {
   moduleId: number;
@@ -33,19 +27,29 @@ const LearningChat: React.FC<LearningChatProps> = ({
   isOpen, 
   onClose 
 }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      type: 'ai',
-      message: `Hi! I'm your AI learning assistant for the "${moduleName}" module. I can help you understand concepts, clarify doubts, and provide insights based on your learning materials. What would you like to know?`,
-      timestamp: new Date(),
-      sources: []
-    }
-  ]);
+  const { user } = useAuthStore();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Get user ID from auth store
+  const getUserId = (): number => {
+    if (user?.id) {
+      return user.id;
+    }
+    // Fallback for testing if no user is logged in
+    console.warn('No user logged in, using default user ID for testing');
+    return 1;
+  };
+
+  // Check if user is authenticated
+  const isAuthenticated = (): boolean => {
+    return !!user?.id;
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -61,48 +65,124 @@ const LearningChat: React.FC<LearningChatProps> = ({
     }
   }, [isOpen]);
 
+  // Load chat history when component opens
+  useEffect(() => {
+    if (isOpen && moduleId) {
+      loadChatHistory();
+    }
+  }, [isOpen, moduleId]);
+
+  const loadChatHistory = async () => {
+    try {
+      const userId = getUserId();
+      const history = await learningPathAPI.getChatHistory(userId, moduleId);
+      
+      if (history && history.length > 0) {
+        // Convert backend format to frontend format
+        const formattedHistory: ChatMessage[] = history.map((msg: any) => ({
+          speaker: msg.speaker,
+          message: msg.message,
+          timestamp: msg.createdAt
+        }));
+        
+        console.log('📚 Loaded chat history:', formattedHistory);
+        
+        // Replace all messages with the actual history
+        setMessages(formattedHistory);
+      } else {
+        console.log('📚 No chat history found, adding welcome message');
+        // Add welcome message if no history exists
+        const welcomeMessage: ChatMessage = {
+          speaker: 'ai',
+          message: `Hi! I'm your AI learning assistant for the "${moduleName}" module. I can help you understand concepts, clarify doubts, and provide insights based on your learning materials. What would you like to know?`,
+          timestamp: new Date().toISOString()
+        };
+        setMessages([welcomeMessage]);
+      }
+      setIsInitialized(true);
+    } catch (error) {
+      console.error('Failed to load chat history:', error);
+      // Add welcome message on error
+      const welcomeMessage: ChatMessage = {
+        speaker: 'ai',
+        message: `Hi! I'm your AI learning assistant for the "${moduleName}" module. I can help you understand concepts, clarify doubts, and provide insights based on your learning materials. What would you like to know?`,
+        timestamp: new Date().toISOString()
+      };
+      setMessages([welcomeMessage]);
+      setIsInitialized(true);
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
 
+    // Check authentication before sending message
+    if (!isAuthenticated()) {
+      setError('Please log in to use the chat feature.');
+      return;
+    }
+
     const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      type: 'user',
+      speaker: 'user',
       message: inputMessage.trim(),
-      timestamp: new Date()
+      timestamp: new Date().toISOString()
     };
 
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
     setIsLoading(true);
+    setError(null);
 
     try {
-      // TODO: Replace with actual API call
-      // const response = await learningPathAPI.chatWithResources({
-      //   moduleId,
-      //   query: inputMessage.trim(),
-      //   chatHistory: messages.slice(-6) // Last 6 messages for context
-      // });
-
-      // Simulate AI response
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const userId = getUserId();
       
-      const aiMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        type: 'ai',
-        message: `This is a simulated AI response to your question: "${inputMessage.trim()}". In the actual implementation, this would be powered by RAG technology using your uploaded learning materials and module content.`,
-        timestamp: new Date(),
-        sources: ['Chapter 3: Advanced Concepts', 'Your uploaded notes.pdf', 'Module Resources'],
-        relevanceScores: [0.95, 0.87, 0.76]
+      // Prepare chat history for context (last 6 messages, excluding the initial welcome message)
+      // Filter out the initial AI welcome message and only include actual conversation
+      const actualConversation = messages.filter(msg => 
+        !(msg.speaker === 'ai' && msg.message.includes("Hi! I'm your AI learning assistant"))
+      );
+      
+      // Only send chat history if there are actual conversation messages
+      let chatHistory: any[] = [];
+      if (actualConversation.length > 0) {
+        chatHistory = actualConversation.slice(-6).map(msg => ({
+          speaker: msg.speaker,
+          message: msg.message,
+          timestamp: msg.timestamp
+        }));
+      }
+
+      const request: LearningChatRequest = {
+        userId,
+        moduleId,
+        userQuery: userMessage.message,
+        chatHistory: chatHistory.length > 0 ? chatHistory : undefined
       };
 
-      setMessages(prev => [...prev, aiMessage]);
-    } catch (error) {
+      console.log('💬 Sending chat request:', request);
+      console.log('💬 Chat history being sent:', chatHistory);
+
+      const response = await learningPathAPI.chatWithLearningAssistant(request);
+
+      if (response.success) {
+        const aiMessage: ChatMessage = {
+          speaker: 'ai',
+          message: response.reply,
+          timestamp: response.timestamp || new Date().toISOString()
+        };
+
+        setMessages(prev => [...prev, aiMessage]);
+      } else {
+        throw new Error(response.message || 'Failed to get AI response');
+      }
+    } catch (error: any) {
       console.error('Chat error:', error);
+      setError(error.message || 'Failed to get AI response');
+      
       const errorMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        type: 'ai',
+        speaker: 'ai',
         message: 'Sorry, I encountered an error while processing your request. Please try again.',
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
@@ -117,8 +197,8 @@ const LearningChat: React.FC<LearningChatProps> = ({
     }
   };
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const formatTime = (timestamp: string) => {
+    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   const suggestedQuestions = [
@@ -152,80 +232,78 @@ const LearningChat: React.FC<LearningChatProps> = ({
           </button>
         </div>
 
+        {/* Error Display */}
+        {error && (
+          <div className="p-3 mx-4 mt-2 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
+
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex gap-3 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              {message.type === 'ai' && (
-                <div className="p-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex-shrink-0">
-                  <Bot className="h-4 w-4 text-white" />
-                </div>
-              )}
-              
-              <div className={`max-w-md ${message.type === 'user' ? 'order-1' : ''}`}>
+          {!isInitialized ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-3 text-slate-600">Loading chat...</span>
+            </div>
+          ) : (
+            <>
+              {messages.map((message, index) => (
                 <div
-                  className={`p-3 rounded-lg ${
-                    message.type === 'user'
-                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
-                      : 'bg-slate-50 border border-slate-200'
-                  }`}
+                  key={index}
+                  className={`flex gap-3 ${message.speaker === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <p className="text-sm">{message.message}</p>
-                </div>
-                
-                {message.sources && message.sources.length > 0 && (
-                  <div className="mt-2 space-y-1">
-                    <p className="text-xs text-slate-500 font-medium">Sources:</p>
-                    {message.sources.map((source, idx) => (
-                      <div key={idx} className="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 p-2 rounded border">
-                        <FileText className="h-3 w-3" />
-                        <span className="flex-1">{source}</span>
-                        {message.relevanceScores?.[idx] && (
-                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-                            {(message.relevanceScores[idx] * 100).toFixed(0)}%
-                          </span>
-                        )}
-                        <ExternalLink className="h-3 w-3 hover:text-blue-600 cursor-pointer" />
-                      </div>
-                    ))}
+                  {message.speaker === 'ai' && (
+                    <div className="p-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex-shrink-0">
+                      <Bot className="h-4 w-4 text-white" />
+                    </div>
+                  )}
+                  
+                  <div className={`max-w-md ${message.speaker === 'user' ? 'order-1' : ''}`}>
+                    <div
+                      className={`p-3 rounded-lg ${
+                        message.speaker === 'user'
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+                          : 'bg-slate-50 border border-slate-200'
+                      }`}
+                    >
+                      <p className="text-sm">{message.message}</p>
+                    </div>
+                    
+                    <p className="text-xs text-slate-400 mt-1">
+                      {formatTime(message.timestamp)}
+                    </p>
                   </div>
-                )}
-                
-                <p className="text-xs text-slate-400 mt-1">
-                  {formatTime(message.timestamp)}
-                </p>
-              </div>
 
-              {message.type === 'user' && (
-                <div className="p-2 rounded-full bg-slate-200 flex-shrink-0">
-                  <User className="h-4 w-4 text-slate-600" />
+                  {message.speaker === 'user' && (
+                    <div className="p-2 rounded-full bg-slate-200 flex-shrink-0">
+                      <User className="h-4 w-4 text-slate-600" />
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {isLoading && (
+                <div className="flex gap-3 justify-start">
+                  <div className="p-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex-shrink-0">
+                    <Bot className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                      <span className="text-sm text-slate-600">AI is thinking...</span>
+                    </div>
+                  </div>
                 </div>
               )}
-            </div>
-          ))}
-
-          {isLoading && (
-            <div className="flex gap-3 justify-start">
-              <div className="p-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex-shrink-0">
-                <Bot className="h-4 w-4 text-white" />
-              </div>
-              <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                  <span className="text-sm text-slate-600">AI is thinking...</span>
-                </div>
-              </div>
-            </div>
+            </>
           )}
 
           <div ref={messagesEndRef} />
         </div>
 
         {/* Suggested Questions */}
-        {messages.length <= 1 && (
+        {isInitialized && messages.length <= 1 && (
           <div className="p-4 border-t border-slate-200 bg-slate-50">
             <div className="flex items-center gap-2 mb-3">
               <Lightbulb className="h-4 w-4 text-yellow-600" />
@@ -247,44 +325,61 @@ const LearningChat: React.FC<LearningChatProps> = ({
 
         {/* Input */}
         <div className="p-4 border-t border-slate-200">
-          <div className="flex gap-2">
-            <input
-              ref={inputRef}
-              type="text"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Ask me anything about this module..."
-              className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              disabled={isLoading}
-            />
-            <button
-              onClick={handleSendMessage}
-              disabled={!inputMessage.trim() || isLoading}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                !inputMessage.trim() || isLoading
-                  ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700'
-              }`}
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </button>
-          </div>
+          {!isAuthenticated() && (
+            <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-700">
+                ⚠️ Please log in to use the chat feature. You can still view the conversation history.
+              </p>
+            </div>
+          )}
           
-          <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">
-            <div className="flex items-center gap-1">
-              <BookOpen className="h-3 w-3" />
-              <span>Powered by your learning materials</span>
+          {!isInitialized ? (
+            <div className="flex items-center justify-center py-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              <span className="ml-3 text-slate-600">Initializing chat...</span>
             </div>
-            <div className="flex items-center gap-1">
-              <Bot className="h-3 w-3" />
-              <span>RAG-enhanced AI responses</span>
-            </div>
-          </div>
+          ) : (
+            <>
+              <div className="flex gap-2">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder={isAuthenticated() ? "Ask me anything about this module..." : "Please log in to chat..."}
+                  className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  disabled={isLoading || !isAuthenticated()}
+                />
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!inputMessage.trim() || isLoading || !isAuthenticated()}
+                  className={`px-4 py-2 rounded-lg transition-colors ${
+                    !inputMessage.trim() || isLoading || !isAuthenticated()
+                      ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700'
+                  }`}
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+              
+              <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">
+                <div className="flex items-center gap-1">
+                  <BookOpen className="h-3 w-3" />
+                  <span>Powered by your learning materials</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Bot className="h-3 w-3" />
+                  <span>RAG-enhanced AI responses</span>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

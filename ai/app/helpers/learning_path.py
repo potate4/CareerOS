@@ -405,7 +405,7 @@ class LearningPathAI:
             chat_context = ""
             if chat_history:
                 chat_context = "\n".join([
-                    f"{msg.role}: {msg.content}" for msg in chat_history[-10:]  # Last 10 messages for context
+                    f"{msg.speaker}: {msg.message}" for msg in chat_history[-10:]  # Last 10 messages for context
                 ])
             
             # Format knowledge base for context

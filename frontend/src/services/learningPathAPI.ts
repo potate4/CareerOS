@@ -2,7 +2,9 @@
 import axios from 'axios';
 import { 
   LearningPathRequest, 
-  LearningPath
+  LearningPath,
+  LearningChatRequest,
+  LearningChatResponse
 } from '../types/learningPath'; 
 import { handleApiError } from '../utils/apiErrorHandler';
 import { config } from '../config/env';
@@ -73,6 +75,43 @@ export const learningPathAPI = {
       return response.data;
     } catch (error: any) {
       console.error('❌ Failed to get learning path modules:', error.response?.data);
+      throw handleApiError(error);
+    }
+  },
+
+  // Chat with AI learning assistant
+  chatWithLearningAssistant: async (request: LearningChatRequest): Promise<LearningChatResponse> => {
+    try {
+      console.log('💬 Sending chat request:', request);
+      const response = await api.post('/learning-chat/chat', request);
+      console.log('✅ Chat response received:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Chat request failed:', error.response?.data);
+      throw handleApiError(error);
+    }
+  },
+
+  // Get chat history for a user and module
+  getChatHistory: async (userId: number, moduleId: number): Promise<any[]> => {
+    try {
+      console.log('📚 Getting chat history for user:', userId, 'module:', moduleId);
+      const response = await api.get(`/learning-chat/history/${userId}/${moduleId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Failed to get chat history:', error.response?.data);
+      throw handleApiError(error);
+    }
+  },
+
+  // Get recent chat messages
+  getRecentChatMessages: async (userId: number, moduleId: number, limit: number = 10): Promise<any[]> => {
+    try {
+      console.log('📚 Getting recent chat messages for user:', userId, 'module:', moduleId, 'limit:', limit);
+      const response = await api.get(`/learning-chat/recent/${userId}/${moduleId}?limit=${limit}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Failed to get recent chat messages:', error.response?.data);
       throw handleApiError(error);
     }
   }
