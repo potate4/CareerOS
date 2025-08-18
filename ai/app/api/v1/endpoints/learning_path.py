@@ -20,7 +20,9 @@ from app.schemas.learning_path import (
     LearningMaterialsSearchRequest,
     LearningMaterialsSearchResponse,
     LearningModuleGenerateRequest,
-    LearningModuleGenerateResponse
+    LearningModuleGenerateResponse,
+    ChatRequest,
+    ChatResponse
 )
 
 # Configure logging
@@ -224,7 +226,8 @@ async def search_learning_materials(
         search_result = await learning_ai.search_learning_materials(
             query=request.query,
             user_id=request.user_id,
-            limit=request.limit
+            limit=request.limit,
+            module_id=request.module_id
         )
         
         processing_time = time.time() - start_time
@@ -272,3 +275,53 @@ async def generate_learning_path(
     except Exception as e:
         logger.error(f"Error generating learning path: {e}")
         raise HTTPException(status_code=500, detail=f"Learning path generation failed: {str(e)}")
+
+
+@router.post("/chat", response_model=ChatResponse)
+async def chat_with_learning_assistant(
+    request: ChatRequest,
+):
+    """
+    Chat with learning assistant based on user's study materials and context
+    """
+    try:
+        logger.info(f"Chat request from user {request.user_id} for module {request.module_id}")
+        logger.info(f"User query: {request.user_query}")
+        logger.info(f"Chat history length: {len(request.chat_history)}")
+        start_time = time.time()
+        
+        # Validate request
+        if not request.user_query or not request.user_query.strip():
+            raise HTTPException(status_code=400, detail="User query cannot be empty")
+        
+        # Generate chat reply using AI helper
+        logger.info(f"Calling generate_chat_reply with user_id={request.user_id}, module_id={request.module_id}")
+        chat_reply = await learning_ai.generate_chat_reply(
+            user_id=request.user_id,
+            module_id=request.module_id,
+            chat_history=request.chat_history,
+            user_message=request.user_query
+        )
+        
+        processing_time = time.time() - start_time
+        
+        if not chat_reply:
+            raise HTTPException(status_code=500, detail="Failed to generate chat reply")
+        
+        logger.info(f"Chat reply generated successfully in {processing_time:.2f}s for user {request.user_id}, module {request.module_id}")
+        logger.info(f"Reply length: {len(chat_reply)} characters")
+        
+        return ChatResponse(
+            success=True,
+            message="Chat reply generated successfully",
+            reply=chat_reply,
+            user_id=request.user_id,
+            module_id=request.module_id,
+            processing_time_seconds=processing_time
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in chat functionality: {e}")
+        raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")

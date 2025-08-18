@@ -49,8 +49,7 @@ class LearningMaterialsSearchRequest(BaseModel):
     user_id: int = Field(..., description="ID of the user searching materials")
     query: str = Field(..., min_length=1, max_length=500, description="Search query text")
     limit: int = Field(default=10, ge=1, le=50, description="Maximum number of results to return")
-    filters: Optional[Dict[str, Any]] = Field(default={}, description="Additional search filters")
-    
+    module_id: int = Field(..., description="ID of the module to search within")
     @validator('query')
     def validate_query(cls, v):
         if not v.strip():
@@ -84,8 +83,33 @@ class LearningModule(BaseModel):
 class LearningModuleGenerateResponse(BaseModel):
     modules: List[LearningModule]
 
+# Chat Endpoint Schemas
+class ChatMessage(BaseModel):
+    role: str = Field(..., description="Role of the message sender (user/assistant)")
+    content: str = Field(..., description="Content of the message")
+    timestamp: datetime = Field(default_factory=datetime.now, description="Timestamp of the message")
 
-
+class ChatRequest(BaseModel):
+    user_id: int = Field(..., description="ID of the user making the chat request")
+    module_id: int = Field(..., description="ID of the module for context")
+    chat_history: List[ChatMessage] = Field(default=[], description="Previous chat messages")
+    user_query: str = Field(..., min_length=1, max_length=1000, description="User's current question or message")
     
+    @validator('user_query')
+    def validate_user_query(cls, v):
+        if not v.strip():
+            raise ValueError('User query cannot be empty or whitespace only')
+        return v.strip()
+
+class ChatResponse(BaseModel):
+    success: bool
+    message: str
+    reply: str
+    user_id: int
+    module_id: int
+    timestamp: datetime = Field(default_factory=datetime.now)
+    processing_time_seconds: Optional[float] = None 
+  
+  
     
     

@@ -26,7 +26,8 @@ from app.core.config import settings
 from qdrant_client.http import models as rest
 from app.helpers.semantic_chunker import create_semantic_chunks_80
 from app.helpers.qdrant_functions import upload_to_qdrant
-from app.schemas.learning_path import FileUploadInfo, LearningModuleGenerateResponse
+from app.schemas.learning_path import FileUploadInfo, ChatMessage
+from qdrant_client.models import Filter, FieldCondition, MatchValue, Range
 
 from app.helpers.llm import get_gemini_text_completion, get_gemini_text_completion_with_search, get_structured_response_learning_modules
 # Configure logging
@@ -42,7 +43,7 @@ class LearningPathAI:
         self.qdrant_client = qdrantClient
         
         # Collection names
-        self.learning_materials_collection = "learning_materials"
+        self.learning_materials_collection = "learning_materials23"
         self.module_content_collection = "module_content"
         
         # Ensure collections exist
@@ -64,6 +65,11 @@ class LearningPathAI:
                 # Create payload indexes
                 self.qdrant_client.create_payload_index(
                     collection_name=self.learning_materials_collection,
+                    field_name="module_id",
+                    field_schema=rest.PayloadSchemaType.INTEGER
+                )
+                self.qdrant_client.create_payload_index(
+                    collection_name=self.learning_materials_collection,
                     field_name="user_id",
                     field_schema=rest.PayloadSchemaType.INTEGER
                 )
@@ -77,11 +83,7 @@ class LearningPathAI:
                     field_name="is_active",
                     field_schema=rest.PayloadSchemaType.BOOLEAN
                 )
-                self.qdrant_client.create_payload_index(
-                    collection_name=self.learning_materials_collection,
-                    field_name="module_id",
-                    field_schema=rest.PayloadSchemaType.KEYWORD
-                )
+         
             
             if self.module_content_collection not in collection_names:
                 self.qdrant_client.create_collection(
@@ -104,7 +106,8 @@ class LearningPathAI:
                 'file_type': file_type,
                 'chunks_created': 0,
                 'chunks_indexed': 0,
-                'status': 'processing'
+                'status': 'processing',
+                'module_id': module_id
             }
             
             logger.info(f"Starting to process file: {file_name} (ID: {file_id}) of type: {file_type}")
@@ -172,24 +175,41 @@ class LearningPathAI:
             raise
     
 
-    async def search_learning_materials(self, query: str, user_id: int, limit: int = 10) -> Dict[str, Any]:
-        """Search learning materials using RAG for a specific user"""
+    async def search_learning_materials(self, query: str, user_id: int, limit: int = 10, module_id: int = None) -> Dict[str, Any]:
+        """Search learning materials using RAG for a specific user and optionally by module"""
         try:
             # Generate query embedding
             query_embedding = self.embedding_model.encode(query).tolist()
+            
+            # Build filter conditions - both user_id AND module_id must match
+            search_filter = Filter(
+                    must=[
+                    FieldCondition(
+                        key="user_id",
+                        match=MatchValue(value=user_id)
+                    ),
+                    FieldCondition(
+                        key="module_id",
+                        match=MatchValue(value=module_id)
+                    )
+                ]
+            )       
+            
+
+            
+            logger.info(f"Searching with filter: user_id={user_id}, module_id={module_id}, conditions={search_filter}")
             
             # Search for relevant content in learning materials collection
             results = self.qdrant_client.search(
                 collection_name=self.learning_materials_collection,
                 query_vector=query_embedding,
-                query_filter=models.Filter(
-                    must=[models.FieldCondition(key="user_id", match=models.MatchValue(value=user_id))]
-                ),
+                query_filter=search_filter,
                 limit=limit
             )
             
+            logger.info(f"Found {len(results)} results matching the filter criteria")
+            
             # Format results with metadata
-            print(f"RESULTS: {results}")
             formatted_results = []
             for result in results:
                 formatted_results.append({
@@ -204,6 +224,7 @@ class LearningPathAI:
                     'file_type': result.payload.get('file_type', ''),
                     'file_size': result.payload.get('file_size', ''),
                     'user_id': result.payload.get('user_id', ''),
+                    'module_id': result.payload.get('module_id', ''),
                     'file_id': result.payload.get('file_id', ''),
                     'upload_date': result.payload.get('created_at', ''),
                     'page_no': result.payload.get('page_no', ''),
@@ -214,6 +235,7 @@ class LearningPathAI:
             return {
                 'query': query,
                 'user_id': user_id,
+                'module_id': module_id,
                 'results_count': len(formatted_results),
                 'results': formatted_results
             }
@@ -223,10 +245,62 @@ class LearningPathAI:
             return {
                 'query': query,
                 'user_id': user_id,
+                'module_id': module_id,
                 'results_count': 0,
                 'results': [],
                 'error': str(e)
             }
+
+    async def debug_search_filtering(self, user_id: int, module_id: int) -> Dict[str, Any]:
+        """Debug method to test filtering with user_id AND module_id"""
+        try:
+            logger.info(f"Debug: Testing search filtering for user_id={user_id}, module_id={module_id}")
+            
+            # Test 1: Search with both filters
+            results_both = await self.search_learning_materials(
+                query="test",
+                user_id=user_id,
+                module_id=module_id,
+                limit=5
+            )
+            
+            # Test 2: Search with only user_id
+            results_user_only = await self.search_learning_materials(
+                query="test",
+                user_id=user_id,
+                limit=5
+            )
+            
+            # Test 3: Search with different module_id
+            results_different_module = await self.search_learning_materials(
+                query="test",
+                user_id=user_id,
+                module_id=999,  # Different module
+                limit=5
+            )
+            
+            debug_info = {
+                "user_id": user_id,
+                "module_id": module_id,
+                "results_with_both_filters": results_both,
+                "results_with_user_only": results_user_only,
+                "results_with_different_module": results_different_module,
+                "filter_comparison": {
+                    "both_filters_count": results_both.get('results_count', 0),
+                    "user_only_count": results_user_only.get('results_count', 0),
+                    "different_module_count": results_different_module.get('results_count', 0)
+                }
+            }
+            
+            logger.info(f"Debug: Filter comparison - Both: {debug_info['filter_comparison']['both_filters_count']}, "
+                       f"User only: {debug_info['filter_comparison']['user_only_count']}, "
+                       f"Different module: {debug_info['filter_comparison']['different_module_count']}")
+            
+            return debug_info
+            
+        except Exception as e:
+            logger.error(f"Error in debug search filtering: {e}")
+            return {"error": str(e)}
 
     async def _extract_file_content_from_url(self, file_url: str, file_type: str) -> Optional[Dict[str, Any]]:
         """Extract content from file URL"""
@@ -361,16 +435,70 @@ class LearningPathAI:
         except Exception as e:
             logger.error(f"Error in get_learning_path: {e}")
             return None
-        
+    
+    async def generate_chat_reply(self, user_id: int, module_id: int, chat_history: List[ChatMessage], user_message: str):
+        """Generate a chat reply for a specific user and module based on study materials"""
+        try:
+            logger.info(f"Generating chat reply for user {user_id}, module {module_id}")
+            
+            # Search for relevant learning materials for this user and module
+            # Use a general query to get context from the user's materials
+            knowledge_base = await self.search_learning_materials(
+                query="learning materials and content",
+                user_id=user_id,
+                module_id=module_id,  # Always filter by specific module
+                limit=20  # Get more context for better responses
+            )
+            
+            logger.info(f"Retrieved {knowledge_base.get('results_count', 0)} learning materials for user {user_id}, module {module_id}")
+            
+            # Format chat history for context
+            chat_context = ""
+            if chat_history:
+                chat_context = "\n".join([
+                    f"{msg.role}: {msg.content}" for msg in chat_history[-5:]  # Last 5 messages for context
+                ])
+            
+            # Format knowledge base for context
+            knowledge_context = ""
+            if knowledge_base and knowledge_base.get('results'):
+                knowledge_context = "\n".join([
+                    f"Content: {result.get('content', '')[:200]}..." 
+                    for result in knowledge_base['results'][:5]  # Top 5 most relevant results
+                ])
+            
+            prompt = f"""
+            You are a helpful learning assistant. Use the following context to answer the user's question:
 
-        """Fallback evaluation when AI analysis fails"""
-        return {
-            'overall_score': 75,
-            'section_scores': {'multiple_choice': 75, 'practical': 75, 'conceptual': 75},
-            'correct_answers': [],
-            'feedback': "Good effort, keep practicing!",
-            'strengths': ["Problem solving"],
-            'improvement_areas': ["Technical knowledge"],
-            'recommended_actions': ["Continue learning"],
-            'knowledge_gaps': ["Advanced concepts"]
-        } 
+            **User's Learning Materials:**
+            {knowledge_context if knowledge_context else "No specific learning materials found for this user/module."}
+
+            **Recent Chat History:**
+            {chat_context if chat_context else "No previous chat history."}
+
+            **User's Current Question:**
+            {user_message}
+
+            **Instructions:**
+            - Provide a helpful, educational response based on the available learning materials
+            - If the materials don't contain relevant information, provide general guidance
+            - Keep responses concise but informative
+            - Use a friendly, encouraging tone
+            - If appropriate, suggest related topics or next steps for learning
+
+            **Response:**
+            """
+            
+            logger.info(f"Generating AI response for user {user_id}")
+            answer = get_gemini_text_completion(prompt)
+            
+            if answer:
+                logger.info(f"Successfully generated chat reply for user {user_id}")
+                return answer
+            else:
+                logger.warning(f"AI returned empty response for user {user_id}")
+                return "I apologize, but I'm having trouble generating a response right now. Please try rephrasing your question or ask me something else about your learning materials."
+                
+        except Exception as e:
+            logger.error(f"Error in generate_chat_reply: {e}")
+            return "I apologize, but I encountered an error while processing your request. Please try again later."
