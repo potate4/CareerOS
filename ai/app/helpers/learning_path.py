@@ -26,10 +26,10 @@ from app.core.config import settings
 from qdrant_client.http import models as rest
 from app.helpers.semantic_chunker import create_semantic_chunks_80
 from app.helpers.qdrant_functions import upload_to_qdrant
-from app.schemas.learning_path import FileUploadInfo, ChatMessage
+from app.schemas.learning_path import FileUploadInfo, ChatMessage, AssessmentQuestion
 from qdrant_client.models import Filter, FieldCondition, MatchValue, Range
 
-from app.helpers.llm import get_gemini_text_completion, get_gemini_text_completion_with_search, get_structured_response_learning_modules
+from app.helpers.llm import get_gemini_text_completion, get_gemini_text_completion_with_search, get_structured_response_learning_modules, get_structured_response_assessment_questions, get_structured_response_assessment_answers_and_scores
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -405,7 +405,7 @@ class LearningPathAI:
             chat_context = ""
             if chat_history:
                 chat_context = "\n".join([
-                    f"{msg.speaker}: {msg.message}" for msg in chat_history[-10:]  # Last 10 messages for context
+                    f"{msg.role}: {msg.content}" for msg in chat_history[-10:]  # Last 10 messages for context
                 ])
             
             # Format knowledge base for context
@@ -451,3 +451,207 @@ class LearningPathAI:
         except Exception as e:
             logger.error(f"Error in generate_chat_reply: {e}")
             return "I apologize, but I encountered an error while processing your request. Please try again later."
+        
+    async def create_assessment(self, user_id: int, module_id: int, assessment_type: str = "quiz", num_questions: int = 5, difficulty: str = "medium") -> Dict[str, Any]:
+        """Create assessment questions for a specific user and module based on study materials"""
+        try:
+            logger.info(f"Creating {assessment_type} assessment for user {user_id}, module {module_id}")
+            
+            # Search for relevant learning materials for this user and module
+            knowledge_base = await self.search_learning_materials(
+                query="learning materials and content",
+                user_id=user_id,
+                module_id=module_id,
+                limit=15  # Get more context for better question generation
+            )
+            
+            logger.info(f"Retrieved {knowledge_base.get('results_count', 0)} learning materials for assessment generation")
+            
+            # Format knowledge base for context
+            knowledge_context = ""
+            if knowledge_base and knowledge_base.get('results'):
+                knowledge_context = "\n".join([
+                    f"Content: {result.get('content', '')[:300]}..." 
+                    for result in knowledge_base['results'][:8]  # Top 8 most relevant results
+                ])
+            else:
+                knowledge_context = "General knowledge about the subject matter."
+            
+            # Generate assessment questions using structured response
+            prompt = f"""
+            Based on the following learning materials, create {num_questions} assessment questions for a {difficulty} level {assessment_type}.
+
+            **Learning Materials Context:**
+            {knowledge_context}
+
+            **Requirements:**
+            - Generate exactly {num_questions} questions
+            - Questions should be {difficulty} difficulty level
+            - Mix of question types: text-based, multiple choice, and true/false
+            - Questions should test understanding of key concepts
+            - Include correct answers and explanations where appropriate
+            - Make questions relevant to the learning materials provided
+
+            **Question Types to Include:**
+            - Text-based questions (require written answers)
+            - Multiple choice questions (with 4 options)
+            - True/false questions
+
+            **Format:**
+            Return the questions in a structured format that can be parsed.
+            """
+            
+            logger.info(f"Generating assessment questions for user {user_id}")
+            
+            try:
+                questions = get_structured_response_assessment_questions(prompt)
+                logger.info(f"Successfully generated {len(questions) if questions else 0} assessment questions")
+                
+                if questions and len(questions) > 0:
+                    # Generate unique assessment ID
+                    assessment_id = f"assessment_{user_id}_{module_id}_{int(datetime.now().timestamp())}"
+                    
+                    return {
+                        "success": True,
+                        "message": f"Assessment created successfully with {len(questions)} questions",
+                        "assessment_id": assessment_id,
+                        "questions": questions,
+                        "user_id": user_id,
+                        "module_id": module_id,
+                        "assessment_type": assessment_type,
+                        "difficulty": difficulty,
+                        "created_at": datetime.now().isoformat()
+                    }
+                else:
+                    logger.warning("AI returned empty or invalid questions")
+                    return {
+                        "success": False,
+                        "message": "Failed to generate assessment questions",
+                        "error": "AI returned empty response"
+                    }
+                    
+            except Exception as ai_error:
+                logger.error(f"Error in AI question generation: {ai_error}")
+                return {
+                    "success": False,
+                    "message": "Failed to generate assessment questions",
+                    "error": str(ai_error)
+                }
+                
+        except Exception as e:
+            logger.error(f"Error in create_assessment: {e}")
+            return {
+                "success": False,
+                "message": "Failed to create assessment",
+                "error": str(e)
+            }
+    
+    async def score_assessment(self, assessment_id: str, user_id: int, module_id: int, questions: List[AssessmentQuestion], answers: List[Dict[str, str]]) -> Dict[str, Any]:
+        """Score an assessment submission and provide feedback"""
+        try:
+            logger.info(f"Scoring assessment {assessment_id} for user {user_id}")
+            
+            if not questions or not answers:
+                return {
+                    "success": False,
+                    "message": "Invalid assessment data",
+                    "error": "Missing questions or answers"
+                }
+            
+            # Prepare scoring prompt
+            scoring_data = []
+            for i, question in enumerate(questions):
+                if i < len(answers):
+                    answer_key = list(answers[i].keys())[0] if answers[i] else ""
+                    user_answer = list(answers[i].values())[0] if answers[i] else ""
+                    scoring_data.append({
+                        "question": question.question,
+                        "correct_answer": question.correct_answer or "",
+                        "provided_answer": user_answer,
+                        "question_type": question.question_type
+                    })
+            
+            scoring_prompt = f"""
+            Score the following assessment answers and provide detailed feedback:
+
+            **Assessment Data:**
+            {json.dumps(scoring_data, indent=2)}
+
+            **Scoring Instructions:**
+            - Score each answer on a scale of 0.0 to 1.0
+            - Provide constructive feedback for each answer
+            - Determine if each answer is correct
+            - Give an overall assessment of performance
+            - Be encouraging and educational in feedback
+
+            **Scoring Criteria:**
+            - 1.0: Completely correct answer
+            - 0.8-0.9: Mostly correct with minor issues
+            - 0.6-0.7: Partially correct
+            - 0.4-0.5: Some understanding but significant errors
+            - 0.0-0.3: Incorrect or no understanding shown
+
+            Return the scoring results in a structured format.
+            """
+            
+            logger.info(f"Scoring assessment answers for user {user_id}")
+            
+            try:
+                scored_results = get_structured_response_assessment_answers_and_scores(scoring_prompt)
+                logger.info(f"Successfully scored assessment for user {user_id}")
+                
+                if scored_results and len(scored_results) > 0:
+                    # Calculate total score
+                    total_score = sum(result.score for result in scored_results)
+                    max_score = len(scored_results)
+                    percentage = (total_score / max_score) * 100 if max_score > 0 else 0
+                    
+                    # Generate overall feedback
+                    if percentage >= 90:
+                        overall_feedback = "Excellent work! You have a strong understanding of the material."
+                    elif percentage >= 80:
+                        overall_feedback = "Great job! You have a good grasp of the concepts."
+                    elif percentage >= 70:
+                        overall_feedback = "Good work! You understand most of the material with room for improvement."
+                    elif percentage >= 60:
+                        overall_feedback = "You're on the right track! Review the areas where you struggled."
+                    else:
+                        overall_feedback = "Keep studying! Focus on understanding the core concepts better."
+                    
+                    return {
+                        "success": True,
+                        "message": "Assessment scored successfully",
+                        "assessment_id": assessment_id,
+                        "user_id": user_id,
+                        "module_id": module_id,
+                        "total_score": total_score,
+                        "max_score": max_score,
+                        "percentage": round(percentage, 1),
+                        "answers_and_scores": scored_results,
+                        "overall_feedback": overall_feedback,
+                        "completed_at": datetime.now().isoformat()
+                    }
+                else:
+                    logger.warning("AI returned empty scoring results")
+                    return {
+                        "success": False,
+                        "message": "Failed to score assessment",
+                        "error": "AI returned empty scoring response"
+                    }
+                    
+            except Exception as ai_error:
+                logger.error(f"Error in AI scoring: {ai_error}")
+                return {
+                    "success": False,
+                    "message": "Failed to score assessment",
+                    "error": str(ai_error)
+                }
+                
+        except Exception as e:
+            logger.error(f"Error in score_assessment: {e}")
+            return {
+                "success": False,
+                "message": "Failed to score assessment",
+                "error": str(e)
+            }
+        

@@ -112,4 +112,58 @@ class ChatResponse(BaseModel):
   
   
     
+class AssessmentQuestion(BaseModel):
+    question: str
+    correct_answer: Optional[str] 
+    options: Optional[List[str]] 
+    question_type: str 
+    difficulty: str  
+    explanation: Optional[str] 
+    
+class AssessmentAnswerScore(BaseModel):
+    question: str
+    correct_answer: str
+    provided_answer: str
+    score: float 
+    feedback: Optional[str] 
+    is_correct: bool 
+    
+# Assessment Request/Response Schemas
+class AssessmentRequest(BaseModel):
+    user_id: int = Field(..., description="ID of the user requesting assessment")
+    module_id: int = Field(..., description="ID of the module for assessment")
+    assessment_type: str = Field(default="quiz", description="Type of assessment: quiz, practice, test")
+    num_questions: int = Field(default=5, ge=1, le=20, description="Number of questions to generate")
+    difficulty: str = Field(default="medium", description="Difficulty level: easy, medium, hard")
+    
+class AssessmentResponse(BaseModel):
+    success: bool
+    message: str
+    assessment_id: str
+    questions: List[AssessmentQuestion]
+    user_id: int
+    module_id: int
+    assessment_type: str
+    difficulty: str
+    created_at: datetime = Field(default_factory=datetime.now)
+    
+class AssessmentSubmissionRequest(BaseModel):
+    assessment_id: str
+    user_id: int
+    module_id: int
+    answers: List[Dict[str, str]]  # List of {question: answer} pairs
+    
+class AssessmentSubmissionResponse(BaseModel):
+    success: bool
+    message: str
+    assessment_id: str
+    user_id: int
+    module_id: int
+    total_score: float
+    max_score: float
+    percentage: float
+    answers_and_scores: List[AssessmentAnswerScore]
+    overall_feedback: str
+    completed_at: datetime = Field(default_factory=datetime.now)
+    
     

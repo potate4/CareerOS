@@ -22,7 +22,11 @@ from app.schemas.learning_path import (
     LearningModuleGenerateRequest,
     LearningModuleGenerateResponse,
     ChatRequest,
-    ChatResponse
+    ChatResponse,
+    AssessmentRequest,
+    AssessmentResponse,
+    AssessmentSubmissionRequest,
+    AssessmentSubmissionResponse
 )
 
 # Configure logging
@@ -325,3 +329,112 @@ async def chat_with_learning_assistant(
     except Exception as e:
         logger.error(f"Error in chat functionality: {e}")
         raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
+
+
+@router.post("/create-assessment", response_model=AssessmentResponse)
+async def create_assessment(
+    request: AssessmentRequest,
+):
+    """
+    Create assessment questions for a specific user and module
+    """
+    try:
+        logger.info(f"Creating assessment for user {request.user_id} in module {request.module_id}")
+        start_time = time.time()
+        
+        # Create assessment using AI helper
+        assessment_result = await learning_ai.create_assessment(
+            user_id=request.user_id,
+            module_id=request.module_id,
+            assessment_type=request.assessment_type,
+            num_questions=request.num_questions,
+            difficulty=request.difficulty
+        )
+        
+        processing_time = time.time() - start_time
+        
+        if not assessment_result or not assessment_result.get('success'):
+            error_msg = assessment_result.get('error', 'Failed to create assessment') if assessment_result else 'No result returned'
+            raise HTTPException(status_code=500, detail=f"Assessment creation failed: {error_msg}")
+        
+        logger.info(f"Assessment created successfully in {processing_time:.2f}s for user {request.user_id}, module {request.module_id}")
+        
+        return AssessmentResponse(
+            success=True,
+            message=assessment_result['message'],
+            assessment_id=assessment_result['assessment_id'],
+            questions=assessment_result['questions'],
+            user_id=assessment_result['user_id'],
+            module_id=assessment_result['module_id'],
+            assessment_type=assessment_result['assessment_type'],
+            difficulty=assessment_result['difficulty'],
+            created_at=datetime.fromisoformat(assessment_result['created_at'])
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating assessment: {e}")
+        raise HTTPException(status_code=500, detail=f"Assessment creation failed: {str(e)}")
+
+
+@router.post("/score-assessment", response_model=AssessmentSubmissionResponse)
+async def score_assessment(
+    request: AssessmentSubmissionRequest,
+):
+    """
+    Score an assessment submission and provide feedback
+    """
+    try:
+        logger.info(f"Scoring assessment {request.assessment_id} for user {request.user_id}")
+        start_time = time.time()
+        
+        # For now, we'll need to reconstruct the questions from the request
+        # In a real implementation, you'd store the assessment questions in a database
+        # and retrieve them by assessment_id
+        
+        # This is a simplified version - you'll need to implement proper question storage
+        logger.warning("Assessment scoring requires question storage implementation")
+        
+        # Placeholder for questions - in real implementation, fetch from database
+        questions = []  # This should be fetched from database using assessment_id
+        
+        if not questions:
+            raise HTTPException(status_code=400, detail="Assessment questions not found. Please implement question storage.")
+        
+        # Score assessment using AI helper
+        scoring_result = await learning_ai.score_assessment(
+            assessment_id=request.assessment_id,
+            user_id=request.user_id,
+            module_id=request.module_id,
+            questions=questions,
+            answers=request.answers
+        )
+        
+        processing_time = time.time() - start_time
+        
+        if not scoring_result or not scoring_result.get('success'):
+            error_msg = scoring_result.get('error', 'Failed to score assessment') if scoring_result else 'No result returned'
+            raise HTTPException(status_code=500, detail=f"Assessment scoring failed: {error_msg}")
+        
+        logger.info(f"Assessment scored successfully in {processing_time:.2f}s for user {request.user_id}")
+        
+        return AssessmentSubmissionResponse(
+            success=True,
+            message=scoring_result['message'],
+            assessment_id=scoring_result['assessment_id'],
+            user_id=scoring_result['user_id'],
+            module_id=scoring_result['module_id'],
+            total_score=scoring_result['total_score'],
+            max_score=scoring_result['max_score'],
+            percentage=scoring_result['percentage'],
+            answers_and_scores=scoring_result['answers_and_scores'],
+            overall_feedback=scoring_result['overall_feedback'],
+            completed_at=datetime.fromisoformat(scoring_result['completed_at'])
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error scoring assessment: {e}")
+        raise HTTPException(status_code=500, detail=f"Assessment scoring failed: {str(e)}")
