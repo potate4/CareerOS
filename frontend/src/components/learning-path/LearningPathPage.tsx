@@ -13,9 +13,9 @@ import {
 } from 'lucide-react';
 import AuthenticatedLayout from '../layout/AuthenticatedLayout';
 import GenerateLearningPath from './GenerateLearningPath';
-import CurrentStatus from './CurrentStatus';
-import ProgressUpdate from './ProgressUpdate';
-import Statistics from './Statistics';
+// import CurrentStatus from './CurrentStatus';
+// import ProgressUpdate from './ProgressUpdate';
+// import Statistics from './Statistics';
 import AllLearningPaths from './AllLearningPaths';
 
 const LearningPathPage: React.FC = () => {
@@ -175,9 +175,9 @@ const LearningPathPage: React.FC = () => {
             <Routes>
               <Route path="/" element={<Navigate to="/learning-path/generate" replace />} />
               <Route path="/generate" element={<GenerateLearningPath />} />
-              <Route path="/current" element={<CurrentStatus />} />
+              {/* <Route path="/current" element={<CurrentStatus />} />
               <Route path="/progress" element={<ProgressUpdate />} />
-              <Route path="/stats" element={<Statistics />} />
+              <Route path="/stats" element={<Statistics />} /> */}
               <Route path="/all-paths" element={<AllLearningPaths />} />
             </Routes>
           </div>

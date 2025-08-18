@@ -41,6 +41,15 @@ public class FileUpload {
     @Column(name = "bucket_name")
     private String bucketName;
     
+    @Column(name = "module_id")
+    private Long moduleId;
+    
+    @Column(name = "indexing_status")
+    private String indexingStatus = "not_indexed"; // not_indexed, processing, completed, failed
+    
+    @Column(name = "indexed_at")
+    private LocalDateTime indexedAt;
+    
     public FileUpload() {}
     
     public FileUpload(Long userId, String fileName, String originalFileName, String fileUrl, 
@@ -55,6 +64,7 @@ public class FileUpload {
         this.category = category;
         this.bucketName = bucketName;
         this.uploadedAt = LocalDateTime.now();
+        this.indexingStatus = "not_indexed";
     }
     
     // Getters and Setters
@@ -144,5 +154,29 @@ public class FileUpload {
     
     public void setBucketName(String bucketName) {
         this.bucketName = bucketName;
+    }
+    
+    public Long getModuleId() {
+        return moduleId;
+    }
+    
+    public void setModuleId(Long moduleId) {
+        this.moduleId = moduleId;
+    }
+    
+    public String getIndexingStatus() {
+        return indexingStatus;
+    }
+    
+    public void setIndexingStatus(String indexingStatus) {
+        this.indexingStatus = indexingStatus;
+    }
+    
+    public LocalDateTime getIndexedAt() {
+        return indexedAt;
+    }
+    
+    public void setIndexedAt(LocalDateTime indexedAt) {
+        this.indexedAt = indexedAt;
     }
 } 

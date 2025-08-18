@@ -37,7 +37,7 @@ public class LearningPathService {
             LearningPathRepository learningPathRepository,
             LearningModuleRepository learningModuleRepository,
             UserRepository userRepository,
-            @Value("${ai.service.url:http://localhost:8001}") String aiServiceUrl) {
+            @Value("${ai.service.url:http://localhost:8000}") String aiServiceUrl) {
         this.learningPathRepository = learningPathRepository;
         this.learningModuleRepository = learningModuleRepository;
         this.userRepository = userRepository;
@@ -227,7 +227,7 @@ public class LearningPathService {
         
         return new LearningPathResponse(learningPath);
     }
-    
+
     /**
      * Get all learning paths for a user
      * @param userId The user ID

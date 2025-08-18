@@ -3,7 +3,7 @@ import axios from 'axios';
 import { 
   LearningPathRequest, 
   LearningPath
-} from '../types/learningPath';
+} from '../types/learningPath'; 
 import { handleApiError } from '../utils/apiErrorHandler';
 import { config } from '../config/env';
 

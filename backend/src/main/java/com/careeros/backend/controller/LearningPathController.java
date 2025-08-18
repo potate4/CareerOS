@@ -34,7 +34,7 @@ public class LearningPathController {
     @Autowired
     private LearningPathService learningPathService;
     
-    @Value("${ai.service.url:http://localhost:8001}")
+    @Value("${ai.service.url:http://localhost:8000}")
     private String aiServiceUrl;
     
     private final WebClient webClient;

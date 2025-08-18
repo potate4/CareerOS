@@ -24,6 +24,7 @@ class FileIndexingRequest(BaseModel):
     file_id: str = Field(..., description="Unique identifier for the file")
     file_name: str = Field(..., description="Name of the file")
     file_type: str = Field(..., description="Type/extension of the file")
+    module_id: int = Field(..., description="ID of the module to which the file belongs")
     
 
 class FileIndexingResult(BaseModel):

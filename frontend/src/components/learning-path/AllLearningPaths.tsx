@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronRight, BookOpen, Target, Clock, Calendar, MessageCircle, Brain, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, BookOpen, Target, Clock, Calendar, MessageCircle, Brain, Trash2, Upload, FileText, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import { learningPathAPI } from '../../services/learningPathAPI';
 import { LearningPath, LearningModule } from '../../types/learningPath';
 import LearningChat from './LearningChat';
 import AssessmentModal from './AssessmentModal';
+import ModuleFiles from './ModuleFiles';
 
 const AllLearningPaths: React.FC = () => {
   const [learningPaths, setLearningPaths] = useState<LearningPath[]>([]);
@@ -13,6 +14,7 @@ const AllLearningPaths: React.FC = () => {
   const [selectedModuleForChat, setSelectedModuleForChat] = useState<LearningModule | null>(null);
   const [selectedModuleForAssessment, setSelectedModuleForAssessment] = useState<LearningModule | null>(null);
   const [loadingModules, setLoadingModules] = useState<Set<number>>(new Set());
+  const [expandedModuleFiles, setExpandedModuleFiles] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     fetchAllLearningPaths();
@@ -82,14 +84,14 @@ const AllLearningPaths: React.FC = () => {
     setSelectedModuleForAssessment(module);
   };
 
-  const handleDeactivatePath = async (pathId: number) => {
-    try {
-      await learningPathAPI.deactivateLearningPath();
-      // Refresh the list
-      fetchAllLearningPaths();
-    } catch (err: any) {
-      console.error('Failed to deactivate learning path:', err);
+  const toggleModuleFiles = (moduleId: number) => {
+    const newExpanded = new Set(expandedModuleFiles);
+    if (newExpanded.has(moduleId)) {
+      newExpanded.delete(moduleId);
+    } else {
+      newExpanded.add(moduleId);
     }
+    setExpandedModuleFiles(newExpanded);
   };
 
   if (loading) {
@@ -204,16 +206,6 @@ const AllLearningPaths: React.FC = () => {
                       <ChevronRight className="h-5 w-5" />
                     )}
                   </button>
-                  
-                  {path.isActive && (
-                    <button
-                      onClick={() => handleDeactivatePath(path.id)}
-                      className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Deactivate path"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
                 </div>
               </div>
             </div>
@@ -277,7 +269,30 @@ const AllLearningPaths: React.FC = () => {
                               <Brain className="h-4 w-4" />
                               Assessment
                             </button>
+                            
+                            <button
+                              onClick={() => toggleModuleFiles(module.id)}
+                              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
+                            >
+                              <Upload className="h-4 w-4" />
+                              Files
+                              {expandedModuleFiles.has(module.id) ? (
+                                <ChevronDown className="h-3 w-3" />
+                              ) : (
+                                <ChevronRight className="h-3 w-3" />
+                              )}
+                            </button>
                           </div>
+                          
+                          {/* Module Files Section */}
+                          {expandedModuleFiles.has(module.id) && (
+                            <ModuleFiles
+                              moduleId={module.id}
+                              moduleName={module.title}
+                              isExpanded={expandedModuleFiles.has(module.id)}
+                              onToggle={() => toggleModuleFiles(module.id)}
+                            />
+                          )}
                         </div>
                       ))}
                     </div>

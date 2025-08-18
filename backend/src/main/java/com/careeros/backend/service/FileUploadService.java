@@ -242,4 +242,71 @@ public class FileUploadService {
         int lastDotIndex = filename.lastIndexOf('.');
         return lastDotIndex > 0 ? filename.substring(lastDotIndex) : "";
     }
+    
+    /**
+     * Bulk upload files for a learning module
+     * @param files List of files to upload
+     * @param moduleId The learning module ID
+     * @param userId The user ID
+     * @return List of FileUploadResponse objects
+     */
+    public List<FileUploadResponse> bulkUploadModuleFiles(List<MultipartFile> files, Long moduleId, Long userId) {
+        return files.stream().map(file -> {
+            try {
+                FileUploadRequest request = new FileUploadRequest(file, "Learning material for module", "learning_module");
+                FileUploadResponse response = uploadFile(request);
+                
+                if (response.isSuccess()) {
+                    // Update the file record with module ID
+                    FileUpload fileUpload = fileUploadRepository.findById(response.getFileId().longValue()).orElse(null);
+                    if (fileUpload != null) {
+                        fileUpload.setModuleId(moduleId);
+                        fileUpload.setCategory("learning_module");
+                        fileUploadRepository.save(fileUpload);
+                    }
+                }
+                
+                return response;
+            } catch (Exception e) {
+                return FileUploadResponse.error("Failed to upload " + file.getOriginalFilename() + ": " + e.getMessage());
+            }
+        }).toList();
+    }
+    
+    /**
+     * Get all files for a specific learning module
+     * @param userId The user ID
+     * @param moduleId The module ID
+     * @return List of FileUpload objects
+     */
+    public List<FileUpload> getModuleFiles(Long userId, Long moduleId) {
+        return fileUploadRepository.findModuleLearningFiles(userId, moduleId);
+    }
+    
+    /**
+     * Update indexing status of a file
+     * @param fileId The file ID
+     * @param status The new indexing status
+     * @return Updated FileUpload object
+     */
+    public FileUpload updateIndexingStatus(Long fileId, String status) {
+        FileUpload fileUpload = fileUploadRepository.findById(fileId).orElse(null);
+        if (fileUpload != null) {
+            fileUpload.setIndexingStatus(status);
+            if ("completed".equals(status)) {
+                fileUpload.setIndexedAt(LocalDateTime.now());
+            }
+            return fileUploadRepository.save(fileUpload);
+        }
+        return null;
+    }
+    
+    /**
+     * Get files by indexing status
+     * @param status The indexing status to filter by
+     * @return List of FileUpload objects
+     */
+    public List<FileUpload> getFilesByIndexingStatus(String status) {
+        return fileUploadRepository.findByIndexingStatus(status);
+    }
 } 

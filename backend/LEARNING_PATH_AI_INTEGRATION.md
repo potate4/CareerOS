@@ -61,8 +61,8 @@ The existing `LearningPathRequest` now includes a `toAIRequestString()` method t
 ## AI Service Integration
 
 ### Configuration
-- **Property**: `ai.service.url=http://localhost:8001`
-- **Service**: Python FastAPI service running on port 8001
+- **Property**: `ai.service.url=http://localhost:8000`
+- **Service**: Python FastAPI service running on port 8000
 - **Endpoint**: `/api/v1/learning-path/generate`
 
 ### Request Flow
@@ -149,7 +149,7 @@ If the AI service is unavailable or fails:
 ### Environment Variables
 ```properties
 # AI Service Configuration
-ai.service.url=http://localhost:8001
+ai.service.url=http://localhost:8000
 
 # Optional: Override in production
 AI_SERVICE_URL=https://your-ai-service.com
