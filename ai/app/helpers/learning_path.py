@@ -107,15 +107,19 @@ class LearningPathAI:
                 'status': 'processing'
             }
             
+            logger.info(f"Starting to process file: {file_name} (ID: {file_id}) of type: {file_type}")
+            logger.info(f"File URL: {file_url}")
+            
             try:
                 # Download and extract content from file URL
                 content = await self._extract_file_content_from_url(file_url, file_type)
                 
-                if content:
-                    # Use semantic chunking from semantic_chunker.py
+                if content and content.get("text"):
+                    logger.info(f"Successfully extracted content from {file_name}, text length: {len(content['text'])}")
                     
-                    # Create semantic chunks
+                    # Use semantic chunking from semantic_chunker.py
                     semantic_chunks = create_semantic_chunks_80(content["text"])
+                    logger.info(f"Created {len(semantic_chunks)} semantic chunks from {file_name}")
                     
                     # Create FileUploadInfo object for qdrant_functions
                     file_info = FileUploadInfo(
@@ -129,17 +133,16 @@ class LearningPathAI:
                         module_id=module_id
                     )
                     
-                    logger.info(f"Uploading chunks to Qdrant")
+                    logger.info(f"Uploading {len(semantic_chunks)} chunks to Qdrant for {file_name}")
                     # Upload chunks to Qdrant
                     upload_to_qdrant(
-                       
                         file_create=file_info,
                         page_no="1",  # Single page for now
                         semantic_chunks=semantic_chunks,
                         summaries=[chunk.page_content[:100] for chunk in semantic_chunks],  # Simple summaries
                         collection_name=self.learning_materials_collection
                     )
-                    logger.info(f"Uploaded chunks to Qdrant")
+                    logger.info(f"Successfully uploaded chunks to Qdrant for {file_name}")
                     
                     processing_results['chunks_created'] = len(semantic_chunks)
                     processing_results['chunks_indexed'] = len(semantic_chunks)
@@ -147,8 +150,15 @@ class LearningPathAI:
                     
                     logger.info(f"Successfully processed and indexed {file_name}: {len(semantic_chunks)} chunks")
                 else:
+                    error_msg = 'Failed to extract content or content is empty'
+                    if content and not content.get("text"):
+                        error_msg = 'Content extracted but text is empty'
+                    elif not content:
+                        error_msg = 'Failed to extract content from file'
+                    
+                    logger.error(f"Content extraction failed for {file_name}: {error_msg}")
                     processing_results['status'] = 'failed'
-                    processing_results['error'] = 'Failed to extract content'
+                    processing_results['error'] = error_msg
                     
             except Exception as e:
                 logger.error(f"Error processing file {file_name}: {e}")
@@ -221,24 +231,71 @@ class LearningPathAI:
     async def _extract_file_content_from_url(self, file_url: str, file_type: str) -> Optional[Dict[str, Any]]:
         """Extract content from file URL"""
         try:
-            import tempfile
             import requests
+            from pathlib import Path
+            
+            # Normalize file type - handle MIME types and extensions
+            file_type = file_type.lower().strip()
+            if file_type.startswith('application/'):
+                # Extract extension from MIME type
+                if 'pdf' in file_type:
+                    file_type = 'pdf'
+                elif 'word' in file_type or 'document' in file_type:
+                    file_type = 'docx'
+                elif 'powerpoint' in file_type or 'presentation' in file_type:
+                    file_type = 'pptx'
+                elif 'text' in file_type:
+                    file_type = 'txt'
+            
+            # Remove any remaining MIME type prefixes
+            if '/' in file_type:
+                file_type = file_type.split('/')[-1]
+            
+            logger.info(f"Normalized file type: {file_type} for URL: {file_url}")
+            
+            # Create uploads directory if it doesn't exist
+            # Use absolute path to avoid working directory issues
+            current_file = Path(__file__)
+            project_root = current_file.parent.parent.parent.parent  # Go up to ai/ directory
+            uploads_dir = project_root / "uploads"
+            uploads_dir.mkdir(exist_ok=True)
+            
+            logger.info(f"Using uploads directory: {uploads_dir.absolute()}")
+            
+            # Generate unique filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            safe_filename = f"{timestamp}_{uuid.uuid4().hex[:8]}.{file_type}"
+            file_path = uploads_dir / safe_filename
             
             # Download file from URL
-            response = requests.get(file_url, stream=True)
+            logger.info(f"Downloading file from: {file_url}")
+            response = requests.get(file_url, stream=True, timeout=60)
             response.raise_for_status()
             
-            # Create temporary file
-            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_type}") as temp_file:
-                for chunk in response.iter_content(chunk_size=8192):
-                    temp_file.write(chunk)
-                temp_file_path = temp_file.name
+            # Check if we actually got content
+            if response.headers.get('content-length'):
+                expected_size = int(response.headers['content-length'])
+                logger.info(f"Expected file size: {expected_size} bytes")
             
+            # Save file to uploads directory
+            with open(file_path, 'wb') as f:
+                downloaded_size = 0
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:  # Filter out keep-alive chunks
+                        f.write(chunk)
+                        downloaded_size += len(chunk)
+            
+            logger.info(f"Downloaded {downloaded_size} bytes to: {file_path}")
+            
+            # Verify file was downloaded and has content
+            if not file_path.exists() or file_path.stat().st_size == 0:
+                raise Exception(f"Downloaded file is empty or doesn't exist: {file_path}")
+                
             try:
                 content = {"text": "", "metadata": {}}
                 
-                if file_type.lower() == 'pdf':
-                    doc = fitz.open(temp_file_path)
+                if file_type == 'pdf':
+                    doc = fitz.open(str(file_path))
                     text = ""
                     for page in doc:
                         text += page.get_text()
@@ -246,16 +303,16 @@ class LearningPathAI:
                     content["metadata"] = {"pages": len(doc), "file_type": "pdf"}
                     doc.close()
                     
-                elif file_type.lower() in ['docx', 'doc']:
-                    doc = Document(temp_file_path)
+                elif file_type in ['docx', 'doc']:
+                    doc = Document(str(file_path))
                     text = ""
                     for paragraph in doc.paragraphs:
                         text += paragraph.text + "\n"
                     content["text"] = text
                     content["metadata"] = {"paragraphs": len(doc.paragraphs), "file_type": "docx"}
                     
-                elif file_type.lower() in ['pptx', 'ppt']:
-                    prs = Presentation(temp_file_path)
+                elif file_type in ['pptx', 'ppt']:
+                    prs = Presentation(str(file_path))
                     text = ""
                     for slide in prs.slides:
                         for shape in slide.shapes:
@@ -267,13 +324,25 @@ class LearningPathAI:
                 # Add file size metadata
                 content["metadata"]["file_size"] = len(content["text"])
                 content["metadata"]["source_url"] = file_url
+                content["metadata"]["local_path"] = str(file_path)
+                content["metadata"]["processed_file_type"] = file_type
                 
-                return content if content["text"].strip() else None
+                # Only return content if we successfully extracted text
+                if content["text"].strip():
+                    logger.info(f"Successfully extracted content from {file_path}, text length: {len(content['text'])}")
+                    return content
+                else:
+                    logger.warning(f"No text content extracted from {file_path}")
+                    return None
                 
             finally:
-                # Clean up temporary file
-                import os
-                os.unlink(temp_file_path)
+                # Clean up the downloaded file after processing
+                try:
+                    if file_path.exists():
+                        file_path.unlink()
+                        logger.info(f"Cleaned up temporary file: {file_path}")
+                except Exception as cleanup_error:
+                    logger.warning(f"Failed to cleanup file {file_path}: {cleanup_error}")
             
         except Exception as e:
             logger.error(f"Error extracting content from URL {file_url}: {e}")

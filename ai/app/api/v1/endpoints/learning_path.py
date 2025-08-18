@@ -49,13 +49,41 @@ async def index_file(
     try:
         logger.info(f"Starting background indexing for file {request.file_name} for user {request.user_id}")
         
+        # Validate request parameters
+        if not request.file_url or not request.file_url.strip():
+            raise HTTPException(status_code=400, detail="File URL is required")
+        
+        if not request.file_name or not request.file_name.strip():
+            raise HTTPException(status_code=400, detail="File name is required")
+        
+        if not request.file_type or not request.file_type.strip():
+            raise HTTPException(status_code=400, detail="File type is required")
+        
+        # Validate file type
+        valid_file_types = ['pdf', 'docx', 'doc', 'pptx', 'ppt', 'txt']
+        normalized_file_type = request.file_type.lower().strip()
+        if normalized_file_type.startswith('application/'):
+            if 'pdf' in normalized_file_type:
+                normalized_file_type = 'pdf'
+            elif 'word' in normalized_file_type or 'document' in normalized_file_type:
+                normalized_file_type = 'docx'
+            elif 'powerpoint' in normalized_file_type or 'presentation' in normalized_file_type:
+                normalized_file_type = 'pptx'
+            elif 'text' in normalized_file_type:
+                normalized_file_type = 'txt'
+        
+        if normalized_file_type not in valid_file_types:
+            logger.warning(f"Unsupported file type: {request.file_type}, normalized to: {normalized_file_type}")
+        
+        logger.info(f"Validated request - File: {request.file_name}, Type: {request.file_type} -> {normalized_file_type}, URL: {request.file_url}")
+        
         # Add the file indexing task to background tasks
         background_tasks.add_task(
             process_file_indexing,
             request.file_url,
             request.file_id,
             request.file_name,
-            request.file_type,
+            normalized_file_type,  # Use normalized file type
             request.user_id,
             request.module_id
         )
@@ -67,15 +95,17 @@ async def index_file(
             result=FileIndexingResult(
                 file_id=request.file_id,
                 file_name=request.file_name,
-                file_type=request.file_type,
+                file_type=normalized_file_type,  # Return normalized file type
                 chunks_processed=0,
                 chunks_indexed=0,
                 processing_status="processing",
-                metadata={"status": "background_task_started"}
+                metadata={"status": "background_task_started", "normalized_file_type": normalized_file_type}
             ),
             processing_time_seconds=0.0
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error starting file indexing: {e}")
         raise HTTPException(status_code=500, detail=f"File indexing failed to start: {str(e)}")
@@ -97,6 +127,7 @@ async def process_file_indexing(
     
     try:
         logger.info(f"Processing file indexing for {file_name} (ID: {file_id})")
+        logger.info(f"File details - URL: {file_url}, Type: {file_type}, User: {user_id}, Module: {module_id}")
         start_time = time.time()
         
         # Process and index the file
@@ -114,21 +145,30 @@ async def process_file_indexing(
         # Determine status based on processing result
         if processing_result and processing_result.get('status', 'failed') == 'completed':
             indexing_status = "completed"
+            chunks_created = processing_result.get('chunks_created', 0)
+            chunks_indexed = processing_result.get('chunks_indexed', 0)
             logger.info(f"File indexing completed successfully in {processing_time:.2f}s for {file_name} (ID: {file_id})")
-            logger.info(f"Indexed {processing_result.get('chunks_indexed', 0)} chunks from {processing_result.get('chunks_created', 0)} total chunks")
+            logger.info(f"Indexed {chunks_indexed} chunks from {chunks_created} total chunks")
         else:
             indexing_status = "failed"
-            error_message = "No chunks were successfully indexed"
-            logger.warning(f"File indexing completed but no chunks indexed for {file_name} (ID: {file_id})")
+            error_message = processing_result.get('error', 'No chunks were successfully indexed') if processing_result else 'Processing failed with no result'
+            logger.warning(f"File indexing completed but failed for {file_name} (ID: {file_id}): {error_message}")
         
     except Exception as e:
         indexing_status = "failed"
         error_message = str(e)
         logger.error(f"Error in background file indexing for {file_name} (ID: {file_id}): {e}")
+        # Log the full traceback for debugging
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
     
     finally:
         # Always send callback to update status in Java backend
-        await send_indexing_callback(file_id, indexing_status, error_message)
+        try:
+            await send_indexing_callback(file_id, indexing_status, error_message)
+        except Exception as callback_error:
+            logger.error(f"Failed to send indexing callback for {file_name} (ID: {file_id}): {callback_error}")
+            # Don't re-raise this error as it's not critical to the main processing
 
 
 async def send_indexing_callback(file_id: str, status: str, error_message: Optional[str] = None):
