@@ -47,7 +47,8 @@ def create_semantic_chunks_80(text_content, breakpoint_threshold=80):
         semantic_chunker = SemanticChunker(
             embeddings=HuggingFaceEmbeddings(model=settings.EMBEDDING_MODEL),
             breakpoint_threshold_type="percentile",
-            breakpoint_threshold_amount=breakpoint_threshold
+            breakpoint_threshold_amount=breakpoint_threshold,
+            min_chunk_size=1500
         )
         semantic_chunks = semantic_chunker.create_documents([text_content])
         return semantic_chunks
