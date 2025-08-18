@@ -251,57 +251,6 @@ class LearningPathAI:
                 'error': str(e)
             }
 
-    async def debug_search_filtering(self, user_id: int, module_id: int) -> Dict[str, Any]:
-        """Debug method to test filtering with user_id AND module_id"""
-        try:
-            logger.info(f"Debug: Testing search filtering for user_id={user_id}, module_id={module_id}")
-            
-            # Test 1: Search with both filters
-            results_both = await self.search_learning_materials(
-                query="test",
-                user_id=user_id,
-                module_id=module_id,
-                limit=5
-            )
-            
-            # Test 2: Search with only user_id
-            results_user_only = await self.search_learning_materials(
-                query="test",
-                user_id=user_id,
-                limit=5
-            )
-            
-            # Test 3: Search with different module_id
-            results_different_module = await self.search_learning_materials(
-                query="test",
-                user_id=user_id,
-                module_id=999,  # Different module
-                limit=5
-            )
-            
-            debug_info = {
-                "user_id": user_id,
-                "module_id": module_id,
-                "results_with_both_filters": results_both,
-                "results_with_user_only": results_user_only,
-                "results_with_different_module": results_different_module,
-                "filter_comparison": {
-                    "both_filters_count": results_both.get('results_count', 0),
-                    "user_only_count": results_user_only.get('results_count', 0),
-                    "different_module_count": results_different_module.get('results_count', 0)
-                }
-            }
-            
-            logger.info(f"Debug: Filter comparison - Both: {debug_info['filter_comparison']['both_filters_count']}, "
-                       f"User only: {debug_info['filter_comparison']['user_only_count']}, "
-                       f"Different module: {debug_info['filter_comparison']['different_module_count']}")
-            
-            return debug_info
-            
-        except Exception as e:
-            logger.error(f"Error in debug search filtering: {e}")
-            return {"error": str(e)}
-
     async def _extract_file_content_from_url(self, file_url: str, file_type: str) -> Optional[Dict[str, Any]]:
         """Extract content from file URL"""
         try:
@@ -447,7 +396,7 @@ class LearningPathAI:
                 query="learning materials and content",
                 user_id=user_id,
                 module_id=module_id,  # Always filter by specific module
-                limit=20  # Get more context for better responses
+                limit=10  # Get more context for better responses
             )
             
             logger.info(f"Retrieved {knowledge_base.get('results_count', 0)} learning materials for user {user_id}, module {module_id}")
@@ -456,7 +405,7 @@ class LearningPathAI:
             chat_context = ""
             if chat_history:
                 chat_context = "\n".join([
-                    f"{msg.role}: {msg.content}" for msg in chat_history[-5:]  # Last 5 messages for context
+                    f"{msg.role}: {msg.content}" for msg in chat_history[-10:]  # Last 10 messages for context
                 ])
             
             # Format knowledge base for context
