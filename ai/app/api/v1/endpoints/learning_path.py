@@ -14,6 +14,7 @@ from app.helpers.learning_path import LearningPathAI
 from app.helpers.auth import create_internal_jwt
 from app.core.config import settings
 from app.schemas.learning_path import (
+    AssessmentAnswerScoreSubmissionRequest,
     FileIndexingRequest,
     FileIndexingResponse,
     FileIndexingResult,
@@ -26,7 +27,9 @@ from app.schemas.learning_path import (
     AssessmentRequest,
     AssessmentResponse,
     AssessmentSubmissionRequest,
-    AssessmentSubmissionResponse
+    AssessmentSubmissionResponse,
+    AssessmentQuestion,
+    AssessmentAnswerScore
 )
 
 # Configure logging
@@ -389,26 +392,25 @@ async def score_assessment(
         logger.info(f"Scoring assessment {request.assessment_id} for user {request.user_id}")
         start_time = time.time()
         
-        # For now, we'll need to reconstruct the questions from the request
-        # In a real implementation, you'd store the assessment questions in a database
-        # and retrieve them by assessment_id
-        
-        # This is a simplified version - you'll need to implement proper question storage
-        logger.warning("Assessment scoring requires question storage implementation")
-        
-        # Placeholder for questions - in real implementation, fetch from database
-        questions = []  # This should be fetched from database using assessment_id
+        # Extract questions from the assessment answers (since they contain both question and correct_answer)
+        # In a real implementation, you'd send the questions separately or store them
+        questions = []
+        for answer in request.assessment_answers:
+            questions.append(AssessmentAnswerScoreSubmissionRequest(
+                question=answer.question,
+                correct_answer=answer.correct_answer,
+                provided_answer=answer.provided_answer
+            ))
         
         if not questions:
-            raise HTTPException(status_code=400, detail="Assessment questions not found. Please implement question storage.")
-        
+            raise HTTPException(status_code=400, detail="No questions found in assessment answers.")
+ 
         # Score assessment using AI helper
         scoring_result = await learning_ai.score_assessment(
             assessment_id=request.assessment_id,
             user_id=request.user_id,
             module_id=request.module_id,
-            questions=questions,
-            answers=request.answers
+            questions=questions
         )
         
         processing_time = time.time() - start_time

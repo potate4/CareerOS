@@ -115,10 +115,11 @@ class ChatResponse(BaseModel):
 class AssessmentQuestion(BaseModel):
     question: str
     correct_answer: Optional[str] 
-    options: Optional[List[str]] 
-    question_type: str 
-    difficulty: str  
-    explanation: Optional[str] 
+    
+class AssessmentAnswerScoreSubmissionRequest(BaseModel):
+    question: str
+    correct_answer: str
+    provided_answer: str
     
 class AssessmentAnswerScore(BaseModel):
     question: str
@@ -151,7 +152,7 @@ class AssessmentSubmissionRequest(BaseModel):
     assessment_id: str
     user_id: int
     module_id: int
-    answers: List[Dict[str, str]]  # List of {question: answer} pairs
+    assessment_answers: List[AssessmentAnswerScoreSubmissionRequest]
     
 class AssessmentSubmissionResponse(BaseModel):
     success: bool

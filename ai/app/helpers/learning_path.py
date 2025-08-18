@@ -546,30 +546,23 @@ class LearningPathAI:
                 "error": str(e)
             }
     
-    async def score_assessment(self, assessment_id: str, user_id: int, module_id: int, questions: List[AssessmentQuestion], answers: List[Dict[str, str]]) -> Dict[str, Any]:
+    async def score_assessment(self, assessment_id: str, user_id: int, module_id: int, questions: List[AssessmentQuestion]) -> Dict[str, Any]:
         """Score an assessment submission and provide feedback"""
         try:
             logger.info(f"Scoring assessment {assessment_id} for user {user_id}")
             
-            if not questions or not answers:
-                return {
-                    "success": False,
-                    "message": "Invalid assessment data",
-                    "error": "Missing questions or answers"
-                }
+           
             
             # Prepare scoring prompt
             scoring_data = []
             for i, question in enumerate(questions):
-                if i < len(answers):
-                    answer_key = list(answers[i].keys())[0] if answers[i] else ""
-                    user_answer = list(answers[i].values())[0] if answers[i] else ""
-                    scoring_data.append({
-                        "question": question.question,
-                        "correct_answer": question.correct_answer or "",
-                        "provided_answer": user_answer,
-                        "question_type": question.question_type
-                    })
+                
+                user_answer = question.provided_answer
+                scoring_data.append({
+                    "question": question.question,
+                    "correct_answer": question.correct_answer or "",
+                    "provided_answer": user_answer,
+                })
             
             scoring_prompt = f"""
             Score the following assessment answers and provide detailed feedback:
