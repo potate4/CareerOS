@@ -75,13 +75,18 @@ public class MindFlowConversationService {
             throw new RuntimeException("Forbidden");
         }
         
-        // Generate initial soft skills scenario prompt based on session data
-        String scenarioPrompt = buildScenarioPrompt(session, initialSessionData);
-        String question = callAIToGenerateQuestion(sessionId, userId, initialSessionData, Collections.emptyList(), scenarioPrompt);
-        String audioUrl = callAIForTTS(question);
+        logger.info("MindFlow: Starting question generation for session {}", sessionId);
+        String question = callAIToGenerateQuestion(sessionId, userId, initialSessionData, Collections.emptyList(), buildScenarioPrompt(session, initialSessionData));
+        logger.info("MindFlow: Question generated successfully: {}", question.substring(0, Math.min(50, question.length())));
         
-        // Store AI message
+        logger.info("MindFlow: Starting TTS generation for session {}", sessionId);
+        String audioUrl = callAIForTTS(question);
+        logger.info("MindFlow: TTS generated successfully: {}", audioUrl != null ? "Success" : "Failed");
+        
+        // store AI message
         conversationRepository.save(new MindFlowConversation(sessionId, userId, "ai", question, audioUrl));
+        logger.info("MindFlow: First question flow completed for session {}", sessionId);
+        
         return Map.of(
                 "question", question,
                 "audioUrl", audioUrl
@@ -94,42 +99,36 @@ public class MindFlowConversationService {
         if (!session.getUserId().equals(userId)) {
             throw new RuntimeException("Forbidden");
         }
-        
         // 1) STT on audio
         String transcript = callAIForSTT(audioFileUrl);
-        // Store user message
+        // store user message
         conversationRepository.save(new MindFlowConversation(sessionId, userId, "user", transcript, null));
-        
         // 2) Fetch full history
         List<MindFlowConversation> history = conversationRepository.findBySessionIdAndUserIdOrderByCreatedAtAsc(sessionId, userId);
         List<Map<String, String>> formatted = history.stream()
                 .map(m -> Map.of("speaker", m.getSpeaker(), "message", m.getMessage()))
                 .collect(Collectors.toList());
-                
         // 3) Prepare initialData from session.sessionData if present
         Map<String, Object> initialData = new HashMap<>();
         try {
             String sd = session.getSessionData();
             if (sd != null && !sd.isBlank()) {
+                // naive JSON parse via Jackson-like map (RestTemplate will serialize fine)
                 initialData = new ObjectMapper().readValue(sd, Map.class);
             }
         } catch (Exception e) {
             logger.warn("Failed to parse MindFlow sessionData as JSON: {}", e.getMessage());
         }
-        
-        // 4) Generate next soft skills scenario response
-        String scenarioPrompt = buildScenarioPrompt(session, initialData);
+        // 4) Call AI to generate next question with prompt + history + initialData
         Map<String, Object> payload = new HashMap<>();
         payload.put("sessionId", sessionId);
         payload.put("userId", userId);
         payload.put("history", formatted);
         payload.put("initialData", initialData);
-        payload.put("prompt", scenarioPrompt);
-        
+        payload.put("prompt", buildScenarioPrompt(session, initialData));
         String nextQuestion = callAIToGenerateNextQuestion(payload);
         String ttsUrl = callAIForTTS(nextQuestion);
         conversationRepository.save(new MindFlowConversation(sessionId, userId, "ai", nextQuestion, ttsUrl));
-        
         return Map.of(
                 "transcript", transcript,
                 "nextQuestion", nextQuestion,
@@ -177,9 +176,9 @@ public class MindFlowConversationService {
         }
     }
 
-    private String callAIToGenerateQuestion(String sessionId, Long userId, Map<String, Object> initialData, 
-                                           List<Map<String, String>> history, String prompt) {
+    private String callAIToGenerateQuestion(String sessionId, Long userId, Map<String, Object> initialData, List<Map<String, String>> history, String prompt) {
         try {
+            logger.info("MindFlow: Calling AI generate-question for session {}", sessionId);
             String url = aiServiceUrl + "/api/v1/mindflow/generate-question";
             Map<String, Object> req = new HashMap<>();
             req.put("sessionId", sessionId);
@@ -187,17 +186,18 @@ public class MindFlowConversationService {
             req.put("initialData", initialData);
             req.put("history", history);
             req.put("prompt", prompt);
-            
+            System.out.println("MindFlow history: " + history);
             HttpHeaders headers = new HttpHeaders();
             headers.set("Content-Type", "application/json");
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(req, headers);
-            
-            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
-            Map<String, Object> body = response.getBody();
-            return (String) body.get("question");
+            logger.info("MindFlow: Making request to AI service at {}", url);
+            ResponseEntity<Map> res = restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(req, headers), Map.class);
+            logger.info("MindFlow: AI service responded with status {}", res.getStatusCode());
+            Object q = res.getBody() != null ? res.getBody().get("question") : null;
+            return q != null ? q.toString() : "";
         } catch (Exception e) {
-            logger.error("Failed to call MindFlow AI generate-question: {}", e.getMessage());
-            return "Let's continue with our soft skills practice. Can you tell me about a challenging workplace situation you've faced?";
+            logger.error("Failed to generate MindFlow first question: {}", e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("MindFlow AI question generation failed: " + e.getMessage());
         }
     }
 
@@ -206,48 +206,47 @@ public class MindFlowConversationService {
             String url = aiServiceUrl + "/api/v1/mindflow/generate-question";
             HttpHeaders headers = new HttpHeaders();
             headers.set("Content-Type", "application/json");
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
-            
-            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
-            Map<String, Object> body = response.getBody();
-            return (String) body.get("question");
+            ResponseEntity<Map> res = restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(payload, headers), Map.class);
+            Object q = res.getBody() != null ? res.getBody().get("question") : null;
+            return q != null ? q.toString() : "";
         } catch (Exception e) {
-            logger.error("Failed to call MindFlow AI next-question: {}", e.getMessage());
-            return "That's an interesting perspective. How do you think you could approach that situation differently?";
+            logger.error("Failed to generate MindFlow next question: {}", e.getMessage());
+            throw new RuntimeException("MindFlow AI next question generation failed");
         }
     }
 
     private String callAIForSTT(String audioUrl) {
         try {
             String url = aiServiceUrl + "/api/v1/mindflow/stt";
-            Map<String, String> req = Map.of("audioUrl", audioUrl);
             HttpHeaders headers = new HttpHeaders();
             headers.set("Content-Type", "application/json");
-            HttpEntity<Map<String, String>> entity = new HttpEntity<>(req, headers);
-            
-            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
-            Map<String, Object> body = response.getBody();
-            return (String) body.get("transcript");
+            Map<String, Object> req = Map.of("audioUrl", audioUrl);
+            ResponseEntity<Map> res = restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(req, headers), Map.class);
+            Object t = res.getBody() != null ? res.getBody().get("transcript") : null;
+            return t != null ? t.toString() : "";
         } catch (Exception e) {
-            logger.error("Failed to call MindFlow AI STT: {}", e.getMessage());
-            return "[Audio transcription unavailable]";
+            logger.error("MindFlow STT failed: {}", e.getMessage());
+            throw new RuntimeException("MindFlow AI STT failed");
         }
     }
 
     private String callAIForTTS(String text) {
         try {
+            logger.info("MindFlow: Calling AI TTS with text length: {}", text.length());
             String url = aiServiceUrl + "/api/v1/mindflow/tts";
-            Map<String, String> req = Map.of("text", text, "language", "en");
             HttpHeaders headers = new HttpHeaders();
             headers.set("Content-Type", "application/json");
-            HttpEntity<Map<String, String>> entity = new HttpEntity<>(req, headers);
-            
-            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
-            Map<String, Object> body = response.getBody();
-            return (String) body.get("audioUrl");
+            Map<String, Object> req = Map.of("text", text);
+            logger.info("MindFlow: Making TTS request to AI service at {}", url);
+            ResponseEntity<Map> res = restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(req, headers), Map.class);
+            logger.info("MindFlow: TTS AI service responded with status {}", res.getStatusCode());
+            Object audio = res.getBody() != null ? res.getBody().get("audioUrl") : null;
+            logger.info("MindFlow: TTS audio URL received: {}", audio != null ? "Yes" : "No");
+            return audio != null ? audio.toString() : null;
         } catch (Exception e) {
-            logger.error("Failed to call MindFlow AI TTS: {}", e.getMessage());
-            return null; // No audio URL available
+            logger.error("MindFlow TTS failed: {}", e.getMessage());
+            e.printStackTrace();
+            return null; // non-fatal
         }
     }
 

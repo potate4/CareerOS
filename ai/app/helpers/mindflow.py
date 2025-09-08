@@ -320,32 +320,7 @@ def generate_mindflow_scenario_question(prompt: str):
     """Generate soft skills scenario questions using Gemini AI"""
     
     try:
-        # Enhanced prompt for soft skills scenarios
-        mindflow_enhanced_prompt = f"""
-        You are an expert soft skills trainer and roleplay coach. Your role is to facilitate workplace communication scenarios.
-        
-        You should create realistic, challenging workplace situations that help develop:
-        - Communication skills
-        - Negotiation abilities  
-        - Conflict resolution
-        - Emotional intelligence
-        - Leadership presence
-        - Professional assertiveness
-        
-        Available scenario types:
-        1. Salary Negotiation - Practice asking for raises, discussing compensation
-        2. Difficult Conversations - Handle performance issues, give feedback
-        3. Team Conflicts - Mediate disputes, build consensus
-        4. Client Relations - Manage expectations, handle complaints
-        5. Leadership Moments - Make tough decisions, inspire teams
-        
-        Your responses should be conversational, realistic, and emotionally intelligent. 
-        Adapt your personality and approach based on the scenario context.
-        
-        Original request: {prompt}
-        """
-        
-        ai_response = get_gemini_mindflow_completion(mindflow_enhanced_prompt)
+        ai_response = get_gemini_mindflow_completion(prompt)
         
         return ai_response
     except Exception as e:

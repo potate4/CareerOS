@@ -130,19 +130,16 @@ async def generate_mindflow_question(req: GenerateMindFlowQuestionRequest):
         print("MindFlow History:", req.history)
         print("--------------------------------")
         parts: List[str] = []
-        
         # Always include instruction, prefer provided prompt text
         if req.prompt and req.prompt.strip():
             parts.append(req.prompt.strip())
         else:
-            parts.append("You are a soft skills trainer. Create a realistic workplace scenario for communication practice.")
-        
+            parts.append("You are a soft skills trainer. Ask a relevant question to the user to evaluate their soft skills based on the initial data and history.")
         # Always include context when provided
         if req.initialData:
-            parts.append("Scenario Context: " + json.dumps(req.initialData))
+            parts.append("Initial Data: " + json.dumps(req.initialData))
         if req.history:
-            parts.append("Conversation History: " + json.dumps(req.history))
-            
+            parts.append("History: " + json.dumps(req.history))
         composed_prompt = "\n".join(parts)
         question = generate_mindflow_scenario_question(composed_prompt)
         

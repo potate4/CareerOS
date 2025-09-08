@@ -179,7 +179,7 @@ export const mindflowAPI = {
       const response = await api.post('/mindflow/sessions', {
         initialSessionData: sessionData ? JSON.stringify(sessionData) : '{}',
         scenarioType: sessionData?.scenarioType || 'GENERAL_COMMUNICATION'
-      });
+      }, { timeout: 0 });
       return response.data;
     } catch (error) {
       throw handleApiError(error);
@@ -245,7 +245,7 @@ export const mindflowAPI = {
   // Simulation helpers
   startSimulation: async (sessionId: string): Promise<MindFlowStartSimulationResponse> => {
     try {
-      const response = await api.post(`/mindflow/sessions/${sessionId}/start`);
+      const response = await api.post(`/mindflow/sessions/${sessionId}/start`, {}, { timeout: 0 });
       return response.data;
     } catch (error) {
       throw handleApiError(error);
