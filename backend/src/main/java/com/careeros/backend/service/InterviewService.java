@@ -237,10 +237,10 @@ public class InterviewService {
             
             // Get all files for the user with category 'interview-recording'
             java.util.List<FileUpload> files = fileUploadService.getUserFileUploads(userId);
-            // Filter for Interview files
+            // Filter for Interview files only (not MindFlow)
             files = files.stream()
                 .filter(file -> file.getCategory() != null && 
-                    (file.getCategory().contains("interview") || file.getCategory().contains("recording")))
+                    (file.getCategory().equals("interview-recording")))
                 .collect(java.util.stream.Collectors.toList());
             logger.info("Found {} interview files for user {}", files.size(), userId);
             

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { MindFlowRecordingRequest, MindFlowRecordingResponse, MindFlowRecording, MindFlowFileAnalysisResponse, MindFlowSessionDTO, MindFlowConversationMessage, MindFlowStartSimulationResponse, MindFlowProcessAnswerResponse, ScenarioType } from '../types';
+import { MindFlowRecordingRequest, MindFlowRecordingResponse, MindFlowRecording, MindFlowFileAnalysisResponse, MindFlowSessionDTO, MindFlowConversationMessage, MindFlowStartSimulationResponse, MindFlowProcessAnswerResponse } from '../types';
 import { handleApiError } from '../../../utils/apiErrorHandler';
 import { config } from '../../../config/env';
 
@@ -119,9 +119,10 @@ export const mindflowAPI = {
   },
 
   // Delete MindFlow recording
-  deleteRecording: async (recordingId: number): Promise<void> => {
+  deleteRecording: async (recordingId: number): Promise<{ success: boolean; message: string }> => {
     try {
-      await api.delete(`/files/delete/${recordingId}`);
+      const response = await api.delete(`/files/upload/${recordingId}`);
+      return response.data;
     } catch (error) {
       throw handleApiError(error);
     }

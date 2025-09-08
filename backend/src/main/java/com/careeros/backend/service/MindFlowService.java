@@ -133,9 +133,10 @@ public class MindFlowService {
             
             // Get all files for the user with category 'mindflow-recording'
             java.util.List<FileUpload> files = fileUploadService.getUserFileUploads(userId);
-            // Filter for MindFlow files
+            // Filter for MindFlow files only (not Interview)
             files = files.stream()
-                .filter(file -> file.getCategory() != null && file.getCategory().contains("mindflow"))
+                .filter(file -> file.getCategory() != null && 
+                    (file.getCategory().equals("mindflow-recording") || file.getCategory().equals("mindflow-audio")))
                 .collect(Collectors.toList());
             logger.info("Found {} MindFlow files for user {}", files.size(), userId);
             
