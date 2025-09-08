@@ -44,12 +44,15 @@ class GenerateMindFlowQuestionRequest(BaseModel):
 
 
 def process_mindflow_video_and_callback(request_data: dict):
+    video_path = None
     try:
         print("[+] Starting background MindFlow video processing")
+        print(f"[+] MindFlow: Processing job {request_data['jobId']} for fileId {request_data.get('fileId', 'None')}")
+        
         # Download video from URL
         print(f"[+] MindFlow: Downloading video from: {request_data['videoUrl']}")
-        response = requests.get(request_data['videoUrl'])
-        response.raise_for_status()
+        download_response = requests.get(request_data['videoUrl'])
+        download_response.raise_for_status()
         
         # Create upload directory if it doesn't exist
         os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
@@ -60,15 +63,17 @@ def process_mindflow_video_and_callback(request_data: dict):
         
         # Save video to upload directory
         with open(video_path, "wb") as video_file:
-            video_file.write(response.content)
+            video_file.write(download_response.content)
             
         print(f"[+] MindFlow: Downloaded video file to: {video_path}")
-        response = get_mindflow_analysis_and_feedback(video_path)
         
-        # Analyze video (MindFlow soft skills analysis)
+        # Analyze video
+        analysis_response = get_mindflow_analysis_and_feedback(video_path)
+        
+        # Prepare successful analysis result
         analysis_result = {
             "jobId": request_data['jobId'],
-            "analysisData": response,
+            "analysisData": analysis_response,
             "status": "COMPLETED",
             "errorMessage": None
         }
@@ -76,17 +81,59 @@ def process_mindflow_video_and_callback(request_data: dict):
         # Call Java callback API
         jwt = create_internal_jwt()
         callback_url = f"{settings.BACKEND_URL}/api/mindflow/analysis-callback"
-        requests.post(callback_url, json=analysis_result, headers={"Authorization": f"Bearer {jwt}"})
+        
+        print(f"[+] MindFlow: Sending callback to: {callback_url}")
+        callback_response = requests.post(
+            callback_url, 
+            json=analysis_result, 
+            headers={"Authorization": f"Bearer {jwt}"},
+            timeout=30
+        )
+        callback_response.raise_for_status()
 
-        print("[+] MindFlow callback sent")
+        print("[+] MindFlow callback sent successfully")
 
     except Exception as e:
         print(f"[!] MindFlow background processing failed: {str(e)}")
+        
+        # Send error callback to backend
+        try:
+            error_result = {
+                "jobId": request_data['jobId'],
+                "analysisData": None,
+                "status": "FAILED",
+                "errorMessage": str(e)
+            }
+            
+            jwt = create_internal_jwt()
+            callback_url = f"{settings.BACKEND_URL}/api/mindflow/analysis-callback"
+            
+            print(f"[+] MindFlow: Sending error callback to: {callback_url}")
+            requests.post(
+                callback_url, 
+                json=error_result, 
+                headers={"Authorization": f"Bearer {jwt}"},
+                timeout=30
+            )
+            print("[+] MindFlow error callback sent successfully")
+            
+        except Exception as callback_error:
+            print(f"[!] MindFlow: Failed to send error callback: {str(callback_error)}")
+        
     finally:
-        if os.path.exists(video_path):
-            os.remove(video_path)
-            print(f"[+] MindFlow: Cleaned up: {video_path}")
-        cleanup_mindflow_temp_files()
+        # Clean up video file
+        if video_path and os.path.exists(video_path):
+            try:
+                os.remove(video_path)
+                print(f"[+] MindFlow: Cleaned up: {video_path}")
+            except Exception as cleanup_error:
+                print(f"[!] MindFlow: Failed to clean up video file: {str(cleanup_error)}")
+        
+        # Clean up temp files
+        try:
+            cleanup_mindflow_temp_files()
+        except Exception as cleanup_error:
+            print(f"[!] MindFlow: Failed to clean up temp files: {str(cleanup_error)}")
 
 @router.post("/analyze")
 async def analyze_mindflow(request: MindFlowAnalysisRequest, background_tasks: BackgroundTasks):

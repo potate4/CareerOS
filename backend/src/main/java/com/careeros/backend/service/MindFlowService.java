@@ -50,18 +50,22 @@ public class MindFlowService {
         // Generate unique job ID
         String jobId = "mindflow_" + UUID.randomUUID().toString();
         
+        logger.info("Creating MindFlow job: {} for user: {} with fileId: {}", 
+            jobId, request.getUserId(), request.getFileId());
+        
         // Create MindFlow job
         MindFlowJob job = new MindFlowJob(
             jobId,
             Long.parseLong(request.getUserId()),
             request.getVideoUrl(),
             "PENDING",
-            null, // fileId will be set if needed
+            request.getFileId(), // Use fileId from request
             request.getAnalysisType() != null ? request.getAnalysisType() : "comprehensive",
             request.getScenarioType() != null ? request.getScenarioType() : "GENERAL_COMMUNICATION"
         );
         
         MindFlowJob savedJob = mindFlowJobRepository.save(job);
+        logger.info("MindFlow job saved with ID: {} and fileId: {}", jobId, savedJob.getFileId());
         
         // Send to AI service
         try {
@@ -78,21 +82,38 @@ public class MindFlowService {
     }
 
     public MindFlowJobResponse handleAnalysisCallback(MindFlowAnalysisCallbackRequest callbackRequest) {
-        MindFlowJob job = mindFlowJobRepository.findByJobId(callbackRequest.getJobId())
-                .orElseThrow(() -> new RuntimeException("MindFlow job not found: " + callbackRequest.getJobId()));
-                
-        job.setStatus(callbackRequest.getStatus());
-        
-        if ("COMPLETED".equals(callbackRequest.getStatus())) {
-            job.setDetailedAnalysis(callbackRequest.getAnalysisData());
-        } else if ("FAILED".equals(callbackRequest.getStatus())) {
-            job.setErrorMessage(callbackRequest.getErrorMessage());
+        try {
+            logger.info("Received MindFlow analysis callback for job: {} with status: {}", 
+                callbackRequest.getJobId(), callbackRequest.getStatus());
+            
+            MindFlowJob job = mindFlowJobRepository.findByJobId(callbackRequest.getJobId())
+                    .orElseThrow(() -> new RuntimeException("MindFlow job not found: " + callbackRequest.getJobId()));
+            
+            logger.info("Found MindFlow job for fileId: {} with current status: {}", 
+                job.getFileId(), job.getStatus());
+                    
+            job.setStatus(callbackRequest.getStatus());
+            job.setUpdatedAt(java.time.LocalDateTime.now());
+            
+            if ("COMPLETED".equals(callbackRequest.getStatus())) {
+                job.setDetailedAnalysis(callbackRequest.getAnalysisData());
+                logger.info("MindFlow analysis completed successfully with {} characters of data", 
+                    callbackRequest.getAnalysisData() != null ? callbackRequest.getAnalysisData().length() : 0);
+            } else if ("FAILED".equals(callbackRequest.getStatus())) {
+                job.setErrorMessage(callbackRequest.getErrorMessage());
+                logger.error("MindFlow analysis failed with error: {}", callbackRequest.getErrorMessage());
+            }
+            
+            MindFlowJob updatedJob = mindFlowJobRepository.save(job);
+            logger.info("MindFlow job {} updated successfully -> status: {}", 
+                callbackRequest.getJobId(), callbackRequest.getStatus());
+            
+            return toJobResponse(updatedJob);
+            
+        } catch (Exception e) {
+            logger.error("Failed to handle MindFlow analysis callback: {}", e.getMessage());
+            throw new RuntimeException("Failed to process MindFlow analysis callback: " + e.getMessage());
         }
-        
-        MindFlowJob updatedJob = mindFlowJobRepository.save(job);
-        logger.info("MindFlow job {} updated with status: {}", callbackRequest.getJobId(), callbackRequest.getStatus());
-        
-        return toJobResponse(updatedJob);
     }
 
     public MindFlowJobResponse getJobStatus(String jobId) {
@@ -218,7 +239,7 @@ public class MindFlowService {
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(aiRequest, headers);
         
         try {
-            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
+            restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
             logger.info("MindFlow analysis request sent successfully for job: {}", jobId);
         } catch (Exception e) {
             logger.error("Failed to send MindFlow analysis request: {}", e.getMessage());
