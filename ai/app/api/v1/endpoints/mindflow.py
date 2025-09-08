@@ -134,7 +134,7 @@ async def generate_mindflow_question(req: GenerateMindFlowQuestionRequest):
         if req.prompt and req.prompt.strip():
             parts.append(req.prompt.strip())
         else:
-            parts.append("You are a soft skills trainer. Ask a relevant question to the user to evaluate their soft skills based on the initial data and history.")
+            parts.append("You are a soft skills trainer. Ask a relevant question to the user to evaluate their soft skills based on the initial data and history. Keep it short and concise")
         # Always include context when provided
         if req.initialData:
             parts.append("Initial Data: " + json.dumps(req.initialData))
