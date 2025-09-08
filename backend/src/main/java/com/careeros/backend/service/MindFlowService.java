@@ -1,10 +1,13 @@
 package com.careeros.backend.service;
 
 import com.careeros.backend.model.MindFlowJob;
+import com.careeros.backend.model.FileUpload;
 import com.careeros.backend.payload.request.MindFlowAnalysisRequest;
 import com.careeros.backend.payload.request.MindFlowAnalysisCallbackRequest;
 import com.careeros.backend.payload.response.MindFlowJobResponse;
+import com.careeros.backend.payload.response.FileAnalysisResponse;
 import com.careeros.backend.repository.MindFlowJobRepository;
+import com.careeros.backend.service.FileUploadService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +36,9 @@ public class MindFlowService {
 
     @Autowired
     private MindFlowJobRepository mindFlowJobRepository;
+
+    @Autowired
+    private FileUploadService fileUploadService;
 
     private final RestTemplate restTemplate;
 
@@ -98,6 +104,85 @@ public class MindFlowService {
     public List<MindFlowJobResponse> getUserJobs(Long userId) {
         List<MindFlowJob> jobs = mindFlowJobRepository.findByUserIdOrderByCreatedAtDesc(userId);
         return jobs.stream().map(this::toJobResponse).collect(Collectors.toList());
+    }
+
+    public java.util.List<FileAnalysisResponse> getFileAnalysisData(Long userId) {
+        try {
+            logger.info("Getting MindFlow file analysis data for user: {}", userId);
+            
+            // Get all files for the user with category 'mindflow-recording'
+            java.util.List<FileUpload> files = fileUploadService.getUserFileUploads(userId);
+            // Filter for MindFlow files
+            files = files.stream()
+                .filter(file -> file.getCategory() != null && file.getCategory().contains("mindflow"))
+                .collect(Collectors.toList());
+            logger.info("Found {} MindFlow files for user {}", files.size(), userId);
+            
+            // Get most recent jobs for each file
+            java.util.List<MindFlowJob> mostRecentJobs = mindFlowJobRepository.findMostRecentJobsByUserId(userId);
+            logger.info("Found {} most recent MindFlow jobs for user {}", mostRecentJobs.size(), userId);
+            
+            // Create a map of fileId to most recent job for quick lookup
+            java.util.Map<Long, MindFlowJob> fileJobMap = mostRecentJobs.stream()
+                .filter(job -> job.getFileId() != null)
+                .collect(java.util.stream.Collectors.toMap(
+                    MindFlowJob::getFileId,
+                    job -> job,
+                    (existing, replacement) -> existing // Keep first occurrence in case of duplicates
+                ));
+            
+            // Build response list
+            java.util.List<FileAnalysisResponse> responses = new java.util.ArrayList<>();
+            
+            for (FileUpload file : files) {
+                MindFlowJob job = fileJobMap.get(file.getId());
+                
+                if (job != null) {
+                    // File has analysis job
+                    FileAnalysisResponse response = new FileAnalysisResponse(
+                        file.getId(),
+                        file.getFileName(),
+                        file.getOriginalFileName(),
+                        file.getFileUrl(),
+                        file.getCategory(),
+                        file.getUploadedAt(),
+                        job.getJobId(),
+                        job.getStatus(),
+                        job.getAnalysisType(),
+                        job.getDetailedAnalysis(),
+                        job.getErrorMessage(),
+                        job.getCreatedAt(),
+                        job.getUpdatedAt()
+                    );
+                    responses.add(response);
+                } else {
+                    // File has no analysis job
+                    FileAnalysisResponse response = new FileAnalysisResponse(
+                        file.getId(),
+                        file.getFileName(),
+                        file.getOriginalFileName(),
+                        file.getFileUrl(),
+                        file.getCategory(),
+                        file.getUploadedAt(),
+                        null, // No job ID
+                        "NO_ANALYSIS", // Status
+                        null, // No analysis type
+                        null, // No analysis data
+                        null, // No error message
+                        null, // No analysis created at
+                        null  // No analysis updated at
+                    );
+                    responses.add(response);
+                }
+            }
+            
+            logger.info("Built {} MindFlow file analysis responses", responses.size());
+            return responses;
+            
+        } catch (Exception e) {
+            logger.error("Failed to get MindFlow file analysis data: {}", e.getMessage());
+            throw new RuntimeException("Failed to get MindFlow file analysis data: " + e.getMessage());
+        }
     }
 
     public Map<String, Object> checkMindFlowServiceHealth() {

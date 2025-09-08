@@ -9,6 +9,7 @@ import com.careeros.backend.payload.response.MindFlowJobResponse;
 import com.careeros.backend.payload.response.MindFlowSessionResponse;
 import com.careeros.backend.payload.response.MindFlowConversationMessageResponse;
 import com.careeros.backend.payload.response.MessageResponse;
+import com.careeros.backend.payload.response.FileAnalysisResponse;
 import com.careeros.backend.security.UserDetailsImpl;
 import com.careeros.backend.service.MindFlowService;
 import com.careeros.backend.service.MindFlowSessionService;
@@ -97,6 +98,9 @@ public class MindFlowController {
         try {
             // Get current user from security context
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            System.out.println("🔍 MindFlow test-auth - Authentication object: " + (authentication != null ? "Present" : "Null"));
+            System.out.println("🔍 MindFlow test-auth - Authentication name: " + (authentication != null ? authentication.getName() : "N/A"));
+            System.out.println("🔍 MindFlow test-auth - isAuthenticated: " + (authentication != null ? authentication.isAuthenticated() : "N/A"));
             
             if (authentication != null && authentication.isAuthenticated() && 
                 !authentication.getName().equals("anonymousUser")) {
@@ -115,11 +119,13 @@ public class MindFlowController {
                 return ResponseEntity.ok(Map.of(
                     "message", "No authentication provided for MindFlow service",
                     "status", "anonymous",
+                    "authentication", authentication != null ? authentication.getName() : "null",
                     "timestamp", LocalDateTime.now()
                 ));
             }
             
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.ok(Map.of(
                 "message", "MindFlow service test endpoint working",
                 "error", e.getMessage(),
@@ -187,6 +193,34 @@ public class MindFlowController {
             e.printStackTrace();
             return ResponseEntity.badRequest()
                     .body(new MessageResponse("Failed to get MindFlow user jobs: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/files/analysis")
+    public ResponseEntity<?> getFileAnalysisData() {
+        try {
+            // Get current user from security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            
+            if (authentication == null || !authentication.isAuthenticated() || 
+                authentication.getName().equals("anonymousUser")) {
+                System.err.println("❌ Authentication failed - user not authenticated for MindFlow file analysis");
+                return ResponseEntity.status(403)
+                        .body(new MessageResponse("Authentication required to get MindFlow file analysis data"));
+            }
+            
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            System.out.println("📁 Getting MindFlow file analysis data for user: " + userDetails.getUsername() + " (ID: " + userDetails.getId() + ")");
+            
+            java.util.List<FileAnalysisResponse> fileAnalysisData = mindFlowService.getFileAnalysisData(userDetails.getId());
+            System.out.println("✅ MindFlow File analysis data retrieved successfully");
+            return ResponseEntity.ok(fileAnalysisData);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Failed to get MindFlow file analysis data: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("Failed to get MindFlow file analysis data: " + e.getMessage()));
         }
     }
 
