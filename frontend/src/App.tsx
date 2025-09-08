@@ -10,6 +10,7 @@ import InterviewSimulatorPage from './features/interview/components/InterviewSim
 import FuturecastPage from './features/futurecast/components/FuturecastPage';
 
 import LearningPathPage from './components/learning-path/LearningPathPage';
+import MindFlowPage from './features/mindflow/components/MindFlowPage';
 
 import './App.css';
 
@@ -47,7 +48,14 @@ function App() {
           </ProtectedRoute>
         } 
       />
-
+      <Route 
+        path="/mindflow" 
+        element={
+          <ProtectedRoute>
+            <MindFlowPage />
+          </ProtectedRoute>
+        } 
+      />
       <Route
         path="/futurecast"
         element={
