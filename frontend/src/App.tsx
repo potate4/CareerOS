@@ -12,6 +12,12 @@ import FuturecastPage from './features/futurecast/components/FuturecastPage';
 import LearningPathPage from './components/learning-path/LearningPathPage';
 import MindFlowPage from './features/mindflow/components/MindFlowPage';
 
+
+import { CandidateDashboard } from './components/candidate/CandidateDashboard';
+import { CreateJobPosting } from './components/recruiter/CreateJobPosting';
+import { CandidateListView } from './components/recruiter/CandidateListView';
+import { RecruiterDashboard } from './components/recruiter/RecruiterDashboard';
+
 import './App.css';
 
 function App() {
@@ -73,6 +79,38 @@ function App() {
           </ProtectedRoute>
         } 
 
+      />
+      <Route 
+        path="/candidate-dashboard" 
+        element={
+          <ProtectedRoute>
+            <CandidateDashboard />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/create-job-posting" 
+        element={
+          <ProtectedRoute>
+            <CreateJobPosting />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/candidate-list" 
+        element={
+          <ProtectedRoute>
+            <CandidateListView />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/recruiter-dashboard" 
+        element={
+          <ProtectedRoute>
+            <RecruiterDashboard />
+          </ProtectedRoute>
+        } 
       />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

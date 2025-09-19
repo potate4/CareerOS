@@ -8,6 +8,7 @@ from app.core.config import settings
 import numpy as np
 from app.schemas.interview import Transcript, AudioAnalysis, Pause, Emotion, InterviewFeedback
 from app.schemas.learning_path import LearningModule, AssessmentQuestion, AssessmentAnswerScore
+from app.schemas.job_posting import JobAnalysis, JobLearningModule, JobAssessmentQuestion, ExtractedSkills
 from typing import List
 from google import genai 
 from google.genai import types
@@ -126,3 +127,52 @@ def get_structured_response_assessment_answers_and_scores(prompt: str):
     parsed_response = response.parsed
     
     return parsed_response
+
+# Job Posting AI Structured Response Functions
+def get_structured_response_job_analysis(prompt: str):
+    response = client.models.generate_content(
+        model='gemini-2.0-flash',
+        contents=prompt,
+        config={
+            'temperature': 0.3,
+            'response_mime_type': 'application/json',
+            'response_schema': JobAnalysis,
+        },
+    )
+    return response.parsed
+
+def get_structured_response_job_learning_modules(prompt: str):
+    response = client.models.generate_content(
+        model='gemini-2.0-flash',
+        contents=prompt,
+        config={
+            'temperature': 0.5,
+            'response_mime_type': 'application/json',
+            'response_schema': list[JobLearningModule],
+        },
+    )
+    return response.parsed
+
+def get_structured_response_job_assessment_questions(prompt: str):
+    response = client.models.generate_content(
+        model='gemini-2.0-flash',
+        contents=prompt,
+        config={
+            'temperature': 0.4,
+            'response_mime_type': 'application/json',
+            'response_schema': list[JobAssessmentQuestion],
+        },
+    )
+    return response.parsed
+
+def get_structured_response_extracted_skills(prompt: str):
+    response = client.models.generate_content(
+        model='gemini-2.0-flash',
+        contents=prompt,
+        config={
+            'temperature': 0.2,
+            'response_mime_type': 'application/json',
+            'response_schema': ExtractedSkills,
+        },
+    )
+    return response.parsed

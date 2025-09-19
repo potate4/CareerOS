@@ -10,7 +10,11 @@ import {
   TrendingUp,
   FileText,
   Users,
-  BookOpen
+  BookOpen,
+  PlusCircle,
+  UserCheck,
+  ClipboardCheck,
+  MessageSquare
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -71,28 +75,34 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
       description: 'AI Softskill Development Coach'
     },
     {
-      name: 'Job Posting',
-      href: '/posting',
-      icon: FileText,
-      description: 'Gamified AI Skill Development'
+      name: 'Job Postings',
+      href: '/job-postings',
+      icon: Briefcase,
+      description: 'Create and manage job postings'
     },
     {
-      name: 'Candidate Matching',
-      href: '/matching',
-      icon: Users,
-      description: 'AI Softskill Development Coach'
+      name: 'Create Job Posting',
+      href: '/job-postings/create',
+      icon: PlusCircle,
+      description: 'Create new job posting with AI assistance'
     },
     {
-      name: 'Assesment Creator',
-      href: '/assesment',
-      icon: FileText,
-      description: 'Sets up interview questions and sends them to candidates'
+      name: 'Candidates',
+      href: '/candidates',
+      icon: UserCheck,
+      description: 'View and manage candidate applications'
+    },
+    {
+      name: 'Assessment Creator',
+      href: '/assessment',
+      icon: ClipboardCheck,
+      description: 'Create interview assessments and questions'
     },
     {
       name: 'Interview Evaluation',
       href: '/evaluation',
-      icon: Users,
-      description: 'Evaluates interview performance and provides feedback'
+      icon: MessageSquare,
+      description: 'Evaluate candidate performance and provide feedback'
     }
   ];
 
