@@ -2,20 +2,15 @@ import React, { useState } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { 
   BookOpen, 
-  BarChart3, 
-  TrendingUp, 
-  Settings,
   Plus,
   Target,
+  TrendingUp,
   Clock,
   Award,
   List
 } from 'lucide-react';
 import AuthenticatedLayout from '../layout/AuthenticatedLayout';
 import GenerateLearningPath from './GenerateLearningPath';
-// import CurrentStatus from './CurrentStatus';
-// import ProgressUpdate from './ProgressUpdate';
-// import Statistics from './Statistics';
 import AllLearningPaths from './AllLearningPaths';
 
 const LearningPathPage: React.FC = () => {
@@ -24,9 +19,6 @@ const LearningPathPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState(() => {
     const path = location.pathname;
     if (path.includes('/generate')) return 'generate';
-    if (path.includes('/current')) return 'current';
-    if (path.includes('/progress')) return 'progress';
-    if (path.includes('/stats')) return 'stats';
     if (path.includes('/all-paths')) return 'all-paths';
     return 'generate';
   });
@@ -36,35 +28,14 @@ const LearningPathPage: React.FC = () => {
       id: 'generate',
       name: 'Generate Path',
       icon: Plus,
-      description: 'Create new learning path',
+      description: 'Create new AI-powered learning path',
       path: '/learning-path/generate'
     },
     {
-      id: 'current',
-      name: 'Current Status',
-      icon: Target,
-      description: 'View current progress',
-      path: '/learning-path/current'
-    },
-    {
-      id: 'progress',
-      name: 'Update Progress',
-      icon: TrendingUp,
-      description: 'Update module progress',
-      path: '/learning-path/progress'
-    },
-    {
-      id: 'stats',
-      name: 'Statistics',
-      icon: BarChart3,
-      description: 'View detailed stats',
-      path: '/learning-path/stats'
-    },
-    {
       id: 'all-paths',
-      name: 'All Learning Paths',
+      name: 'My Learning Paths',
       icon: List,
-      description: 'View all saved learning paths',
+      description: 'View and manage all learning paths',
       path: '/learning-path/all-paths'
     }
   ];
@@ -84,12 +55,12 @@ const LearningPathPage: React.FC = () => {
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center gap-4 mb-4">
-              <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600">
+              <div className="p-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-700 shadow-lg">
                 <BookOpen className="h-8 w-8 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-slate-800">Learning Path</h1>
-                <p className="text-slate-600 mt-1">Personalized AI-powered learning journey</p>
+                <h1 className="text-3xl font-bold text-slate-800">Learning Paths</h1>
+                <p className="text-slate-600 mt-1">AI-powered personalized learning journeys</p>
               </div>
             </div>
             
@@ -97,8 +68,8 @@ const LearningPathPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
               <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-blue-100">
-                    <Target className="h-5 w-5 text-blue-600" />
+                  <div className="p-2 rounded-lg bg-slate-100">
+                    <Target className="h-5 w-5 text-slate-600" />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-slate-600">Career Goal</p>
@@ -109,8 +80,8 @@ const LearningPathPage: React.FC = () => {
               
               <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-green-100">
-                    <TrendingUp className="h-5 w-5 text-green-600" />
+                  <div className="p-2 rounded-lg bg-slate-100">
+                    <TrendingUp className="h-5 w-5 text-slate-600" />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-slate-600">Progress</p>
@@ -121,8 +92,8 @@ const LearningPathPage: React.FC = () => {
               
               <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-purple-100">
-                    <Clock className="h-5 w-5 text-purple-600" />
+                  <div className="p-2 rounded-lg bg-slate-100">
+                    <Clock className="h-5 w-5 text-slate-600" />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-slate-600">Time Left</p>
@@ -133,8 +104,8 @@ const LearningPathPage: React.FC = () => {
               
               <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-orange-100">
-                    <Award className="h-5 w-5 text-orange-600" />
+                  <div className="p-2 rounded-lg bg-slate-100">
+                    <Award className="h-5 w-5 text-slate-600" />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-slate-600">Modules</p>
@@ -158,7 +129,7 @@ const LearningPathPage: React.FC = () => {
                     onClick={() => handleTabChange(tab.id)}
                     className={`flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
                       isActive
-                        ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
+                        ? 'bg-gradient-to-r from-indigo-600 to-purple-700 text-white shadow-md'
                         : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
                     }`}
                   >
@@ -175,9 +146,6 @@ const LearningPathPage: React.FC = () => {
             <Routes>
               <Route path="/" element={<Navigate to="/learning-path/generate" replace />} />
               <Route path="/generate" element={<GenerateLearningPath />} />
-              {/* <Route path="/current" element={<CurrentStatus />} />
-              <Route path="/progress" element={<ProgressUpdate />} />
-              <Route path="/stats" element={<Statistics />} /> */}
               <Route path="/all-paths" element={<AllLearningPaths />} />
             </Routes>
           </div>

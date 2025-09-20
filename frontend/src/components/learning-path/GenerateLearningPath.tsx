@@ -69,7 +69,7 @@ const GenerateLearningPath: React.FC = () => {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-4">
-            <div className="p-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600">
+            <div className="p-2 rounded-full bg-gradient-to-r from-slate-600 to-slate-700">
               <Brain className="h-6 w-6 text-white" />
             </div>
             <h2 className="text-2xl font-bold text-slate-800">AI-Powered Learning Path</h2>
@@ -160,7 +160,7 @@ const GenerateLearningPath: React.FC = () => {
           </div>
 
           {/* Current Skills Section */}
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
+          <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl p-6 border border-slate-200">
             <div className="flex items-center gap-3 mb-4">
               <BookOpen className="h-6 w-6 text-green-600" />
               <h3 className="text-xl font-semibold text-slate-800">Current Skills</h3>
@@ -257,7 +257,7 @@ const GenerateLearningPath: React.FC = () => {
           </div>
 
           {/* AI Features Notice */}
-          <div className="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-xl p-6 border border-cyan-100">
+          <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl p-6 border border-slate-200">
             <div className="flex items-start gap-3">
               <Brain className="h-6 w-6 text-cyan-600 mt-1" />
               <div>
@@ -281,7 +281,7 @@ const GenerateLearningPath: React.FC = () => {
               className={`inline-flex items-center gap-2 px-8 py-4 rounded-xl text-lg font-semibold transition-all duration-200 ${
                 isGenerating || !formData.careerGoal
                   ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:scale-105'
+                  : 'bg-gradient-to-r from-slate-600 to-slate-700 text-white hover:from-slate-700 hover:to-slate-800 shadow-lg hover:shadow-xl transform hover:scale-105'
               }`}
             >
               {isGenerating ? (

@@ -31,51 +31,59 @@ export const CandidateDashboard: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      // Fetch data with individual error handling for better resilience
-      let dashboardStats = null;
-      let candidateApplications: CandidateSubmission[] = [];
-      let availableJobs: JobPosting[] = [];
       
-      try {
-        candidateApplications = await candidateApplicationAPI.getCandidateApplications();
-      } catch (err) {
-        console.error('Failed to load applications:', err);
-      }
+      // Fetch data directly like recruiter dashboard - no API dependency
+      const [candidateApplications, availableJobs] = await Promise.all([
+        candidateApplicationAPI.getCandidateApplications(),
+        jobPostingAPI.getAllActiveJobPostings()
+      ]);
+
+      // Calculate stats locally like recruiter dashboard
+      const inProgressStatuses = [
+        ApplicationStatus.IN_REVIEW, 
+        ApplicationStatus.ASSESSMENT_PHASE,
+        ApplicationStatus.LEARNING_PHASE,
+        ApplicationStatus.INTERVIEW_SCHEDULED
+      ];
       
-      try {
-        availableJobs = await jobPostingAPI.getAllActiveJobPostings();
-      } catch (err) {
-        console.error('Failed to load jobs:', err);
-      }
+      const completedStatuses = [
+        ApplicationStatus.ACCEPTED,
+        ApplicationStatus.REJECTED,
+        ApplicationStatus.WITHDRAWN,
+        ApplicationStatus.INTERVIEW_COMPLETED
+      ];
+
+      const inProgress = candidateApplications.filter(app => inProgressStatuses.includes(app.applicationStatus)).length;
+      const completed = candidateApplications.filter(app => completedStatuses.includes(app.applicationStatus)).length;
+
+      const scoresWithValues = candidateApplications
+        .map(app => app.averageAssessmentScore)
+        .filter(score => score !== undefined && score !== null) as number[];
       
-      try {
-        dashboardStats = await dashboardAPI.getCandidateStats();
-      } catch (err) {
-        console.error('Failed to load stats:', err);
-        // Create fallback stats
-        dashboardStats = {
-          totalApplications: candidateApplications.length,
-          inProgress: candidateApplications.filter(app => 
-            app.applicationStatus === ApplicationStatus.IN_REVIEW || 
-            app.applicationStatus === ApplicationStatus.ASSESSMENT_PHASE ||
-            app.applicationStatus === ApplicationStatus.LEARNING_PHASE
-          ).length,
-          completed: candidateApplications.filter(app => 
-            app.applicationStatus === ApplicationStatus.ACCEPTED ||
-            app.applicationStatus === ApplicationStatus.REJECTED ||
-            app.applicationStatus === ApplicationStatus.WITHDRAWN
-          ).length,
-          averageScore: candidateApplications.length > 0 
-            ? candidateApplications.reduce((acc, app) => acc + (app.averageAssessmentScore || 0), 0) / candidateApplications.length 
-            : 0,
-          recentApplications: candidateApplications.slice(0, 5),
-          recommendedJobs: availableJobs.slice(0, 6)
-        };
-      }
+      const averageScore = scoresWithValues.length > 0 
+        ? scoresWithValues.reduce((sum, score) => sum + score, 0) / scoresWithValues.length 
+        : undefined;
+
+      const recentApplications = candidateApplications
+        .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
+        .slice(0, 10);
+
+      const recommendedJobs = availableJobs
+        .sort((a, b) => (b.totalApplications || 0) - (a.totalApplications || 0))
+        .slice(0, 6);
+
+      const dashboardStats = {
+        totalApplications: candidateApplications.length,
+        inProgress,
+        completed,
+        averageScore,
+        recentApplications,
+        recommendedJobs
+      };
 
       setStats(dashboardStats);
       setApplications(candidateApplications);
-      setRecommendedJobs(availableJobs.slice(0, 6));
+      setRecommendedJobs(recommendedJobs);
       
     } catch (err: unknown) {
       console.error('Critical error loading dashboard:', err);
@@ -90,13 +98,13 @@ export const CandidateDashboard: React.FC = () => {
 
   const getStatusColor = (status: ApplicationStatus) => {
     const colors = {
-      [ApplicationStatus.APPLIED]: 'bg-blue-100 text-blue-800',
+      [ApplicationStatus.APPLIED]: 'bg-slate-100 text-slate-800',
       [ApplicationStatus.IN_REVIEW]: 'bg-yellow-100 text-yellow-800',
       [ApplicationStatus.LEARNING_PHASE]: 'bg-purple-100 text-purple-800',
       [ApplicationStatus.ASSESSMENT_PHASE]: 'bg-indigo-100 text-indigo-800',
-      [ApplicationStatus.INTERVIEW_SCHEDULED]: 'bg-green-100 text-green-800',
-      [ApplicationStatus.INTERVIEW_COMPLETED]: 'bg-teal-100 text-teal-800',
-      [ApplicationStatus.ACCEPTED]: 'bg-green-100 text-green-800',
+      [ApplicationStatus.INTERVIEW_SCHEDULED]: 'bg-indigo-100 text-indigo-800',
+      [ApplicationStatus.INTERVIEW_COMPLETED]: 'bg-purple-100 text-purple-800',
+      [ApplicationStatus.ACCEPTED]: 'bg-indigo-100 text-indigo-800',
       [ApplicationStatus.REJECTED]: 'bg-red-100 text-red-800',
       [ApplicationStatus.WITHDRAWN]: 'bg-gray-100 text-gray-800'
     };
@@ -104,9 +112,9 @@ export const CandidateDashboard: React.FC = () => {
   };
 
   const getProgressColor = (progress: number) => {
-    if (progress >= 80) return 'bg-green-500';
-    if (progress >= 60) return 'bg-yellow-500';
-    if (progress >= 40) return 'bg-blue-500';
+    if (progress >= 80) return 'bg-indigo-500';
+    if (progress >= 60) return 'bg-purple-500';
+    if (progress >= 40) return 'bg-slate-500';
     return 'bg-gray-500';
   };
 
@@ -149,7 +157,7 @@ export const CandidateDashboard: React.FC = () => {
           <div className="mt-4 text-center">
             <button
               onClick={handleRetry}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-lg hover:from-indigo-700 hover:to-purple-800 transition-all shadow-md"
             >
               Retry Loading Dashboard
             </button>
@@ -175,7 +183,7 @@ export const CandidateDashboard: React.FC = () => {
         </div>
         <button
           onClick={() => window.location.href = '/jobs'}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white rounded-lg transition-all shadow-md"
         >
           <Search className="h-4 w-4 mr-2" />
           Browse Jobs

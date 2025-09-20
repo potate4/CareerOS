@@ -6,15 +6,17 @@ import { config } from '../config/env';
 interface AuthState {
   user: User | null;
   isLoading: boolean;
+  isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<void>;
   signup: (userData: SignupRequest) => Promise<void>;
   logout: () => void;
   initializeAuth: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isLoading: true,
+  isAuthenticated: false,
 
   initializeAuth: () => {
     const token = localStorage.getItem(config.tokenKey);
@@ -23,15 +25,15 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (token && userData) {
       try {
         const user = JSON.parse(userData);
-        set({ user, isLoading: false });
+        set({ user, isLoading: false, isAuthenticated: true });
       } catch (error) {
         console.error('Error parsing user data:', error);
         localStorage.removeItem(config.tokenKey);
         localStorage.removeItem(config.userKey);
-        set({ user: null, isLoading: false });
+        set({ user: null, isLoading: false, isAuthenticated: false });
       }
     } else {
-      set({ isLoading: false });
+      set({ isLoading: false, isAuthenticated: false });
     }
   },
 
@@ -51,7 +53,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       localStorage.setItem(config.tokenKey, response.token);
       localStorage.setItem(config.userKey, JSON.stringify(userData));
       //console.log('User logged in:', response.token, config.tokenKey, userData);
-      set({ user: userData });
+      set({ user: userData, isAuthenticated: true });
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -70,6 +72,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     localStorage.removeItem(config.tokenKey);
     localStorage.removeItem(config.userKey);
-    set({ user: null });
+    set({ user: null, isAuthenticated: false });
   },
 })); 

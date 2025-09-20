@@ -74,13 +74,19 @@ export const JobDetails: React.FC = () => {
 
       // Load job details
       const jobResponse = await jobPostingAPI.getJobPosting(parseInt(jobId!));
-      setJob(jobResponse);
+      setJob({
+        ...jobResponse,
+        requiredSkills: jobResponse.requiredSkills || ''
+      });
 
           // Load learning path if it exists
           if (jobResponse.hasLearningPath) {
             try {
               const learningResponse = await jobPostingAPI.getJobLearningPath(parseInt(jobId!));
-              setLearningModules(learningResponse.modules || []);
+              setLearningModules((learningResponse.modules || []).map(module => ({
+                ...module,
+                estimatedHours: module.estimatedHours || 0
+              })));
             } catch (err) {
               console.error('Error loading learning path:', err);
             }
@@ -115,7 +121,10 @@ export const JobDetails: React.FC = () => {
     
     try {
       const updatedJob = await jobPostingAPI.toggleJobPostingStatus(job.id);
-      setJob(updatedJob);
+      setJob({
+        ...updatedJob,
+        requiredSkills: updatedJob.requiredSkills || ''
+      });
       setSuccess(`Job posting ${updatedJob.isActive ? 'activated' : 'deactivated'} successfully!`);
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: unknown) {

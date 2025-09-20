@@ -12,14 +12,14 @@ const Alert: React.FC<AlertProps> = ({ type, message, onClose, className = '' })
     success: 'bg-green-50 border-green-200 text-green-700',
     error: 'bg-red-50 border-red-200 text-red-700',
     warning: 'bg-yellow-50 border-yellow-200 text-yellow-700',
-    info: 'bg-blue-50 border-blue-200 text-blue-700'
+    info: 'bg-slate-50 border-slate-200 text-slate-700'
   };
 
   const iconStyles = {
     success: 'text-green-400',
     error: 'text-red-400',
     warning: 'text-yellow-400',
-    info: 'text-blue-400'
+    info: 'text-slate-400'
   };
 
   const icons = {

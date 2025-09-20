@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Briefcase, MapPin, DollarSign, Clock, Sparkles } from 'lucide-react';
+import { ArrowLeft, Briefcase, MapPin, DollarSign, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { jobPostingAPI } from '../../services/jobPostingAPI';
-import { JobPostingRequest, ExperienceLevel, JobType } from '../../types/jobPosting';
+import { JobPostingRequest, ExperienceLevel, JobType, JobPosting } from '../../types/jobPosting';
 import  LoadingSpinner  from '../common/LoadingSpinner';
 import  Alert  from '../common/Alert';
 import AuthenticatedLayout from '../layout/AuthenticatedLayout';
@@ -25,7 +25,7 @@ export const CreateJobPosting: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [createdJob, setCreatedJob] = useState<any>(null);
+  const [createdJob, setCreatedJob] = useState<JobPosting | null>(null);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -67,9 +67,12 @@ export const CreateJobPosting: React.FC = () => {
         navigate('/recruiter-dashboard');
       }, 3000);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('❌ [CREATE_JOB] Error:', err);
-      setError(err.response?.data?.message || 'Failed to create job posting');
+      const errorMessage = err && typeof err === 'object' && 'response' in err 
+        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to create job posting'
+        : 'Failed to create job posting';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -368,7 +371,7 @@ export const CreateJobPosting: React.FC = () => {
           >
             {loading ? (
               <>
-                <LoadingSpinner size="small" />
+                <LoadingSpinner size="sm" />
                 <span className="ml-2">Creating Job Posting...</span>
               </>
             ) : (

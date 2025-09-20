@@ -216,47 +216,79 @@ export const dashboardAPI = {
   },
 
   getCandidateStats: async (): Promise<CandidateDashboardStats> => {
-    const [applications, activeJobs] = await Promise.all([
-      candidateApplicationAPI.getCandidateApplications(),
-      jobPostingAPI.getAllActiveJobPostings()
-    ]);
+    try {
+      // Fetch data with individual error handling for better resilience
+      let applications: CandidateSubmission[] = [];
+      let activeJobs: JobPosting[] = [];
 
-    const inProgress = applications.filter(app => 
-      app.applicationStatus === ApplicationStatus.LEARNING_PHASE ||
-      app.applicationStatus === ApplicationStatus.ASSESSMENT_PHASE ||
-      app.applicationStatus === ApplicationStatus.IN_REVIEW
-    ).length;
+      try {
+        applications = await candidateApplicationAPI.getCandidateApplications();
+        console.log('📊 Dashboard API - Loaded applications:', applications.length);
+      } catch (err) {
+        console.error('📊 Dashboard API - Failed to load applications:', err);
+        applications = [];
+      }
 
-    const completed = applications.filter(app => 
-      app.applicationStatus === ApplicationStatus.ACCEPTED ||
-      app.applicationStatus === ApplicationStatus.REJECTED ||
-      app.applicationStatus === ApplicationStatus.INTERVIEW_COMPLETED
-    ).length;
+      try {
+        activeJobs = await jobPostingAPI.getAllActiveJobPostings();
+        console.log('📊 Dashboard API - Loaded active jobs:', activeJobs.length);
+      } catch (err) {
+        console.error('📊 Dashboard API - Failed to load active jobs:', err);
+        activeJobs = [];
+      }
 
-    const scoresWithValues = applications
-      .map(app => app.averageAssessmentScore)
-      .filter(score => score !== undefined && score !== null) as number[];
-    
-    const averageScore = scoresWithValues.length > 0 
-      ? scoresWithValues.reduce((sum, score) => sum + score, 0) / scoresWithValues.length
-      : undefined;
+      const inProgressStatuses = [
+        ApplicationStatus.LEARNING_PHASE,
+        ApplicationStatus.ASSESSMENT_PHASE,
+        ApplicationStatus.IN_REVIEW,
+        ApplicationStatus.INTERVIEW_SCHEDULED
+      ];
 
-    const recentApplications = applications
-      .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
-      .slice(0, 10);
+      const completedStatuses = [
+        ApplicationStatus.ACCEPTED,
+        ApplicationStatus.REJECTED,
+        ApplicationStatus.INTERVIEW_COMPLETED,
+        ApplicationStatus.WITHDRAWN
+      ];
 
-    const recommendedJobs = activeJobs
-      .sort((a, b) => b.totalApplications - a.totalApplications)
-      .slice(0, 6);
+      const inProgress = applications.filter(app => inProgressStatuses.includes(app.applicationStatus)).length;
+      const completed = applications.filter(app => completedStatuses.includes(app.applicationStatus)).length;
 
-    return {
-      totalApplications: applications.length,
-      inProgress,
-      completed,
-      averageScore,
-      recentApplications,
-      recommendedJobs
-    };
+      const scoresWithValues = applications
+        .map(app => app.averageAssessmentScore)
+        .filter(score => score !== undefined && score !== null) as number[];
+      
+      const averageScore = scoresWithValues.length > 0 
+        ? scoresWithValues.reduce((sum, score) => sum + score, 0) / scoresWithValues.length
+        : undefined;
+
+      const recentApplications = applications
+        .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
+        .slice(0, 10);
+
+      const recommendedJobs = activeJobs
+        .sort((a, b) => (b.totalApplications || 0) - (a.totalApplications || 0))
+        .slice(0, 6);
+
+      console.log('📊 Dashboard API - Final stats:', {
+        totalApplications: applications.length,
+        inProgress,
+        completed,
+        recommendedJobsCount: recommendedJobs.length
+      });
+
+      return {
+        totalApplications: applications.length,
+        inProgress,
+        completed,
+        averageScore,
+        recentApplications,
+        recommendedJobs
+      };
+    } catch (error) {
+      console.error('📊 Dashboard API - Critical error in getCandidateStats:', error);
+      throw error;
+    }
   }
 };
 

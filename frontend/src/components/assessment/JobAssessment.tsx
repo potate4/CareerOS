@@ -155,9 +155,10 @@ export const JobAssessment: React.FC = () => {
     
     // Handle different question types
     if (question.question_type === 'multiple_choice' && question.options) {
+      const optionsArray = Array.isArray(question.options) ? question.options : JSON.parse(question.options);
       return (
         <div className="space-y-3">
-          {question.options.map((option, index) => (
+          {optionsArray.map((option: string, index: number) => (
             <label key={index} className="flex items-center p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer">
               <input
                 type="radio"

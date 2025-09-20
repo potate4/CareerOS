@@ -49,7 +49,7 @@ const Navigation: React.FC = () => {
                   className="max-w-xs bg-white flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 >
                   <span className="sr-only">Open user menu</span>
-                  <div className="h-8 w-8 rounded-full bg-indigo-600 flex items-center justify-center">
+                  <div className="h-8 w-8 rounded-full bg-slate-600 flex items-center justify-center">
                     <span className="text-white text-sm font-medium">
                       {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
                     </span>
@@ -123,7 +123,7 @@ const Navigation: React.FC = () => {
         <div className="pt-2 pb-3 space-y-1">
           <Link
             to="/dashboard"
-            className="bg-indigo-50 border-indigo-500 text-indigo-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
+            className="bg-slate-50 border-slate-500 text-slate-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
           >
             Dashboard
           </Link>
@@ -143,7 +143,7 @@ const Navigation: React.FC = () => {
         <div className="pt-4 pb-3 border-t border-gray-200">
           <div className="flex items-center px-4">
             <div className="flex-shrink-0">
-              <div className="h-10 w-10 rounded-full bg-indigo-600 flex items-center justify-center">
+              <div className="h-10 w-10 rounded-full bg-slate-600 flex items-center justify-center">
                 <span className="text-white text-sm font-medium">
                   {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
                 </span>

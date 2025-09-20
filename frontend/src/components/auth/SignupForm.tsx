@@ -139,7 +139,7 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
           )}
           
           {successMessage && (
-            <div className="bg-green-100 border border-green-300 text-green-800 px-4 py-3 rounded-md">
+            <div className="bg-indigo-100 border border-indigo-300 text-indigo-800 px-4 py-3 rounded-md">
               {successMessage}
             </div>
           )}
@@ -239,7 +239,7 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
                 id="role"
                 name="role"
                 required
-                value={formData.role[0] || 'candidate'}
+                value={formData.role?.[0] || 'candidate'}
                 onChange={handleChange}
                 className="mt-1 appearance-none relative block w-full px-3 py-2 border border-slate-300 placeholder-slate-500 text-slate-900 rounded-md focus:outline-none focus:ring-slate-600 focus:border-slate-600 focus:z-10 sm:text-sm bg-white"
               >
