@@ -1,36 +1,88 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Briefcase, TrendingUp, Clock, Award, Search, MapPin, Building, ExternalLink } from 'lucide-react';
 import { candidateApplicationAPI, jobPostingAPI, dashboardAPI } from '../../services/jobPostingAPI';
 import { CandidateSubmission, JobPosting, CandidateDashboardStats, ApplicationStatus } from '../../types/jobPosting';
+import { JobPostingCard } from '../job/JobPostingCard';
 import  LoadingSpinner from '../common/LoadingSpinner';
 import  Alert  from '../common/Alert';
+import AuthenticatedLayout from '../layout/AuthenticatedLayout';
 
 export const CandidateDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState<CandidateDashboardStats | null>(null);
   const [applications, setApplications] = useState<CandidateSubmission[]>([]);
   const [recommendedJobs, setRecommendedJobs] = useState<JobPosting[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'applications' | 'jobs'>('overview');
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
 
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1);
+    fetchDashboardData();
+  };
+
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [dashboardStats, candidateApplications, availableJobs] = await Promise.all([
-        dashboardAPI.getCandidateStats(),
-        candidateApplicationAPI.getCandidateApplications(),
-        jobPostingAPI.getAllActiveJobPostings()
-      ]);
+      setError(null);
+      // Fetch data with individual error handling for better resilience
+      let dashboardStats = null;
+      let candidateApplications: CandidateSubmission[] = [];
+      let availableJobs: JobPosting[] = [];
+      
+      try {
+        candidateApplications = await candidateApplicationAPI.getCandidateApplications();
+      } catch (err) {
+        console.error('Failed to load applications:', err);
+      }
+      
+      try {
+        availableJobs = await jobPostingAPI.getAllActiveJobPostings();
+      } catch (err) {
+        console.error('Failed to load jobs:', err);
+      }
+      
+      try {
+        dashboardStats = await dashboardAPI.getCandidateStats();
+      } catch (err) {
+        console.error('Failed to load stats:', err);
+        // Create fallback stats
+        dashboardStats = {
+          totalApplications: candidateApplications.length,
+          inProgress: candidateApplications.filter(app => 
+            app.applicationStatus === ApplicationStatus.IN_REVIEW || 
+            app.applicationStatus === ApplicationStatus.ASSESSMENT_PHASE ||
+            app.applicationStatus === ApplicationStatus.LEARNING_PHASE
+          ).length,
+          completed: candidateApplications.filter(app => 
+            app.applicationStatus === ApplicationStatus.ACCEPTED ||
+            app.applicationStatus === ApplicationStatus.REJECTED ||
+            app.applicationStatus === ApplicationStatus.WITHDRAWN
+          ).length,
+          averageScore: candidateApplications.length > 0 
+            ? candidateApplications.reduce((acc, app) => acc + (app.averageAssessmentScore || 0), 0) / candidateApplications.length 
+            : 0,
+          recentApplications: candidateApplications.slice(0, 5),
+          recommendedJobs: availableJobs.slice(0, 6)
+        };
+      }
 
       setStats(dashboardStats);
       setApplications(candidateApplications);
-      setRecommendedJobs(availableJobs.slice(0, 6)); // Show top 6 recommended jobs
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load dashboard data');
+      setRecommendedJobs(availableJobs.slice(0, 6));
+      
+    } catch (err: unknown) {
+      console.error('Critical error loading dashboard:', err);
+      const errorMessage = err && typeof err === 'object' && 'response' in err 
+        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to load dashboard data'
+        : 'Failed to load dashboard data';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -59,40 +111,62 @@ export const CandidateDashboard: React.FC = () => {
   };
 
   const handleViewJob = (jobId: number) => {
-    window.location.href = `/jobs/${jobId}`;
+    navigate(`/jobs/${jobId}`);
   };
 
   const handleApplyToJob = async (jobId: number) => {
     try {
       await candidateApplicationAPI.applyForJob({ jobPostingId: jobId });
       await fetchDashboardData(); // Refresh data
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to apply to job');
+    } catch (err: unknown) {
+      const errorMessage = err && typeof err === 'object' && 'response' in err 
+        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to apply to job'
+        : 'Failed to apply to job';
+      setError(errorMessage);
     }
   };
 
   const handleViewApplication = (applicationId: number) => {
-    window.location.href = `/applications/${applicationId}`;
+    // TODO: Implement application details view
+    alert(`Application details view coming soon! Application ID: ${applicationId}`);
   };
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <LoadingSpinner />
-      </div>
+      <AuthenticatedLayout>
+        <div className="flex justify-center items-center h-64">
+          <LoadingSpinner />
+        </div>
+      </AuthenticatedLayout>
     );
   }
 
   if (error) {
     return (
-      <div className="max-w-6xl mx-auto p-6">
-        <Alert type="error" message={error} />
-      </div>
+      <AuthenticatedLayout>
+        <div className="max-w-6xl mx-auto p-6">
+          <Alert type="error" message={error} />
+          <div className="mt-4 text-center">
+            <button
+              onClick={handleRetry}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Retry Loading Dashboard
+            </button>
+            {retryCount > 0 && (
+              <p className="text-sm text-slate-600 mt-2">
+                Retry attempts: {retryCount}
+              </p>
+            )}
+          </div>
+        </div>
+      </AuthenticatedLayout>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <AuthenticatedLayout>
+      <div className="max-w-6xl mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -344,12 +418,31 @@ export const CandidateDashboard: React.FC = () => {
                       {new Date(application.submittedAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => handleViewApplication(application.id)}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        View Details
-                      </button>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleViewApplication(application.id)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          View Details
+                        </button>
+                        {application.applicationStatus === ApplicationStatus.APPLIED && (
+                          <button
+                            onClick={() => navigate(`/job-assessment/${application.jobPostingId}`)}
+                            className="text-green-600 hover:text-green-900"
+                          >
+                            Take Assessment
+                          </button>
+                        )}
+                        {(application.applicationStatus === ApplicationStatus.ASSESSMENT_PHASE ||
+                          application.applicationStatus === ApplicationStatus.IN_REVIEW) && (
+                          <button
+                            onClick={() => navigate(`/job-assessment/${application.jobPostingId}`)}
+                            className="text-purple-600 hover:text-purple-900"
+                          >
+                            View Results
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -365,69 +458,19 @@ export const CandidateDashboard: React.FC = () => {
             const hasApplied = applications.some(app => app.jobPostingId === job.id);
             
             return (
-              <div key={job.id} className="bg-white p-6 rounded-lg shadow border hover:shadow-md transition-shadow">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">{job.jobTitle}</h3>
-                    <p className="text-gray-600 flex items-center">
-                      <Building className="h-4 w-4 mr-1" />
-                      {job.company}
-                    </p>
-                    {job.location && (
-                      <p className="text-gray-500 flex items-center mt-1">
-                        <MapPin className="h-4 w-4 mr-1" />
-                        {job.location}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    {job.hasLearningPath && (
-                      <div className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-medium">
-                        Learning Path
-                      </div>
-                    )}
-                    {job.hasAssessments && (
-                      <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
-                        Assessment
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <p className="text-gray-700 text-sm mb-4 line-clamp-3">
-                  {job.jobDescription.substring(0, 150)}...
-                </p>
-
-                <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                  <div className="text-sm text-gray-500">
-                    {job.totalApplications} applications
-                  </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleViewJob(job.id)}
-                      className="px-3 py-1 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors text-sm"
-                    >
-                      View Details
-                    </button>
-                    {hasApplied ? (
-                      <span className="px-3 py-1 bg-green-100 text-green-800 rounded text-sm font-medium">
-                        Applied
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => handleApplyToJob(job.id)}
-                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors text-sm"
-                      >
-                        Apply Now
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <JobPostingCard
+                key={job.id}
+                job={job}
+                onViewDetails={handleViewJob}
+                onApply={handleApplyToJob}
+                isApplied={hasApplied}
+                className="h-full"
+              />
             );
           })}
         </div>
       )}
-    </div>
+      </div>
+    </AuthenticatedLayout>
   );
 };

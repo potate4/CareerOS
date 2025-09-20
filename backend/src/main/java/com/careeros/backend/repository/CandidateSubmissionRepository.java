@@ -38,4 +38,8 @@ public interface CandidateSubmissionRepository extends JpaRepository<CandidateSu
     
     @Query("SELECT cs FROM CandidateSubmission cs WHERE cs.jobPosting.id = :jobPostingId AND cs.learningPathCompleted = true ORDER BY cs.averageAssessmentScore DESC")
     List<CandidateSubmission> findQualifiedCandidatesByJobPostingIdOrderByScoreDesc(@Param("jobPostingId") Long jobPostingId);
+    
+    List<CandidateSubmission> findByJobPostingId(Long jobPostingId);
+    
+    List<CandidateSubmission> findByJobPostingIdOrderByOverallScoreDesc(Long jobPostingId);
 }

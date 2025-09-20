@@ -1,51 +1,109 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Briefcase, Users, TrendingUp, Eye, Edit, ToggleLeft, ToggleRight } from 'lucide-react';
-import { jobPostingAPI, candidateApplicationAPI, dashboardAPI } from '../../services/jobPostingAPI';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus, Briefcase, Users, TrendingUp, Eye, Edit, ToggleLeft, ToggleRight, RefreshCw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { jobPostingAPI, candidateApplicationAPI } from '../../services/jobPostingAPI';
 import { JobPosting, CandidateSubmission, RecruiterDashboardStats, ApplicationStatus } from '../../types/jobPosting';
 import  LoadingSpinner  from '../common/LoadingSpinner';
 import  Alert  from '../common/Alert';
+import AuthenticatedLayout from '../layout/AuthenticatedLayout';
 
 interface RecruiterDashboardProps {
   jobId?: number; // Optional - if provided, show candidates for specific job
 }
 
 export const RecruiterDashboard: React.FC<RecruiterDashboardProps> = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState<RecruiterDashboardStats | null>(null);
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [recentCandidates, setRecentCandidates] = useState<CandidateSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'jobs' | 'candidates'>('overview');
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
-      const [dashboardStats, jobPostings, candidates] = await Promise.all([
-        dashboardAPI.getRecruiterStats(),
+      
+      // Fetch base data once
+      const [jobPostings, candidates] = await Promise.all([
         jobPostingAPI.getRecruiterJobPostings(),
         candidateApplicationAPI.getAllCandidatesForRecruiter()
       ]);
 
+      // Calculate stats locally instead of making additional API calls
+      const activeJobs = jobPostings.filter(job => job.isActive);
+      const recentCandidates = candidates
+        .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
+        .slice(0, 10);
+      
+      const recentApplications = candidates.filter(candidate => {
+        const submittedDate = new Date(candidate.submittedAt);
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        return submittedDate >= weekAgo;
+      }).length;
+
+      const topPerformingJobs = jobPostings
+        .sort((a, b) => b.totalApplications - a.totalApplications)
+        .slice(0, 5);
+
+      const dashboardStats: RecruiterDashboardStats = {
+        totalJobs: jobPostings.length,
+        activeJobs: activeJobs.length,
+        totalApplications: candidates.length,
+        recentApplications,
+        averageApplicationsPerJob: jobPostings.length > 0 ? candidates.length / jobPostings.length : 0,
+        topPerformingJobs,
+        recentCandidates
+      };
+
       setStats(dashboardStats);
       setJobs(jobPostings);
       setRecentCandidates(candidates.slice(0, 10));
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load dashboard data');
+    } catch (err: unknown) {
+      const errorMessage = err && typeof err === 'object' && 'response' in err 
+        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to load dashboard data'
+        : 'Failed to load dashboard data';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  // Auto-refresh when viewing candidates tab
+  useEffect(() => {
+    if (activeTab === 'candidates') {
+      const interval = setInterval(() => {
+        fetchDashboardData();
+      }, 30000); // Refresh every 30 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, fetchDashboardData]);
 
   const handleToggleJobStatus = async (jobId: number) => {
     try {
       await jobPostingAPI.toggleJobPostingStatus(jobId);
       await fetchDashboardData(); // Refresh data
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to toggle job status');
+    } catch (err: unknown) {
+      const errorMessage = err && typeof err === 'object' && 'response' in err 
+        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to toggle job status'
+        : 'Failed to toggle job status';
+      setError(errorMessage);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchDashboardData();
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -66,35 +124,50 @@ export const RecruiterDashboard: React.FC<RecruiterDashboardProps> = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <LoadingSpinner />
-      </div>
+      <AuthenticatedLayout>
+        <div className="flex justify-center items-center h-64">
+          <LoadingSpinner />
+        </div>
+      </AuthenticatedLayout>
     );
   }
 
   if (error) {
     return (
-      <div className="max-w-6xl mx-auto p-6">
-        <Alert type="error" message={error} />
-      </div>
+      <AuthenticatedLayout>
+        <div className="max-w-6xl mx-auto p-6">
+          <Alert type="error" message={error} />
+        </div>
+      </AuthenticatedLayout>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <AuthenticatedLayout>
+      <div className="max-w-6xl mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Recruiter Dashboard</h1>
           <p className="text-gray-600 mt-1">Manage your job postings and candidates</p>
         </div>
-        <button
-          onClick={() => window.location.href = '/recruiter/jobs/new'}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Create Job Posting
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="inline-flex items-center px-4 py-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 rounded-lg transition-colors"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
+          <button
+            onClick={() => navigate('/create-job-posting')}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Job Posting
+          </button>
+        </div>
       </div>
 
       {/* Stats Overview */}
@@ -238,6 +311,9 @@ export const RecruiterDashboard: React.FC<RecruiterDashboardProps> = () => {
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    AI Features
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Created
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -264,19 +340,38 @@ export const RecruiterDashboard: React.FC<RecruiterDashboardProps> = () => {
                         {job.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="space-y-1">
+                        {job.hasLearningPath && (
+                          <span className="inline-flex items-center px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full">
+                            🧠 Learning Path
+                          </span>
+                        )}
+                        {job.hasAssessments && (
+                          <span className="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                            📝 Assessment
+                          </span>
+                        )}
+                        {!job.hasLearningPath && !job.hasAssessments && (
+                          <span className="text-xs text-gray-400">No AI features</span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(job.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                       <button
-                        onClick={() => window.location.href = `/recruiter/jobs/${job.id}`}
+                        onClick={() => navigate(`/job-details/${job.id}`)}
                         className="text-blue-600 hover:text-blue-900"
+                        title="View job details"
                       >
                         <Eye className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => window.location.href = `/recruiter/jobs/${job.id}/edit`}
+                        onClick={() => alert(`Edit job posting for job ID: ${job.id} (Feature coming soon)`)}
                         className="text-green-600 hover:text-green-900"
+                        title="Edit job posting"
                       >
                         <Edit className="h-4 w-4" />
                       </button>
@@ -368,6 +463,7 @@ export const RecruiterDashboard: React.FC<RecruiterDashboardProps> = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </AuthenticatedLayout>
   );
 };

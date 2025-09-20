@@ -128,51 +128,67 @@ def get_structured_response_assessment_answers_and_scores(prompt: str):
     
     return parsed_response
 
-# Job Posting AI Structured Response Functions
+# Job Posting AI Structured Response Functions (Following interview API pattern)
 def get_structured_response_job_analysis(prompt: str):
-    response = client.models.generate_content(
-        model='gemini-2.0-flash',
-        contents=prompt,
-        config={
-            'temperature': 0.3,
-            'response_mime_type': 'application/json',
-            'response_schema': JobAnalysis,
-        },
-    )
-    return response.parsed
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.0-flash',
+            contents=prompt,
+            config={
+                'temperature': 0.3,
+                'response_mime_type': 'application/json',
+                'response_schema': JobAnalysis,
+            },
+        )
+        return response.parsed
+    except Exception as e:
+        print(f"Error in job analysis: {e}")
+        return None
 
 def get_structured_response_job_learning_modules(prompt: str):
-    response = client.models.generate_content(
-        model='gemini-2.0-flash',
-        contents=prompt,
-        config={
-            'temperature': 0.5,
-            'response_mime_type': 'application/json',
-            'response_schema': list[JobLearningModule],
-        },
-    )
-    return response.parsed
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.0-flash',
+            contents=prompt,
+            config={
+                'temperature': 0.5,
+                'response_mime_type': 'application/json',
+                'response_schema': list[JobLearningModule],
+            },
+        )
+        return response.parsed
+    except Exception as e:
+        print(f"Error generating learning modules: {e}")
+        return None
 
 def get_structured_response_job_assessment_questions(prompt: str):
-    response = client.models.generate_content(
-        model='gemini-2.0-flash',
-        contents=prompt,
-        config={
-            'temperature': 0.4,
-            'response_mime_type': 'application/json',
-            'response_schema': list[JobAssessmentQuestion],
-        },
-    )
-    return response.parsed
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.0-flash',
+            contents=prompt,
+            config={
+                'temperature': 0.4,
+                'response_mime_type': 'application/json',
+                'response_schema': list[JobAssessmentQuestion],
+            },
+        )
+        return response.parsed
+    except Exception as e:
+        print(f"Error generating assessment questions: {e}")
+        return None
 
 def get_structured_response_extracted_skills(prompt: str):
-    response = client.models.generate_content(
-        model='gemini-2.0-flash',
-        contents=prompt,
-        config={
-            'temperature': 0.2,
-            'response_mime_type': 'application/json',
-            'response_schema': ExtractedSkills,
-        },
-    )
-    return response.parsed
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.0-flash',
+            contents=prompt,
+            config={
+                'temperature': 0.2,
+                'response_mime_type': 'application/json',
+                'response_schema': ExtractedSkills,
+            },
+        )
+        return response.parsed
+    except Exception as e:
+        print(f"Error extracting skills: {e}")
+        return None

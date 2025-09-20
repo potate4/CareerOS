@@ -19,19 +19,19 @@ class JobAnalysis(BaseModel):
 class JobLearningModule(BaseModel):
     module_name: str
     module_description: str
-    estimated_hours: Optional[int] = 4
-    difficulty_level: Optional[str] = "INTERMEDIATE"
-    skills_covered: Optional[str] = None
-    prerequisites: Optional[str] = None
+    estimated_hours: Optional[int]
+    difficulty_level: Optional[str]
+    skills_covered: Optional[str]
+    prerequisites: Optional[str]
 
 # Assessment Schemas for Job Postings
 class JobAssessmentQuestion(BaseModel):
     question: str
     question_type: str  # "MULTIPLE_CHOICE", "TRUE_FALSE", "SHORT_ANSWER"
-    options: Optional[str] = None  # JSON string for multiple choice options
+    options: Optional[str]  # JSON string for multiple choice options
     correct_answer: str
-    explanation: Optional[str] = None
-    points: Optional[float] = 10.0
+    explanation: Optional[str]
+    points: Optional[float]
 
 # Skills Extraction Schema
 class ExtractedSkills(BaseModel):

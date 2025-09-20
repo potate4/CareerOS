@@ -181,27 +181,48 @@ async def extract_skills_and_generate_content(request: JobSkillsExtractionReques
     Extract skills from job description and generate both learning path and assessment
     """
     try:
-        logger.info("Extracting skills and generating learning content")
-        
+        logger.info("🔥 [AI_ENDPOINT] Received extract-skills-and-generate request")
+        logger.info(f"🔥 [AI_ENDPOINT] Job description length: {len(request.job_description)}")
+        logger.info(f"🔥 [AI_ENDPOINT] Job description preview: {request.job_description[:100]}...")
+
+        logger.info("🔥 [AI_ENDPOINT] Calling job_posting_ai.extract_job_skills_and_requirements")
         result = await job_posting_ai.extract_job_skills_and_requirements(request.job_description)
-        
+
+        logger.info(f"🔥 [AI_ENDPOINT] AI processing result: {result.get('success', False)}")
+        if not result['success']:
+            logger.error(f"🔥 [AI_ENDPOINT] AI processing failed: {result.get('error', 'Unknown error')}")
+        else:
+            logger.info(f"🔥 [AI_ENDPOINT] Learning path modules: {len(result.get('learning_path', []))}")
+            logger.info(f"🔥 [AI_ENDPOINT] Assessment questions: {len(result.get('assessment', []))}")
+
         if result['success']:
-            return JobSkillsExtractionResponse(
+            response = JobSkillsExtractionResponse(
                 success=True,
                 job_analysis=result['job_analysis'],
                 learning_path=result['learning_path'],
                 assessment=result['assessment'],
                 extracted_at=result['extracted_at']
             )
+            logger.info("🔥 [AI_ENDPOINT] Successfully created response object")
+            return response
         else:
-            return JobSkillsExtractionResponse(
+            error_response = JobSkillsExtractionResponse(
                 success=False,
                 error=result.get('error', 'Skills extraction failed')
             )
-            
+            logger.error(f"🔥 [AI_ENDPOINT] Returning error response: {result.get('error', 'Skills extraction failed')}")
+            return error_response
+
     except Exception as e:
-        logger.error(f"Error in skills extraction: {e}")
+        logger.error(f"❌ [AI_ENDPOINT] Error in skills extraction: {e}")
+        logger.error(f"❌ [AI_ENDPOINT] Error type: {type(e).__name__}")
+        import traceback
+        logger.error(f"❌ [AI_ENDPOINT] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Skills extraction failed: {str(e)}")
+
+# Job assessment functionality uses the learning path assessment system
+# Candidates take assessments via /api/v1/learning-path/create-assessment and /api/v1/learning-path/score-assessment
+# with jobId as module_id
 
 @router.get("/health")
 async def health_check():

@@ -27,4 +27,9 @@ public interface JobAssessmentRepository extends JpaRepository<JobAssessment, Lo
     
     @Query("SELECT ja FROM JobAssessment ja WHERE ja.assessmentType = :assessmentType AND ja.isActive = true ORDER BY ja.createdAt DESC")
     List<JobAssessment> findByAssessmentTypeAndIsActive(@Param("assessmentType") JobAssessment.AssessmentType assessmentType);
+    
+    List<JobAssessment> findByJobPostingIdAndIsActive(Long jobPostingId, Boolean isActive);
+    
+    @Query("SELECT ja FROM JobAssessment ja LEFT JOIN FETCH ja.questions WHERE ja.jobPosting.id = :jobPostingId AND ja.isActive = true ORDER BY ja.createdAt DESC")
+    List<JobAssessment> findByJobPostingIdWithQuestions(@Param("jobPostingId") Long jobPostingId);
 }

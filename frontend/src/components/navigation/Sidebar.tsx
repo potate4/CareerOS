@@ -16,6 +16,8 @@ import {
   ClipboardCheck,
   MessageSquare
 } from 'lucide-react';
+import { useAuthStore } from '../../stores/authStore';
+import { getNavigationItems } from '../../utils/roleUtils';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -24,87 +26,27 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   const location = useLocation();
+  const { user } = useAuthStore();
 
-  const navigationItems = [
-    {
-      name: 'Dashboard',
-      href: '/dashboard',
-      icon: Home,
-      description: 'Overview and analytics'
-    },
-    {
-      name: 'Learning Path',
-      href: '/learning-path',
-      icon: BookOpen,
-      description: 'AI Learning Path Generator'
-    },
-    {
-      name: 'AI Services',
-      href: '/ai-services',
-      icon: Brain,
-      description: 'AI-powered career tools'
-    },
-    {
-      name: 'Interview Simulator',
-      href: '/interview',
-      icon: Target,
-      description: 'AI Interview Simulator'
-    },
-    {
-      name: 'LifeScript',
-      href: '/lifescript',
-      icon: Home,
-      description: 'AI Journaling and Reflection'
-    },
-    {
-      name: 'FutureCast',
-      href: '/futurecast',
-      icon: TrendingUp,
-      description: 'AI Career Path Simulator'
-    },
-    {
-      name: 'SkillForge',
-      href: '/skillforge',
-      icon: FileText,
-      description: 'Gamified AI Skill Development'
-    },
-    {
-      name: 'MindFlow',
-      href: '/mindflow',
-      icon: Users,
-      description: 'AI Softskill Development Coach'
-    },
-    {
-      name: 'Job Postings',
-      href: '/job-postings',
-      icon: Briefcase,
-      description: 'Create and manage job postings'
-    },
-    {
-      name: 'Create Job Posting',
-      href: '/job-postings/create',
-      icon: PlusCircle,
-      description: 'Create new job posting with AI assistance'
-    },
-    {
-      name: 'Candidates',
-      href: '/candidates',
-      icon: UserCheck,
-      description: 'View and manage candidate applications'
-    },
-    {
-      name: 'Assessment Creator',
-      href: '/assessment',
-      icon: ClipboardCheck,
-      description: 'Create interview assessments and questions'
-    },
-    {
-      name: 'Interview Evaluation',
-      href: '/evaluation',
-      icon: MessageSquare,
-      description: 'Evaluate candidate performance and provide feedback'
-    }
-  ];
+  // Icon mapping for navigation items
+  const iconMap: Record<string, any> = {
+    Dashboard: Home,
+    'Learning Path': BookOpen,
+    'AI Services': Brain,
+    'Interview Simulator': Target,
+    FutureCast: TrendingUp,
+    MindFlow: Users,
+    'Recruiter Dashboard': Briefcase,
+    'Create Job Posting': PlusCircle,
+    'Candidate Dashboard': UserCheck,
+    'Browse Jobs': ClipboardCheck,
+  };
+
+  // Get navigation items based on user roles
+  const navigationItems = getNavigationItems(user?.roles || []).map(item => ({
+    ...item,
+    icon: iconMap[item.name] || Home
+  }));
 
   const isActive = (href: string) => {
     return location.pathname.startsWith(href);

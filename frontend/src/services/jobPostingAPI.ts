@@ -10,8 +10,11 @@ import {
   RecruiterDashboardStats,
   CandidateDashboardStats,
   JobPostingFilters,
-  CandidateFilters,
-  ApplicationStatus
+  ApplicationStatus,
+  JobAssessmentSession,
+  JobAssessmentAnswer,
+  JobAssessmentResult,
+  JobAssessmentScores
 } from '../types/jobPosting';
 
 // Job Posting API
@@ -39,6 +42,11 @@ export const jobPostingAPI = {
 
   toggleJobPostingStatus: async (jobId: number): Promise<JobPosting> => {
     const response = await api.patch(`/jobs/recruiter/${jobId}/toggle-status`);
+    return response.data;
+  },
+
+  getJobPosting: async (jobId: number): Promise<JobPosting> => {
+    const response = await api.get(`/jobs/recruiter/${jobId}`);
     return response.data;
   },
 
@@ -78,7 +86,40 @@ export const jobPostingAPI = {
   },
 
   getJobAssessments: async (jobId: number): Promise<JobAssessmentSummary[]> => {
-    const response = await api.get(`/assessments/job/${jobId}`);
+    const response = await api.get(`/jobs/${jobId}/assessments`);
+    return response.data;
+  },
+
+  getJobAssessmentDetails: async (jobId: number): Promise<JobAssessmentSummary[]> => {
+    const response = await api.get(`/jobs/${jobId}/assessments`);
+    return response.data;
+  },
+
+  deleteJobPosting: async (jobId: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/jobs/recruiter/${jobId}`);
+    return response.data;
+  }
+};
+
+// Job Assessment API (Using stored job-specific assessment questions)
+export const jobAssessmentAPI = {
+  // Candidate endpoints - Use job assessment endpoints that return actual stored questions
+  createAssessment: async (jobId: number, options?: { num_questions?: number; difficulty?: string }): Promise<JobAssessmentSession> => {
+    const response = await api.post(`/job-assessments/create/${jobId}`, options || {});
+    return response.data;
+  },
+
+  submitAssessment: async (jobId: number, assessmentId: string, answers: JobAssessmentAnswer[]): Promise<JobAssessmentResult> => {
+    const response = await api.post(`/job-assessments/submit/${jobId}`, {
+      assessment_id: assessmentId,
+      assessment_answers: answers
+    });
+    return response.data;
+  },
+
+  // Recruiter endpoints
+  getAssessmentScores: async (jobId: number): Promise<JobAssessmentScores> => {
+    const response = await api.get(`/job-assessments/scores/${jobId}`);
     return response.data;
   }
 };
@@ -102,12 +143,12 @@ export const candidateApplicationAPI = {
   },
 
   // Recruiter endpoints
-  getCandidatesForJob: async (jobId: number, filters?: CandidateFilters): Promise<CandidateSubmission[]> => {
+  getCandidatesForJob: async (jobId: number): Promise<CandidateSubmission[]> => {
     const response = await api.get(`/applications/recruiter/job/${jobId}`);
     return response.data;
   },
 
-  getAllCandidatesForRecruiter: async (filters?: CandidateFilters): Promise<CandidateSubmission[]> => {
+  getAllCandidatesForRecruiter: async (): Promise<CandidateSubmission[]> => {
     const response = await api.get('/applications/recruiter');
     return response.data;
   },
@@ -219,47 +260,35 @@ export const dashboardAPI = {
   }
 };
 
-// AI Integration API (for job analysis)
+// AI Integration API (through backend)
 export const jobAIAPI = {
-  analyzeJobDescription: async (jobDescription: string, jobTitle: string, company: string) => {
-    const response = await api.post(`${import.meta.env.VITE_AI_API_URL}/api/v1/job-posting/analyze-job`, {
-      job_description: jobDescription,
-      job_title: jobTitle,
-      company: company
-    });
-    return response.data;
-  },
-
-  generateLearningPath: async (jobDescription: string, jobTitle: string, company: string) => {
-    const response = await api.post(`${import.meta.env.VITE_AI_API_URL}/api/v1/job-posting/generate-learning-path`, {
-      job_description: jobDescription,
-      job_title: jobTitle,
-      company: company
-    });
-    return response.data;
-  },
-
-  generateAssessment: async (
-    jobDescription: string, 
-    jobTitle: string, 
-    company: string,
-    numQuestions: number = 10,
-    difficulty: string = 'INTERMEDIATE'
-  ) => {
-    const response = await api.post(`${import.meta.env.VITE_AI_API_URL}/api/v1/job-posting/generate-assessment`, {
-      job_description: jobDescription,
-      job_title: jobTitle,
-      company: company,
-      num_questions: numQuestions,
-      difficulty: difficulty
-    });
-    return response.data;
-  },
-
   extractSkillsAndGenerate: async (jobDescription: string) => {
-    const response = await api.post(`${import.meta.env.VITE_AI_API_URL}/api/v1/job-posting/extract-skills-and-generate`, {
-      job_description: jobDescription
-    });
-    return response.data;
+    console.log('🔥 [FRONTEND] Starting AI analysis request');
+    console.log('🔥 [FRONTEND] Job description length:', jobDescription.length);
+    console.log('🔥 [FRONTEND] Making POST to /jobs/ai-analyze');
+
+    try {
+      const response = await api.post('/jobs/ai-analyze', jobDescription, {
+        headers: {
+          'Content-Type': 'text/plain'
+        }
+      });
+
+      console.log('🔥 [FRONTEND] Response received');
+      console.log('🔥 [FRONTEND] Response status:', response.status);
+      console.log('🔥 [FRONTEND] Response data:', response.data);
+
+      return response.data;
+    } catch (error: unknown) {
+      console.error('❌ [FRONTEND] API call failed');
+      console.error('❌ [FRONTEND] Error:', error);
+      if (error && typeof error === 'object' && 'response' in error) {
+        const errorWithResponse = error as { response?: { status?: number; data?: unknown } };
+        console.error('❌ [FRONTEND] Error response:', errorWithResponse.response);
+        console.error('❌ [FRONTEND] Error status:', errorWithResponse.response?.status);
+        console.error('❌ [FRONTEND] Error data:', errorWithResponse.response?.data);
+      }
+      throw error;
+    }
   }
 };

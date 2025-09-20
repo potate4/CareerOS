@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Briefcase, MapPin, DollarSign, Clock, Sparkles } from 'lucide-react';
-import { jobPostingAPI, jobAIAPI } from '../../services/jobPostingAPI';
+import { useNavigate } from 'react-router-dom';
+import { jobPostingAPI } from '../../services/jobPostingAPI';
 import { JobPostingRequest, ExperienceLevel, JobType } from '../../types/jobPosting';
 import  LoadingSpinner  from '../common/LoadingSpinner';
 import  Alert  from '../common/Alert';
+import AuthenticatedLayout from '../layout/AuthenticatedLayout';
 
 export const CreateJobPosting: React.FC = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState<JobPostingRequest>({
     jobTitle: '',
     company: '',
@@ -20,10 +23,9 @@ export const CreateJobPosting: React.FC = () => {
   });
 
   const [loading, setLoading] = useState(false);
-  const [aiAnalyzing, setAiAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [jobAnalysis, setJobAnalysis] = useState<any>(null);
+  const [createdJob, setCreatedJob] = useState<any>(null);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -38,40 +40,13 @@ export const CreateJobPosting: React.FC = () => {
     }
   };
 
-  const handleAIAnalysis = async () => {
-    if (!formData.jobDescription || !formData.jobTitle) {
-      setError('Please provide job title and description for AI analysis');
-      return;
-    }
-
-    try {
-      setAiAnalyzing(true);
-      const analysis = await jobAIAPI.extractSkillsAndGenerate(formData.jobDescription);
-      
-      if (analysis.success) {
-        setJobAnalysis(analysis);
-        
-        // Auto-populate required skills if extracted
-        if (analysis.job_analysis?.technical_skills) {
-          setFormData(prev => ({
-            ...prev,
-            requiredSkills: analysis.job_analysis.technical_skills.join(', ')
-          }));
-        }
-      } else {
-        setError('AI analysis failed: ' + (analysis.error || 'Unknown error'));
-      }
-    } catch (err: any) {
-      setError('AI analysis failed: ' + (err.message || 'Network error'));
-    } finally {
-      setAiAnalyzing(false);
-    }
-  };
+  // Removed separate AI analysis - it's now integrated into job creation
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.jobTitle || !formData.company || !formData.jobDescription) {
+
+    if (!formData.jobTitle || !formData.company || !formData.jobDescription ||
+        !formData.experienceLevel || !formData.jobType) {
       setError('Please fill in all required fields');
       return;
     }
@@ -79,16 +54,21 @@ export const CreateJobPosting: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      
+      console.log('🔥 [CREATE_JOB] Starting job creation with data:', formData);
+
       const result = await jobPostingAPI.createJobPosting(formData);
+      console.log('🔥 [CREATE_JOB] Job creation result:', result);
+
+      setCreatedJob(result);
       setSuccess(true);
-      
-      // Redirect to job details after a delay
+
+      // Redirect to recruiter dashboard after a delay
       setTimeout(() => {
-        window.location.href = `/recruiter/jobs/${result.id}`;
-      }, 2000);
-      
+        navigate('/recruiter-dashboard');
+      }, 3000);
+
     } catch (err: any) {
+      console.error('❌ [CREATE_JOB] Error:', err);
       setError(err.response?.data?.message || 'Failed to create job posting');
     } finally {
       setLoading(false);
@@ -96,11 +76,12 @@ export const CreateJobPosting: React.FC = () => {
   };
 
   const goBack = () => {
-    window.location.href = '/recruiter/dashboard';
+    navigate('/recruiter-dashboard');
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <AuthenticatedLayout>
+      <div className="max-w-4xl mx-auto p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
@@ -123,12 +104,44 @@ export const CreateJobPosting: React.FC = () => {
         </div>
       )}
 
-      {success && (
-        <div className="mb-6">
-          <Alert 
-            type="success" 
-            message="Job posting created successfully! Redirecting to job details..." 
-          />
+      {success && createdJob && (
+        <div className="mb-6 p-6 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center mb-4">
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                </svg>
+              </div>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-lg font-medium text-green-900">Job Posted Successfully! 🎉</h3>
+              <p className="text-sm text-green-700">"{createdJob.jobTitle}" at {createdJob.company}</p>
+            </div>
+          </div>
+
+          <div className="mt-4 space-y-2">
+            <div className="flex items-center text-sm text-green-800">
+              <Briefcase className="h-4 w-4 mr-2" />
+              Job ID: #{createdJob.id}
+            </div>
+            {createdJob.hasLearningPath && (
+              <div className="flex items-center text-sm text-green-800">
+                <Sparkles className="h-4 w-4 mr-2" />
+                AI Learning Path Generated ✓
+              </div>
+            )}
+            {createdJob.hasAssessments && (
+              <div className="flex items-center text-sm text-green-800">
+                <Sparkles className="h-4 w-4 mr-2" />
+                AI Assessment Questions Generated ✓
+              </div>
+            )}
+          </div>
+
+          <p className="text-sm text-green-700 mt-4">
+            Redirecting to recruiter dashboard in a few seconds...
+          </p>
         </div>
       )}
 
@@ -290,35 +303,12 @@ export const CreateJobPosting: React.FC = () => {
                   </label>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleAIAnalysis}
-                  disabled={aiAnalyzing || !formData.jobDescription}
-                  className="w-full mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white rounded-lg transition-colors flex items-center justify-center"
-                >
-                  {aiAnalyzing ? (
-                    <>
-                      <LoadingSpinner size="small" />
-                      <span className="ml-2">Analyzing with AI...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4 mr-2" />
-                      Analyze Job with AI
-                    </>
-                  )}
-                </button>
-
-                {jobAnalysis && (
-                  <div className="mt-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
-                    <h4 className="font-medium text-purple-900 mb-2">AI Analysis Results:</h4>
-                    <div className="text-sm text-purple-800">
-                      <p>✓ Learning path generated with {jobAnalysis.learning_path?.length || 0} modules</p>
-                      <p>✓ Assessment created with {jobAnalysis.assessment?.length || 0} questions</p>
-                      <p>✓ Skills and requirements extracted</p>
-                    </div>
-                  </div>
-                )}
+                <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-sm text-blue-800">
+                    <Sparkles className="h-4 w-4 inline mr-1" />
+                    AI features will be automatically generated when you create the job posting.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -356,7 +346,7 @@ export const CreateJobPosting: React.FC = () => {
               />
               
               <p className="text-sm text-gray-500 mt-2">
-                Tip: Use the AI analysis to automatically extract skills from your job description
+                Tip: If AI Learning Path is enabled, skills will be automatically extracted from your job description
               </p>
             </div>
           </div>
@@ -390,6 +380,7 @@ export const CreateJobPosting: React.FC = () => {
           </button>
         </div>
       </form>
-    </div>
+      </div>
+    </AuthenticatedLayout>
   );
 };
