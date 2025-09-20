@@ -12,6 +12,8 @@ import {
   Target,
   X
 } from 'lucide-react';
+import { learningPathAPI } from '../../services/learningPathAPI';
+import { useAuthStore } from '../../stores/authStore';
 
 interface Question {
   id: string;
@@ -61,6 +63,7 @@ const AssessmentModal: React.FC<AssessmentModalProps> = ({
   isOpen,
   onClose
 }) => {
+  const { user } = useAuthStore();
   const [currentStep, setCurrentStep] = useState<'loading' | 'instructions' | 'questions' | 'results'>('loading');
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [responses, setResponses] = useState<{ [key: string]: string }>({});
@@ -96,76 +99,61 @@ const AssessmentModal: React.FC<AssessmentModalProps> = ({
     try {
       setCurrentStep('loading');
       
-      // TODO: Replace with actual API call
-      // const response = await learningPathAPI.generateAssessment({
-      //   moduleId,
-      //   skillFocus,
-      //   difficultyLevel: 'INTERMEDIATE'
-      // });
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
 
-      // Simulate assessment generation
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      const mockAssessment: Assessment = {
-        assessment_id: `assessment_${Date.now()}`,
-        module_id: moduleId,
+      // Call real API to generate module-specific assessment
+      const response = await learningPathAPI.generateAssessment({
+        moduleId,
+        userId: user.id,
+        assessmentType: 'quiz',
+        numQuestions: 5,
+        difficulty: 'medium'
+      });
+
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to generate assessment');
+      }
+
+      // Convert API response to component format
+      const apiAssessment: Assessment = {
+        assessment_id: response.assessment_id,
+        module_id: response.module_id,
         skill_focus: skillFocus,
-        difficulty_level: 'INTERMEDIATE',
+        difficulty_level: response.difficulty.toUpperCase(),
         estimated_time_minutes: 20,
-        total_points: 100,
+        total_points: response.questions.reduce((sum: number, q: any) => sum + (q.points || 20), 0),
         passing_score: 70,
         instructions: "Complete all questions to the best of your ability. This assessment will help evaluate your understanding of the module concepts.",
-        questions: [
-          {
-            id: 'q1',
-            question: `What is the main concept behind ${skillFocus}?`,
-            type: 'multiple_choice',
-            options: [
-              'Option A: Basic implementation',
-              'Option B: Advanced framework',
-              'Option C: Core methodology',
-              'Option D: Supporting tool'
-            ],
-            correct_answer: 'Option C: Core methodology',
-            points: 20,
-            difficulty: 'BEGINNER'
-          },
-          {
-            id: 'q2',
-            question: `Explain how you would implement ${skillFocus} in a real-world project. Provide specific examples and considerations.`,
-            type: 'practical',
-            points: 40,
-            difficulty: 'INTERMEDIATE'
-          },
-          {
-            id: 'q3',
-            question: `Describe the relationship between ${skillFocus} and other related technologies in your field.`,
-            type: 'conceptual',
-            points: 30,
-            difficulty: 'INTERMEDIATE'
-          },
-          {
-            id: 'q4',
-            question: `What are the main advantages and potential drawbacks of using ${skillFocus}?`,
-            type: 'multiple_choice',
-            options: [
-              'Advantages: Fast, Secure; Drawbacks: Complex, Expensive',
-              'Advantages: Simple, Cheap; Drawbacks: Slow, Insecure',
-              'Advantages: Flexible, Scalable; Drawbacks: Learning curve, Resource intensive',
-              'Advantages: Popular, Stable; Drawbacks: Limited features, Old technology'
-            ],
-            correct_answer: 'Advantages: Flexible, Scalable; Drawbacks: Learning curve, Resource intensive',
-            points: 10,
-            difficulty: 'BEGINNER'
-          }
-        ]
+        questions: response.questions.map((q: any, index: number) => ({
+          id: q.id || `q${index + 1}`,
+          question: q.question,
+          type: q.question_type === 'multiple_choice' ? 'multiple_choice' : 'conceptual',
+          options: q.options || undefined,
+          correct_answer: q.correct_answer,
+          points: q.points || 20,
+          difficulty: q.difficulty?.toUpperCase() || 'INTERMEDIATE'
+        }))
       };
 
-      setAssessment(mockAssessment);
-      setTimeRemaining(mockAssessment.estimated_time_minutes * 60);
+      console.log('🎯 Generated real assessment for module:', moduleId, apiAssessment);
+      setAssessment(apiAssessment);
+      setTimeRemaining(apiAssessment.estimated_time_minutes * 60);
       setCurrentStep('instructions');
     } catch (error) {
-      console.error('Failed to generate assessment:', error);
+      console.error('❌ Failed to generate assessment:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        moduleId,
+        userId: user?.id
+      });
+      
+      // Show more detailed error message
+      const errorMessage = error.response?.data?.detail || error.message || 'Unknown error occurred';
+      alert(`Assessment generation failed: ${errorMessage}`);
       onClose();
     }
   };
@@ -195,62 +183,54 @@ const AssessmentModal: React.FC<AssessmentModalProps> = ({
   };
 
   const handleSubmitAssessment = async () => {
-    if (!assessment || !startTime) return;
+    if (!assessment || !startTime || !user?.id) return;
     
     setIsSubmitting(true);
     
     try {
       const timeTaken = Math.floor((new Date().getTime() - startTime.getTime()) / 1000 / 60);
       
-      // TODO: Replace with actual API call
-      // const result = await learningPathAPI.submitAssessment({
-      //   assessmentId: assessment.assessment_id,
-      //   responses,
-      //   timeTakenMinutes: timeTaken
-      // });
+      // Prepare assessment answers for API
+      const assessmentAnswers = assessment.questions.map(question => ({
+        question: question.question,
+        correct_answer: question.correct_answer || '',
+        provided_answer: responses[question.id] || ''
+      }));
 
-      // Simulate evaluation
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const mockResults: AssessmentResult = {
-        overall_score: 85,
+      // Submit to real API for scoring
+      const result = await learningPathAPI.submitAssessment({
+        assessmentId: assessment.assessment_id,
+        userId: user.id,
+        moduleId: assessment.module_id,
+        assessmentAnswers
+      });
+
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to score assessment');
+      }
+
+      // Convert API response to component format
+      const apiResults: AssessmentResult = {
+        overall_score: result.percentage,
         section_scores: {
-          'multiple_choice': 90,
-          'practical': 80,
-          'conceptual': 85
+          'overall': result.percentage
         },
         detailed_feedback: {
-          'multiple_choice': 'Excellent understanding of fundamental concepts',
-          'practical': 'Good practical application skills, room for improvement in implementation details',
-          'conceptual': 'Strong conceptual grasp with minor gaps in advanced topics'
+          'overall': result.detailed_feedback || `You scored ${result.percentage}% on this assessment.`
         },
-        strengths: [
-          'Strong theoretical foundation',
-          'Good problem-solving approach',
-          'Clear understanding of core principles'
-        ],
-        improvement_areas: [
-          'Practical implementation details',
-          'Advanced optimization techniques',
-          'Integration with related technologies'
-        ],
-        recommended_actions: [
-          'Practice more hands-on projects',
-          'Study advanced implementation patterns',
-          'Explore integration scenarios'
-        ],
-        knowledge_gaps: [
-          'Performance optimization',
-          'Error handling strategies',
-          'Scalability considerations'
-        ],
-        grade: 'B+'
+        strengths: result.strengths || ['Good effort on completing the assessment'],
+        improvement_areas: result.improvement_areas || ['Continue studying the module content'],
+        recommended_actions: result.recommended_actions || ['Review the module materials and practice more'],
+        knowledge_gaps: result.knowledge_gaps || [],
+        grade: result.percentage >= 90 ? 'A' : result.percentage >= 80 ? 'B' : result.percentage >= 70 ? 'C' : 'D'
       };
 
-      setResults(mockResults);
+      console.log('📊 Assessment scored:', apiResults);
+      setResults(apiResults);
       setCurrentStep('results');
     } catch (error) {
-      console.error('Failed to submit assessment:', error);
+      console.error('❌ Failed to submit assessment:', error);
+      alert('Failed to submit assessment. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

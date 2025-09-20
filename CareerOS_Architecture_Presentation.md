@@ -273,8 +273,6 @@ Automatically generate job descriptions, requirements, and assessment questions 
 ### 📊 **Advanced Assessment Engine**
 AI-powered evaluation of candidate responses with contextual understanding and nuanced scoring. Provides detailed feedback and identifies strengths, weaknesses, and improvement areas.
 
-### 🎯 **Smart Matching Algorithms**
-Sophisticated candidate-job matching using multi-dimensional analysis of skills, experience, and cultural fit. Continuous learning from hiring outcomes to improve recommendation accuracy.
 
 ### 💡 **Predictive Career Analytics**
 Machine learning models that analyze market trends, skill demands, and career trajectories to provide actionable insights for both candidates and recruiters.
@@ -381,6 +379,14 @@ flowchart TD
 <br/>
 
 ---
+
+<br/>
+<br/>
+<br/>
+
+<br/>
+<br/>
+<br/>
 
 <br/>
 <br/>
