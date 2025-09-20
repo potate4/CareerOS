@@ -40,4 +40,6 @@ public interface CandidateSubmissionRepository extends JpaRepository<CandidateSu
     List<CandidateSubmission> findQualifiedCandidatesByJobPostingIdOrderByScoreDesc(@Param("jobPostingId") Long jobPostingId);
     
     List<CandidateSubmission> findByJobPostingId(Long jobPostingId);
+    
+    List<CandidateSubmission> findByJobPostingIdOrderByOverallScoreDesc(Long jobPostingId);
 }

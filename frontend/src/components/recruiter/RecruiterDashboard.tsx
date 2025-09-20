@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Briefcase, Users, TrendingUp, Eye, Edit, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Plus, Briefcase, Users, TrendingUp, Eye, Edit, ToggleLeft, ToggleRight, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { jobPostingAPI, candidateApplicationAPI } from '../../services/jobPostingAPI';
 import { JobPosting, CandidateSubmission, RecruiterDashboardStats, ApplicationStatus } from '../../types/jobPosting';
@@ -19,6 +19,7 @@ export const RecruiterDashboard: React.FC<RecruiterDashboardProps> = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'jobs' | 'candidates'>('overview');
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -74,6 +75,17 @@ export const RecruiterDashboard: React.FC<RecruiterDashboardProps> = () => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
+  // Auto-refresh when viewing candidates tab
+  useEffect(() => {
+    if (activeTab === 'candidates') {
+      const interval = setInterval(() => {
+        fetchDashboardData();
+      }, 30000); // Refresh every 30 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, fetchDashboardData]);
+
   const handleToggleJobStatus = async (jobId: number) => {
     try {
       await jobPostingAPI.toggleJobPostingStatus(jobId);
@@ -83,6 +95,15 @@ export const RecruiterDashboard: React.FC<RecruiterDashboardProps> = () => {
         ? (err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to toggle job status'
         : 'Failed to toggle job status';
       setError(errorMessage);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchDashboardData();
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -130,13 +151,23 @@ export const RecruiterDashboard: React.FC<RecruiterDashboardProps> = () => {
           <h1 className="text-2xl font-bold text-gray-900">Recruiter Dashboard</h1>
           <p className="text-gray-600 mt-1">Manage your job postings and candidates</p>
         </div>
-        <button
-          onClick={() => navigate('/create-job-posting')}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Create Job Posting
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="inline-flex items-center px-4 py-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 rounded-lg transition-colors"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
+          <button
+            onClick={() => navigate('/create-job-posting')}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Job Posting
+          </button>
+        </div>
       </div>
 
       {/* Stats Overview */}

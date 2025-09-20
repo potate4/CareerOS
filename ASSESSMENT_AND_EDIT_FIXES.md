@@ -109,3 +109,4 @@ toggleJobPostingStatus: async (jobId: number): Promise<JobPosting>
 6. Verify proper error handling and user feedback
 
 The system now provides complete CRUD functionality for job postings with proper assessment display and comprehensive user experience features.
+

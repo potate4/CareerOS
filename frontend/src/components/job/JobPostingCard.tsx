@@ -160,3 +160,4 @@ export const JobPostingCard: React.FC<JobPostingCardProps> = ({
     </div>
   );
 };
+

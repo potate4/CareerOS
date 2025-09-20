@@ -63,3 +63,4 @@ import { JobDetailedView } from './JobDetailedView';
 
 ## Styling
 Components use Tailwind CSS with the slate color palette as preferred by the user, avoiding inline CSS styles.
+

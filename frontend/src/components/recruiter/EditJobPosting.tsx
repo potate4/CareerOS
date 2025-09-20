@@ -381,3 +381,4 @@ export const EditJobPosting: React.FC = () => {
     </AuthenticatedLayout>
   );
 };
+

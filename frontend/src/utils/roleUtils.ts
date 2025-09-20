@@ -179,3 +179,4 @@ export const canAccessRoute = (userRoles: string[], route: string): boolean => {
   // Default: allow access if no specific permission found
   return true;
 };
+

@@ -1,10 +1,8 @@
 package com.careeros.backend.controller;
 
-import com.careeros.backend.model.JobAssessment;
-import com.careeros.backend.model.JobAssessmentQuestion;
+import com.careeros.backend.model.*;
 import com.careeros.backend.payload.response.MessageResponse;
-import com.careeros.backend.repository.JobAssessmentRepository;
-import com.careeros.backend.repository.JobPostingRepository;
+import com.careeros.backend.repository.*;
 import com.careeros.backend.security.UserDetailsImpl;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.util.*;
@@ -32,6 +31,12 @@ public class JobAssessmentController {
     
     @Autowired
     private JobPostingRepository jobPostingRepository;
+    
+    @Autowired
+    private CandidateSubmissionRepository candidateSubmissionRepository;
+    
+    @Autowired
+    private UserRepository userRepository;
 
     @Value("${app.ai-service.url:http://localhost:8000}")
     private String aiServiceUrl;
@@ -171,6 +176,7 @@ public class JobAssessmentController {
 
             if (aiResponse != null && aiResponse.has("success") && aiResponse.get("success").asBoolean()) {
                 System.out.println("✅ Job assessment scored successfully");
+                System.out.println("🔥 AI Response: " + aiResponse.toString());
                 
                 // Store the assessment result in the database (update candidate submission)
                 updateCandidateSubmissionWithAssessmentScore(jobId, userDetails.getId(), aiResponse);
@@ -201,19 +207,42 @@ public class JobAssessmentController {
         try {
             System.out.println("🔥 Getting assessment scores for job " + jobId);
 
-            // For now, return a simple message indicating the feature is available
-            // In a full implementation, you'd query the database for all candidate submissions
-            // and their assessment scores for this job
+            // Get all candidate submissions for this job
+            List<CandidateSubmission> submissions = candidateSubmissionRepository
+                .findByJobPostingIdOrderByOverallScoreDesc(jobId);
             
-            return ResponseEntity.ok(Map.of(
-                "success", true,
-                "message", "Assessment scores endpoint available",
-                "jobId", jobId,
-                "note", "This would return all candidate assessment scores for the job"
-            ));
+            System.out.println("📊 Found " + submissions.size() + " candidate submissions for job " + jobId);
+            
+            // Convert to response format
+            List<Map<String, Object>> candidateScores = submissions.stream()
+                .map(submission -> {
+                    Map<String, Object> candidateData = new HashMap<>();
+                    candidateData.put("candidateId", submission.getCandidate().getId());
+                    candidateData.put("candidateName", submission.getCandidate().getFirstName() + " " + submission.getCandidate().getLastName());
+                    candidateData.put("candidateEmail", submission.getCandidate().getEmail());
+                    candidateData.put("overallScore", submission.getOverallScore() != null ? submission.getOverallScore() : 0.0);
+                    candidateData.put("averageAssessmentScore", submission.getAverageAssessmentScore() != null ? submission.getAverageAssessmentScore() : 0.0);
+                    candidateData.put("assessmentsCompleted", submission.getAssessmentsCompleted() != null ? submission.getAssessmentsCompleted() : 0);
+                    candidateData.put("totalAssessments", submission.getTotalAssessments() != null ? submission.getTotalAssessments() : 0);
+                    candidateData.put("applicationStatus", submission.getApplicationStatus().toString());
+                    candidateData.put("submittedAt", submission.getSubmittedAt() != null ? submission.getSubmittedAt().toString() : null);
+                    candidateData.put("lastActivityAt", submission.getLastActivityAt() != null ? submission.getLastActivityAt().toString() : null);
+                    return candidateData;
+                })
+                .collect(Collectors.toList());
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("jobId", jobId);
+            response.put("totalCandidates", submissions.size());
+            response.put("candidates", candidateScores);
+            
+            System.out.println("✅ Returning assessment scores for " + submissions.size() + " candidates");
+            return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             System.err.println("❌ Error getting job assessment scores: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.badRequest()
                     .body(new MessageResponse("Error getting assessment scores: " + e.getMessage()));
         }
@@ -222,8 +251,13 @@ public class JobAssessmentController {
     /**
      * Helper method to update candidate submission with assessment score
      */
+    @Transactional
     private void updateCandidateSubmissionWithAssessmentScore(Long jobId, Long candidateId, JsonNode assessmentResult) {
         try {
+            System.out.println("🔥 [SCORE_STORAGE] Starting to store assessment score...");
+            System.out.println("🔥 [SCORE_STORAGE] Job ID: " + jobId + ", Candidate ID: " + candidateId);
+            System.out.println("🔥 [SCORE_STORAGE] Assessment Result JSON: " + assessmentResult.toString());
+            
             // Extract score information from AI response
             double percentage = assessmentResult.has("percentage") ? assessmentResult.get("percentage").asDouble() : 0.0;
             double totalScore = assessmentResult.has("total_score") ? assessmentResult.get("total_score").asDouble() : 0.0;
@@ -232,14 +266,52 @@ public class JobAssessmentController {
             System.out.println(String.format("📊 Assessment completed - Job: %d, Candidate: %d, Score: %.1f%% (%.1f/%.1f)", 
                 jobId, candidateId, percentage, totalScore, maxScore));
             
-            // TODO: Update CandidateSubmission entity with assessment results
-            // This would involve:
-            // 1. Finding the CandidateSubmission record
-            // 2. Updating assessment-related fields
-            // 3. Changing application status to IN_REVIEW or similar
+            // Find or create CandidateSubmission record
+            System.out.println("🔥 [SCORE_STORAGE] Looking for existing candidate submission...");
+            Optional<CandidateSubmission> submissionOpt = candidateSubmissionRepository
+                .findByJobPostingIdAndCandidateId(jobId, candidateId);
+            
+            CandidateSubmission submission;
+            if (submissionOpt.isPresent()) {
+                submission = submissionOpt.get();
+                System.out.println("📝 [SCORE_STORAGE] Found existing candidate submission: " + submission.getId());
+                System.out.println("📝 [SCORE_STORAGE] Current status: " + submission.getApplicationStatus());
+                System.out.println("📝 [SCORE_STORAGE] Current score: " + submission.getAverageAssessmentScore());
+            } else {
+                // Create new submission if doesn't exist (candidate took assessment without applying first)
+                System.out.println("📝 [SCORE_STORAGE] No existing submission found, creating new one...");
+                submission = new CandidateSubmission();
+                JobPosting jobPosting = jobPostingRepository.findById(jobId)
+                    .orElseThrow(() -> new RuntimeException("Job posting not found"));
+                User candidate = userRepository.findById(candidateId)
+                    .orElseThrow(() -> new RuntimeException("Candidate not found"));
+                
+                submission.setJobPosting(jobPosting);
+                submission.setCandidate(candidate);
+                submission.setApplicationStatus(CandidateSubmission.ApplicationStatus.APPLIED);
+                submission.setSubmittedAt(java.time.LocalDateTime.now());
+                System.out.println("📝 [SCORE_STORAGE] Created new candidate submission for job " + jobId + " and candidate " + candidateId);
+            }
+            
+            // Update assessment-related fields
+            submission.setOverallScore(percentage);
+            submission.setAverageAssessmentScore(percentage);
+            submission.setAssessmentsCompleted(1);
+            submission.setTotalAssessments(1);
+            submission.setApplicationStatus(CandidateSubmission.ApplicationStatus.IN_REVIEW); // Update status after assessment
+            submission.setLastActivityAt(java.time.LocalDateTime.now());
+            
+            // Save updated submission
+            System.out.println("🔥 [SCORE_STORAGE] About to save candidate submission...");
+            CandidateSubmission savedSubmission = candidateSubmissionRepository.save(submission);
+            System.out.println("✅ [SCORE_STORAGE] Successfully saved candidate submission with ID: " + savedSubmission.getId());
+            System.out.println("✅ [SCORE_STORAGE] Saved assessment score: " + savedSubmission.getAverageAssessmentScore() + "%");
+            System.out.println("✅ [SCORE_STORAGE] Saved overall score: " + savedSubmission.getOverallScore() + "%");
+            System.out.println("✅ [SCORE_STORAGE] Application status: " + savedSubmission.getApplicationStatus());
             
         } catch (Exception e) {
-            System.err.println("❌ Error updating candidate submission with assessment score: " + e.getMessage());
+            System.err.println("❌ [SCORE_STORAGE] Error updating candidate submission with assessment score: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }

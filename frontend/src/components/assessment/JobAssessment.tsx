@@ -477,3 +477,4 @@ export const JobAssessment: React.FC = () => {
     </AuthenticatedLayout>
   );
 };
+
