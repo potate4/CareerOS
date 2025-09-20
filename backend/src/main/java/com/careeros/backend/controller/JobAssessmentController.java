@@ -44,7 +44,7 @@ public class JobAssessmentController {
      * Create assessment session for a candidate using stored job assessment questions
      */
     @PostMapping("/create/{jobId}")
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('CANDIDATE') or hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<?> createJobAssessment(
             @PathVariable Long jobId,
             @RequestBody(required = false) Map<String, Object> requestBody,
@@ -144,7 +144,7 @@ public class JobAssessmentController {
      * Submit and score assessment for a candidate
      */
     @PostMapping("/submit/{jobId}")
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('CANDIDATE') or hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<?> submitJobAssessment(
             @PathVariable Long jobId,
             @RequestBody Map<String, Object> requestBody,

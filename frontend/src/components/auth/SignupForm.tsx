@@ -14,7 +14,7 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
     lastName: '',
     password: '',
     confirmPassword: '',
-    role: ['admin'],
+    role: ['candidate'], // Default to candidate
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -97,9 +97,14 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    if (name === 'role') {
+      setFormData(prev => ({ ...prev, [name]: [value] })); // Role is an array
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
     
     // Clear error when user starts typing
     if (errors[name]) {
@@ -223,6 +228,26 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
               />
               {errors.email && (
                 <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+              )}
+            </div>
+            
+            <div>
+              <label htmlFor="role" className="block text-sm font-medium text-slate-700">
+                I am a
+              </label>
+              <select
+                id="role"
+                name="role"
+                required
+                value={formData.role[0] || 'candidate'}
+                onChange={handleChange}
+                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-slate-300 placeholder-slate-500 text-slate-900 rounded-md focus:outline-none focus:ring-slate-600 focus:border-slate-600 focus:z-10 sm:text-sm bg-white"
+              >
+                <option value="candidate">Candidate - Looking for jobs and career development</option>
+                <option value="recruiter">Recruiter - Hiring candidates and managing job postings</option>
+              </select>
+              {errors.role && (
+                <p className="mt-1 text-sm text-red-600">{errors.role}</p>
               )}
             </div>
             

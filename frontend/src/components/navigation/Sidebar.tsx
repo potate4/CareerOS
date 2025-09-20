@@ -16,6 +16,8 @@ import {
   ClipboardCheck,
   MessageSquare
 } from 'lucide-react';
+import { useAuthStore } from '../../stores/authStore';
+import { getNavigationItems } from '../../utils/roleUtils';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -24,69 +26,27 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   const location = useLocation();
+  const { user } = useAuthStore();
 
-  const navigationItems = [
-    {
-      name: 'Dashboard',
-      href: '/dashboard',
-      icon: Home,
-      description: 'Overview and analytics'
-    },
-    {
-      name: 'Learning Path',
-      href: '/learning-path',
-      icon: BookOpen,
-      description: 'AI Learning Path Generator'
-    },
-    {
-      name: 'AI Services',
-      href: '/ai-services',
-      icon: Brain,
-      description: 'AI-powered career tools'
-    },
-    {
-      name: 'Interview Simulator',
-      href: '/interview',
-      icon: Target,
-      description: 'AI Interview Simulator'
-    },
-    {
-      name: 'FutureCast',
-      href: '/futurecast',
-      icon: TrendingUp,
-      description: 'AI Career Path Simulator'
-    },
-    {
-      name: 'MindFlow',
-      href: '/mindflow',
-      icon: Users,
-      description: 'AI Softskill Development Coach'
-    },
-    {
-      name: 'Recruiter Dashboard',
-      href: '/recruiter-dashboard',
-      icon: Briefcase,
-      description: 'Manage job postings and candidates'
-    },
-    {
-      name: 'Create Job Posting',
-      href: '/create-job-posting',
-      icon: PlusCircle,
-      description: 'Create new job posting with AI assistance'
-    },
-    {
-      name: 'Candidate Dashboard',
-      href: '/candidate-dashboard',
-      icon: UserCheck,
-      description: 'View job applications and learning progress'
-    },
-    {
-      name: 'Browse Jobs',
-      href: '/jobs',
-      icon: ClipboardCheck,
-      description: 'Browse available job opportunities'
-    }
-  ];
+  // Icon mapping for navigation items
+  const iconMap: Record<string, any> = {
+    Dashboard: Home,
+    'Learning Path': BookOpen,
+    'AI Services': Brain,
+    'Interview Simulator': Target,
+    FutureCast: TrendingUp,
+    MindFlow: Users,
+    'Recruiter Dashboard': Briefcase,
+    'Create Job Posting': PlusCircle,
+    'Candidate Dashboard': UserCheck,
+    'Browse Jobs': ClipboardCheck,
+  };
+
+  // Get navigation items based on user roles
+  const navigationItems = getNavigationItems(user?.roles || []).map(item => ({
+    ...item,
+    icon: iconMap[item.name] || Home
+  }));
 
   const isActive = (href: string) => {
     return location.pathname.startsWith(href);

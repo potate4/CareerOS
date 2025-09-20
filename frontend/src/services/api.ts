@@ -16,9 +16,17 @@ const api = axios.create({
 api.interceptors.request.use((requestConfig) => {
   const token = localStorage.getItem(config.tokenKey);
   console.log('🔑 Token from localStorage:', token ? 'Present' : 'Missing');
+  console.log('🔗 Request URL:', requestConfig.url);
+  
+  // Add token to all requests except signup and signin
   if (token) {
-    requestConfig.headers.Authorization = `Bearer ${token}`;
-    console.log('🔑 Authorization header set:', `Bearer ${token.substring(0, 20)}...`);
+    // Skip token only for signup and signin
+    if (requestConfig.url === '/auth/signup' || requestConfig.url === '/auth/signin') {
+      console.log('🔓 Skipping token for auth endpoint:', requestConfig.url);
+    } else {
+      requestConfig.headers.Authorization = `Bearer ${token}`;
+      console.log('🔑 Authorization header set:', `Bearer ${token.substring(0, 20)}...`);
+    }
   } else {
     console.log('⚠️ No token found in localStorage');
   }

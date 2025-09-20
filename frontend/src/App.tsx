@@ -2,6 +2,8 @@ import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import ProtectedRoute from './components/common/ProtectedRoute';
+import RoleProtectedRoute from './components/common/RoleProtectedRoute';
+import RoleDashboardRedirect from './components/common/RoleDashboardRedirect';
 import Dashboard from './components/dashboard/Dashboard';
 import AuthPage from './components/auth/AuthPage';
 import AIServicesPage from './components/ai/AIServicesPage';
@@ -46,9 +48,9 @@ function App() {
       <Route 
         path="/ai-services" 
         element={
-          <ProtectedRoute>
+          <RoleProtectedRoute>
             <AIServicesPage />
-          </ProtectedRoute>
+          </RoleProtectedRoute>
         } 
       />
       <Route 
@@ -157,8 +159,8 @@ function App() {
           </ProtectedRoute>
         }
       />
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<RoleDashboardRedirect />} />
+      <Route path="*" element={<RoleDashboardRedirect />} />
     </Routes>
   );
 }

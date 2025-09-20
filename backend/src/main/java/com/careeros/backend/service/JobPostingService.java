@@ -127,7 +127,7 @@ public class JobPostingService {
     /**
      * Generate job content (learning path and assessments) in background
      */
-    @Async
+    // @Async - Temporarily disabled due to Spring proxy issues
     public void generateJobContentInBackground(Long jobPostingId, JobPostingRequest request) {
         try {
             System.out.println("🔄 [BACKGROUND] Starting AI generation for job " + jobPostingId);
@@ -622,6 +622,16 @@ public class JobPostingService {
         jobPosting = jobPostingRepository.save(jobPosting);
         
         return new JobPostingResponse(jobPosting);
+    }
+    
+    /**
+     * Delete job posting
+     */
+    public void deleteJobPosting(Long jobId, Long recruiterId) {
+        JobPosting jobPosting = jobPostingRepository.findByIdAndRecruiterId(jobId, recruiterId)
+                .orElseThrow(() -> new RuntimeException("Job posting not found or access denied"));
+        
+        jobPostingRepository.delete(jobPosting);
     }
     
     /**
