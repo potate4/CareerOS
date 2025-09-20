@@ -3,6 +3,7 @@ package com.careeros.backend.controller;
 import com.careeros.backend.payload.request.JobPostingRequest;
 import com.careeros.backend.payload.response.JobPostingResponse;
 import com.careeros.backend.payload.response.JobLearningPathResponse;
+import com.careeros.backend.payload.response.JobAssessmentSummaryResponse;
 import com.careeros.backend.payload.response.MessageResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.careeros.backend.security.UserDetailsImpl;
@@ -111,6 +112,23 @@ public class JobPostingController {
     }
     
     /**
+     * Delete a job posting (Recruiters only)
+     */
+    @DeleteMapping("/recruiter/{jobId}")
+    @PreAuthorize("hasRole('RECRUITER') or hasRole('ADMIN')")
+    public ResponseEntity<?> deleteJobPosting(
+            @PathVariable Long jobId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        try {
+            jobPostingService.deleteJobPosting(jobId, userDetails.getId());
+            return ResponseEntity.ok(new MessageResponse("Job posting deleted successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("Error: " + e.getMessage()));
+        }
+    }
+    
+    /**
      * Get learning path for a job posting
      */
     @GetMapping("/recruiter/{jobId}/learning-path")
@@ -121,6 +139,23 @@ public class JobPostingController {
         try {
             JobLearningPathResponse response = jobPostingService.getJobLearningPath(jobId, userDetails.getId());
             return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("Error: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Get assessments for a job posting
+     */
+    @GetMapping("/{jobId}/assessments")
+    @PreAuthorize("hasRole('RECRUITER') or hasRole('ADMIN')")
+    public ResponseEntity<?> getJobAssessments(
+            @PathVariable Long jobId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        try {
+            List<JobAssessmentSummaryResponse> assessments = jobPostingService.getJobAssessments(jobId);
+            return ResponseEntity.ok(assessments);
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body(new MessageResponse("Error: " + e.getMessage()));

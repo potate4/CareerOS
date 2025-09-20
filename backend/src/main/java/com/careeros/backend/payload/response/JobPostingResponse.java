@@ -24,7 +24,7 @@ public class JobPostingResponse {
     private Boolean hasLearningPath;
     private Boolean hasAssessments;
     private List<JobLearningPathResponse> learningPath;
-    // private List<JobAssessmentSummaryResponse> assessments;
+    private List<JobAssessmentSummaryResponse> assessments;
     
     // Constructors
     public JobPostingResponse() {}
@@ -57,6 +57,13 @@ public class JobPostingResponse {
         }
 
         this.hasAssessments = jobPosting.getJobAssessments() != null && !jobPosting.getJobAssessments().isEmpty();
+
+        // Populate assessments list
+        if (jobPosting.getJobAssessments() != null) {
+            this.assessments = jobPosting.getJobAssessments().stream()
+                    .map(JobAssessmentSummaryResponse::new)
+                    .collect(java.util.stream.Collectors.toList());
+        }
 
         if (jobPosting.getCandidateSubmissions() != null) {
             this.totalApplications = (long) jobPosting.getCandidateSubmissions().size();
@@ -216,11 +223,11 @@ public class JobPostingResponse {
         this.learningPath = learningPath;
     }
     
-    // public List<JobAssessmentSummaryResponse> getAssessments() {
-    //     return assessments;
-    // }
-    //
-    // public void setAssessments(List<JobAssessmentSummaryResponse> assessments) {
-    //     this.assessments = assessments;
-    // }
+    public List<JobAssessmentSummaryResponse> getAssessments() {
+        return assessments;
+    }
+
+    public void setAssessments(List<JobAssessmentSummaryResponse> assessments) {
+        this.assessments = assessments;
+    }
 }

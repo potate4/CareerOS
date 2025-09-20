@@ -14,9 +14,13 @@ import MindFlowPage from './features/mindflow/components/MindFlowPage';
 
 
 import { CandidateDashboard } from './components/candidate/CandidateDashboard';
+import { JobBrowse } from './components/candidate/JobBrowse';
+import { JobDetailedView } from './components/job/JobDetailedView';
 import { CreateJobPosting } from './components/recruiter/CreateJobPosting';
+import { EditJobPosting } from './components/recruiter/EditJobPosting';
 import { CandidateListView } from './components/recruiter/CandidateListView';
 import { RecruiterDashboard } from './components/recruiter/RecruiterDashboard';
+import { JobDetails } from './components/recruiter/JobDetails';
 
 import './App.css';
 
@@ -97,6 +101,14 @@ function App() {
         } 
       />
       <Route 
+        path="/edit-job-posting/:jobId" 
+        element={
+          <ProtectedRoute>
+            <EditJobPosting />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
         path="/candidate-list" 
         element={
           <ProtectedRoute>
@@ -104,13 +116,37 @@ function App() {
           </ProtectedRoute>
         } 
       />
-      <Route 
-        path="/recruiter-dashboard" 
+      <Route
+        path="/recruiter-dashboard"
         element={
           <ProtectedRoute>
             <RecruiterDashboard />
           </ProtectedRoute>
-        } 
+        }
+      />
+      <Route
+        path="/job-details/:jobId"
+        element={
+          <ProtectedRoute>
+            <JobDetails />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/jobs"
+        element={
+          <ProtectedRoute>
+            <JobBrowse />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/jobs/:jobId"
+        element={
+          <ProtectedRoute>
+            <JobDetailedView />
+          </ProtectedRoute>
+        }
       />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

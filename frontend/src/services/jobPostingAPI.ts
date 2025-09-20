@@ -10,7 +10,6 @@ import {
   RecruiterDashboardStats,
   CandidateDashboardStats,
   JobPostingFilters,
-  CandidateFilters,
   ApplicationStatus
 } from '../types/jobPosting';
 
@@ -39,6 +38,11 @@ export const jobPostingAPI = {
 
   toggleJobPostingStatus: async (jobId: number): Promise<JobPosting> => {
     const response = await api.patch(`/jobs/recruiter/${jobId}/toggle-status`);
+    return response.data;
+  },
+
+  getJobPosting: async (jobId: number): Promise<JobPosting> => {
+    const response = await api.get(`/jobs/recruiter/${jobId}`);
     return response.data;
   },
 
@@ -78,7 +82,17 @@ export const jobPostingAPI = {
   },
 
   getJobAssessments: async (jobId: number): Promise<JobAssessmentSummary[]> => {
-    const response = await api.get(`/assessments/job/${jobId}`);
+    const response = await api.get(`/jobs/${jobId}/assessments`);
+    return response.data;
+  },
+
+  getJobAssessmentDetails: async (jobId: number): Promise<JobAssessmentSummary[]> => {
+    const response = await api.get(`/jobs/${jobId}/assessments`);
+    return response.data;
+  },
+
+  deleteJobPosting: async (jobId: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/jobs/recruiter/${jobId}`);
     return response.data;
   }
 };
@@ -102,12 +116,12 @@ export const candidateApplicationAPI = {
   },
 
   // Recruiter endpoints
-  getCandidatesForJob: async (jobId: number, filters?: CandidateFilters): Promise<CandidateSubmission[]> => {
+  getCandidatesForJob: async (jobId: number): Promise<CandidateSubmission[]> => {
     const response = await api.get(`/applications/recruiter/job/${jobId}`);
     return response.data;
   },
 
-  getAllCandidatesForRecruiter: async (filters?: CandidateFilters): Promise<CandidateSubmission[]> => {
+  getAllCandidatesForRecruiter: async (): Promise<CandidateSubmission[]> => {
     const response = await api.get('/applications/recruiter');
     return response.data;
   },
@@ -238,12 +252,15 @@ export const jobAIAPI = {
       console.log('🔥 [FRONTEND] Response data:', response.data);
 
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ [FRONTEND] API call failed');
       console.error('❌ [FRONTEND] Error:', error);
-      console.error('❌ [FRONTEND] Error response:', error.response);
-      console.error('❌ [FRONTEND] Error status:', error.response?.status);
-      console.error('❌ [FRONTEND] Error data:', error.response?.data);
+      if (error && typeof error === 'object' && 'response' in error) {
+        const errorWithResponse = error as { response?: { status?: number; data?: unknown } };
+        console.error('❌ [FRONTEND] Error response:', errorWithResponse.response);
+        console.error('❌ [FRONTEND] Error status:', errorWithResponse.response?.status);
+        console.error('❌ [FRONTEND] Error data:', errorWithResponse.response?.data);
+      }
       throw error;
     }
   }

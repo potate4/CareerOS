@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Briefcase, Users, TrendingUp, Eye, Edit, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { jobPostingAPI, candidateApplicationAPI, dashboardAPI } from '../../services/jobPostingAPI';
+import { jobPostingAPI, candidateApplicationAPI } from '../../services/jobPostingAPI';
 import { JobPosting, CandidateSubmission, RecruiterDashboardStats, ApplicationStatus } from '../../types/jobPosting';
 import  LoadingSpinner  from '../common/LoadingSpinner';
 import  Alert  from '../common/Alert';
@@ -20,35 +20,69 @@ export const RecruiterDashboard: React.FC<RecruiterDashboardProps> = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'jobs' | 'candidates'>('overview');
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
-      const [dashboardStats, jobPostings, candidates] = await Promise.all([
-        dashboardAPI.getRecruiterStats(),
+      
+      // Fetch base data once
+      const [jobPostings, candidates] = await Promise.all([
         jobPostingAPI.getRecruiterJobPostings(),
         candidateApplicationAPI.getAllCandidatesForRecruiter()
       ]);
 
+      // Calculate stats locally instead of making additional API calls
+      const activeJobs = jobPostings.filter(job => job.isActive);
+      const recentCandidates = candidates
+        .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
+        .slice(0, 10);
+      
+      const recentApplications = candidates.filter(candidate => {
+        const submittedDate = new Date(candidate.submittedAt);
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        return submittedDate >= weekAgo;
+      }).length;
+
+      const topPerformingJobs = jobPostings
+        .sort((a, b) => b.totalApplications - a.totalApplications)
+        .slice(0, 5);
+
+      const dashboardStats: RecruiterDashboardStats = {
+        totalJobs: jobPostings.length,
+        activeJobs: activeJobs.length,
+        totalApplications: candidates.length,
+        recentApplications,
+        averageApplicationsPerJob: jobPostings.length > 0 ? candidates.length / jobPostings.length : 0,
+        topPerformingJobs,
+        recentCandidates
+      };
+
       setStats(dashboardStats);
       setJobs(jobPostings);
       setRecentCandidates(candidates.slice(0, 10));
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load dashboard data');
+    } catch (err: unknown) {
+      const errorMessage = err && typeof err === 'object' && 'response' in err 
+        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to load dashboard data'
+        : 'Failed to load dashboard data';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const handleToggleJobStatus = async (jobId: number) => {
     try {
       await jobPostingAPI.toggleJobPostingStatus(jobId);
       await fetchDashboardData(); // Refresh data
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to toggle job status');
+    } catch (err: unknown) {
+      const errorMessage = err && typeof err === 'object' && 'response' in err 
+        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to toggle job status'
+        : 'Failed to toggle job status';
+      setError(errorMessage);
     }
   };
 
@@ -297,7 +331,7 @@ export const RecruiterDashboard: React.FC<RecruiterDashboardProps> = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                       <button
-                        onClick={() => alert(`View job details for job ID: ${job.id} (Feature coming soon)`)}
+                        onClick={() => navigate(`/job-details/${job.id}`)}
                         className="text-blue-600 hover:text-blue-900"
                         title="View job details"
                       >

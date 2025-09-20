@@ -4,6 +4,7 @@ import com.careeros.backend.model.*;
 import com.careeros.backend.payload.request.JobPostingRequest;
 import com.careeros.backend.payload.response.JobPostingResponse;
 import com.careeros.backend.payload.response.JobLearningPathResponse;
+import com.careeros.backend.payload.response.JobAssessmentSummaryResponse;
 import com.careeros.backend.payload.response.AILearningPathResponse;
 import com.careeros.backend.repository.*;
 import com.careeros.backend.model.JobAssessmentQuestion;
@@ -655,5 +656,94 @@ public class JobPostingService {
             e.printStackTrace();
             throw new RuntimeException("AI analysis failed: " + e.getMessage());
         }
+    }
+
+    /**
+     * Get assessments for a job posting
+     */
+    public List<JobAssessmentSummaryResponse> getJobAssessments(Long jobId) {
+        JobPosting jobPosting = jobPostingRepository.findByIdWithAssociations(jobId)
+                .orElseThrow(() -> new RuntimeException("Job posting not found with id: " + jobId));
+        
+        if (jobPosting.getJobAssessments() == null || jobPosting.getJobAssessments().isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        return jobPosting.getJobAssessments().stream()
+                .map(JobAssessmentSummaryResponse::new)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Update a job posting
+     */
+    public JobPostingResponse updateJobPosting(Long jobId, Long recruiterId, JobPostingRequest request) {
+        JobPosting jobPosting = jobPostingRepository.findById(jobId)
+                .orElseThrow(() -> new RuntimeException("Job posting not found with id: " + jobId));
+        
+        // Verify ownership
+        if (!jobPosting.getRecruiter().getId().equals(recruiterId)) {
+            throw new RuntimeException("You don't have permission to edit this job posting");
+        }
+        
+        // Update fields
+        jobPosting.setJobTitle(request.getJobTitle());
+        jobPosting.setCompany(request.getCompany());
+        jobPosting.setJobDescription(request.getJobDescription());
+        jobPosting.setRequiredSkills(request.getRequiredSkills());
+        jobPosting.setExperienceLevel(request.getExperienceLevel());
+        jobPosting.setLocation(request.getLocation());
+        jobPosting.setJobType(request.getJobType());
+        jobPosting.setSalaryRange(request.getSalaryRange());
+        jobPosting.setUpdatedAt(java.time.LocalDateTime.now());
+        
+        jobPosting = jobPostingRepository.save(jobPosting);
+        
+        // Refresh to get associations
+        jobPosting = jobPostingRepository.findByIdWithAssociations(jobPosting.getId()).orElse(jobPosting);
+        
+        return new JobPostingResponse(jobPosting);
+    }
+
+    /**
+     * Delete a job posting
+     */
+    public void deleteJobPosting(Long jobId, Long recruiterId) {
+        JobPosting jobPosting = jobPostingRepository.findById(jobId)
+                .orElseThrow(() -> new RuntimeException("Job posting not found with id: " + jobId));
+        
+        // Verify ownership
+        if (!jobPosting.getRecruiter().getId().equals(recruiterId)) {
+            throw new RuntimeException("You don't have permission to delete this job posting");
+        }
+        
+        // Check if there are any applications
+        if (jobPosting.getCandidateSubmissions() != null && !jobPosting.getCandidateSubmissions().isEmpty()) {
+            throw new RuntimeException("Cannot delete job posting with existing applications");
+        }
+        
+        jobPostingRepository.delete(jobPosting);
+    }
+
+    /**
+     * Toggle job posting active status
+     */
+    public JobPostingResponse toggleJobPostingStatus(Long jobId, Long recruiterId) {
+        JobPosting jobPosting = jobPostingRepository.findById(jobId)
+                .orElseThrow(() -> new RuntimeException("Job posting not found with id: " + jobId));
+        
+        // Verify ownership
+        if (!jobPosting.getRecruiter().getId().equals(recruiterId)) {
+            throw new RuntimeException("You don't have permission to modify this job posting");
+        }
+        
+        jobPosting.setIsActive(!jobPosting.getIsActive());
+        jobPosting.setUpdatedAt(java.time.LocalDateTime.now());
+        jobPosting = jobPostingRepository.save(jobPosting);
+        
+        // Refresh to get associations
+        jobPosting = jobPostingRepository.findByIdWithAssociations(jobPosting.getId()).orElse(jobPosting);
+        
+        return new JobPostingResponse(jobPosting);
     }
 }

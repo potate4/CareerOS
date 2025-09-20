@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Briefcase, TrendingUp, Clock, Award, Search, MapPin, Building, ExternalLink } from 'lucide-react';
 import { candidateApplicationAPI, jobPostingAPI, dashboardAPI } from '../../services/jobPostingAPI';
 import { CandidateSubmission, JobPosting, CandidateDashboardStats, ApplicationStatus } from '../../types/jobPosting';
+import { JobPostingCard } from '../job/JobPostingCard';
 import  LoadingSpinner from '../common/LoadingSpinner';
 import  Alert  from '../common/Alert';
 import AuthenticatedLayout from '../layout/AuthenticatedLayout';
@@ -30,8 +31,11 @@ export const CandidateDashboard: React.FC = () => {
       setStats(dashboardStats);
       setApplications(candidateApplications);
       setRecommendedJobs(availableJobs.slice(0, 6)); // Show top 6 recommended jobs
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load dashboard data');
+    } catch (err: unknown) {
+      const errorMessage = err && typeof err === 'object' && 'response' in err 
+        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to load dashboard data'
+        : 'Failed to load dashboard data';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -67,8 +71,11 @@ export const CandidateDashboard: React.FC = () => {
     try {
       await candidateApplicationAPI.applyForJob({ jobPostingId: jobId });
       await fetchDashboardData(); // Refresh data
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to apply to job');
+    } catch (err: unknown) {
+      const errorMessage = err && typeof err === 'object' && 'response' in err 
+        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to apply to job'
+        : 'Failed to apply to job';
+      setError(errorMessage);
     }
   };
 
@@ -371,65 +378,14 @@ export const CandidateDashboard: React.FC = () => {
             const hasApplied = applications.some(app => app.jobPostingId === job.id);
             
             return (
-              <div key={job.id} className="bg-white p-6 rounded-lg shadow border hover:shadow-md transition-shadow">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">{job.jobTitle}</h3>
-                    <p className="text-gray-600 flex items-center">
-                      <Building className="h-4 w-4 mr-1" />
-                      {job.company}
-                    </p>
-                    {job.location && (
-                      <p className="text-gray-500 flex items-center mt-1">
-                        <MapPin className="h-4 w-4 mr-1" />
-                        {job.location}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    {job.hasLearningPath && (
-                      <div className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-medium">
-                        Learning Path
-                      </div>
-                    )}
-                    {job.hasAssessments && (
-                      <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
-                        Assessment
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <p className="text-gray-700 text-sm mb-4 line-clamp-3">
-                  {job.jobDescription.substring(0, 150)}...
-                </p>
-
-                <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                  <div className="text-sm text-gray-500">
-                    {job.totalApplications} applications
-                  </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleViewJob(job.id)}
-                      className="px-3 py-1 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors text-sm"
-                    >
-                      View Details
-                    </button>
-                    {hasApplied ? (
-                      <span className="px-3 py-1 bg-green-100 text-green-800 rounded text-sm font-medium">
-                        Applied
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => handleApplyToJob(job.id)}
-                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors text-sm"
-                      >
-                        Apply Now
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <JobPostingCard
+                key={job.id}
+                job={job}
+                onViewDetails={handleViewJob}
+                onApply={handleApplyToJob}
+                isApplied={hasApplied}
+                className="h-full"
+              />
             );
           })}
         </div>

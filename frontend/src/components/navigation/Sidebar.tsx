@@ -79,6 +79,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
       href: '/candidate-dashboard',
       icon: UserCheck,
       description: 'View job applications and learning progress'
+    },
+    {
+      name: 'Browse Jobs',
+      href: '/jobs',
+      icon: ClipboardCheck,
+      description: 'Browse available job opportunities'
     }
   ];
 
