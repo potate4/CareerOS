@@ -107,9 +107,12 @@ export const JobBrowse: React.FC = () => {
 
   const handleApplyToJob = async (jobId: number) => {
     try {
+      console.log('🔥 [JobBrowse] Applying to job:', jobId);
       await candidateApplicationAPI.applyForJob({ jobPostingId: jobId });
+      console.log('✅ [JobBrowse] Application successful');
       await fetchJobsAndApplications(); // Refresh data
     } catch (err: any) {
+      console.error('❌ [JobBrowse] Application failed:', err);
       setError(err.response?.data?.message || 'Failed to apply to job');
     }
   };

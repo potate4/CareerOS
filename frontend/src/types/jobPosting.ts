@@ -279,3 +279,61 @@ export interface CandidateFilters {
   };
   search?: string;
 }
+
+// Job Assessment Types (Based on existing AI assessment system)
+export interface JobAssessmentQuestion {
+  question: string;
+  correct_answer?: string;
+  options?: string[];
+  question_type?: string;
+  difficulty?: string;
+  explanation?: string;
+}
+
+export interface JobAssessmentSession {
+  success: boolean;
+  message: string;
+  assessment_id: string;
+  questions: JobAssessmentQuestion[];
+  job_id: number;
+  candidate_id: number;
+  assessment_type: string;
+  difficulty: string;
+  created_at: string;
+}
+
+export interface JobAssessmentAnswer {
+  question: string;
+  correct_answer: string;
+  provided_answer: string;
+}
+
+export interface JobAssessmentAnswerScore {
+  question: string;
+  correct_answer: string;
+  provided_answer: string;
+  score: number;
+  feedback?: string;
+  is_correct: boolean;
+}
+
+export interface JobAssessmentResult {
+  success: boolean;
+  message: string;
+  assessment_id: string;
+  job_id: number;
+  candidate_id: number;
+  total_score: number;
+  max_score: number;
+  percentage: number;
+  answers_and_scores: JobAssessmentAnswerScore[];
+  overall_feedback: string;
+  completed_at: string;
+}
+
+export interface JobAssessmentScores {
+  success: boolean;
+  message: string;
+  jobId: number;
+  note: string;
+}

@@ -16,6 +16,7 @@ import MindFlowPage from './features/mindflow/components/MindFlowPage';
 import { CandidateDashboard } from './components/candidate/CandidateDashboard';
 import { JobBrowse } from './components/candidate/JobBrowse';
 import { JobDetailedView } from './components/job/JobDetailedView';
+import { JobAssessment } from './components/assessment/JobAssessment';
 import { CreateJobPosting } from './components/recruiter/CreateJobPosting';
 import { EditJobPosting } from './components/recruiter/EditJobPosting';
 import { CandidateListView } from './components/recruiter/CandidateListView';
@@ -145,6 +146,14 @@ function App() {
         element={
           <ProtectedRoute>
             <JobDetailedView />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/job-assessment/:jobId"
+        element={
+          <ProtectedRoute>
+            <JobAssessment />
           </ProtectedRoute>
         }
       />

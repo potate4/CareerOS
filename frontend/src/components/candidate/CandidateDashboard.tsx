@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Briefcase, TrendingUp, Clock, Award, Search, MapPin, Building, ExternalLink } from 'lucide-react';
 import { candidateApplicationAPI, jobPostingAPI, dashboardAPI } from '../../services/jobPostingAPI';
 import { CandidateSubmission, JobPosting, CandidateDashboardStats, ApplicationStatus } from '../../types/jobPosting';
@@ -8,30 +9,76 @@ import  Alert  from '../common/Alert';
 import AuthenticatedLayout from '../layout/AuthenticatedLayout';
 
 export const CandidateDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState<CandidateDashboardStats | null>(null);
   const [applications, setApplications] = useState<CandidateSubmission[]>([]);
   const [recommendedJobs, setRecommendedJobs] = useState<JobPosting[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'applications' | 'jobs'>('overview');
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
 
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1);
+    fetchDashboardData();
+  };
+
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [dashboardStats, candidateApplications, availableJobs] = await Promise.all([
-        dashboardAPI.getCandidateStats(),
-        candidateApplicationAPI.getCandidateApplications(),
-        jobPostingAPI.getAllActiveJobPostings()
-      ]);
+      setError(null);
+      // Fetch data with individual error handling for better resilience
+      let dashboardStats = null;
+      let candidateApplications: CandidateSubmission[] = [];
+      let availableJobs: JobPosting[] = [];
+      
+      try {
+        candidateApplications = await candidateApplicationAPI.getCandidateApplications();
+      } catch (err) {
+        console.error('Failed to load applications:', err);
+      }
+      
+      try {
+        availableJobs = await jobPostingAPI.getAllActiveJobPostings();
+      } catch (err) {
+        console.error('Failed to load jobs:', err);
+      }
+      
+      try {
+        dashboardStats = await dashboardAPI.getCandidateStats();
+      } catch (err) {
+        console.error('Failed to load stats:', err);
+        // Create fallback stats
+        dashboardStats = {
+          totalApplications: candidateApplications.length,
+          inProgress: candidateApplications.filter(app => 
+            app.applicationStatus === ApplicationStatus.IN_REVIEW || 
+            app.applicationStatus === ApplicationStatus.ASSESSMENT_PHASE ||
+            app.applicationStatus === ApplicationStatus.LEARNING_PHASE
+          ).length,
+          completed: candidateApplications.filter(app => 
+            app.applicationStatus === ApplicationStatus.ACCEPTED ||
+            app.applicationStatus === ApplicationStatus.REJECTED ||
+            app.applicationStatus === ApplicationStatus.WITHDRAWN
+          ).length,
+          averageScore: candidateApplications.length > 0 
+            ? candidateApplications.reduce((acc, app) => acc + (app.averageAssessmentScore || 0), 0) / candidateApplications.length 
+            : 0,
+          recentApplications: candidateApplications.slice(0, 5),
+          recommendedJobs: availableJobs.slice(0, 6)
+        };
+      }
 
       setStats(dashboardStats);
       setApplications(candidateApplications);
-      setRecommendedJobs(availableJobs.slice(0, 6)); // Show top 6 recommended jobs
+      setRecommendedJobs(availableJobs.slice(0, 6));
+      
     } catch (err: unknown) {
+      console.error('Critical error loading dashboard:', err);
       const errorMessage = err && typeof err === 'object' && 'response' in err 
         ? (err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to load dashboard data'
         : 'Failed to load dashboard data';
@@ -64,7 +111,7 @@ export const CandidateDashboard: React.FC = () => {
   };
 
   const handleViewJob = (jobId: number) => {
-    window.location.href = `/jobs/${jobId}`;
+    navigate(`/jobs/${jobId}`);
   };
 
   const handleApplyToJob = async (jobId: number) => {
@@ -80,7 +127,8 @@ export const CandidateDashboard: React.FC = () => {
   };
 
   const handleViewApplication = (applicationId: number) => {
-    window.location.href = `/applications/${applicationId}`;
+    // TODO: Implement application details view
+    alert(`Application details view coming soon! Application ID: ${applicationId}`);
   };
 
   if (loading) {
@@ -98,6 +146,19 @@ export const CandidateDashboard: React.FC = () => {
       <AuthenticatedLayout>
         <div className="max-w-6xl mx-auto p-6">
           <Alert type="error" message={error} />
+          <div className="mt-4 text-center">
+            <button
+              onClick={handleRetry}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Retry Loading Dashboard
+            </button>
+            {retryCount > 0 && (
+              <p className="text-sm text-slate-600 mt-2">
+                Retry attempts: {retryCount}
+              </p>
+            )}
+          </div>
         </div>
       </AuthenticatedLayout>
     );
@@ -357,12 +418,31 @@ export const CandidateDashboard: React.FC = () => {
                       {new Date(application.submittedAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => handleViewApplication(application.id)}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        View Details
-                      </button>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleViewApplication(application.id)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          View Details
+                        </button>
+                        {application.applicationStatus === ApplicationStatus.APPLIED && (
+                          <button
+                            onClick={() => navigate(`/job-assessment/${application.jobPostingId}`)}
+                            className="text-green-600 hover:text-green-900"
+                          >
+                            Take Assessment
+                          </button>
+                        )}
+                        {(application.applicationStatus === ApplicationStatus.ASSESSMENT_PHASE ||
+                          application.applicationStatus === ApplicationStatus.IN_REVIEW) && (
+                          <button
+                            onClick={() => navigate(`/job-assessment/${application.jobPostingId}`)}
+                            className="text-purple-600 hover:text-purple-900"
+                          >
+                            View Results
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -220,6 +220,10 @@ async def extract_skills_and_generate_content(request: JobSkillsExtractionReques
         logger.error(f"❌ [AI_ENDPOINT] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Skills extraction failed: {str(e)}")
 
+# Job assessment functionality uses the learning path assessment system
+# Candidates take assessments via /api/v1/learning-path/create-assessment and /api/v1/learning-path/score-assessment
+# with jobId as module_id
+
 @router.get("/health")
 async def health_check():
     """

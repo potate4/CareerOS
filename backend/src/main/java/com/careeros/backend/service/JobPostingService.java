@@ -10,6 +10,7 @@ import com.careeros.backend.repository.*;
 import com.careeros.backend.model.JobAssessmentQuestion;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -91,26 +92,18 @@ public class JobPostingService {
             
             jobPosting = jobPostingRepository.save(jobPosting);
             
-            // Generate learning path if requested
-            if (request.getGenerateLearningPath()) {
-                try {
-                    generateJobLearningPath(jobPosting, request);
-                } catch (Exception e) {
-                    System.err.println("❌ Error generating learning path: " + e.getMessage());
-                }
+            // DEBUG: Check generation flags
+            System.out.println("🔥 [DEBUG] Generate Learning Path: " + request.getGenerateLearningPath());
+            System.out.println("🔥 [DEBUG] Generate Assessment: " + request.getGenerateAssessment());
+            
+            // Start AI generation in background if requested
+            if (request.getGenerateLearningPath() || request.getGenerateAssessment()) {
+                System.out.println("🚀 [DEBUG] Starting AI generation in background...");
+                generateJobContentInBackground(jobPosting.getId(), request);
+                System.out.println("✅ [DEBUG] Background job started - returning job posting immediately");
+            } else {
+                System.out.println("⚠️ [DEBUG] AI generation SKIPPED - no background job needed");
             }
-
-            // Generate assessment if requested
-            if (request.getGenerateAssessment()) {
-                try {
-                    generateJobAssessment(jobPosting, request);
-                } catch (Exception e) {
-                    System.err.println("❌ Error generating assessment: " + e.getMessage());
-                }
-            }
-
-            // Refresh the job posting to include the newly created learning path and assessments
-            jobPosting = jobPostingRepository.findByIdWithAssociations(jobPosting.getId()).orElse(jobPosting);
 
             // Debug the refreshed job posting
             System.out.println("🔥 [SERVICE_DEBUG] After refresh - Job ID: " + jobPosting.getId());
@@ -128,6 +121,50 @@ public class JobPostingService {
         } catch (Exception e) {
             System.err.println("❌ Error creating job posting: " + e.getMessage());
             throw new RuntimeException("Failed to create job posting: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Generate job content (learning path and assessments) in background
+     */
+    @Async
+    public void generateJobContentInBackground(Long jobPostingId, JobPostingRequest request) {
+        try {
+            System.out.println("🔄 [BACKGROUND] Starting AI generation for job " + jobPostingId);
+            
+            // Fetch the job posting
+            JobPosting jobPosting = jobPostingRepository.findById(jobPostingId)
+                .orElseThrow(() -> new RuntimeException("Job posting not found: " + jobPostingId));
+            
+            // Generate learning path if requested
+            if (request.getGenerateLearningPath()) {
+                System.out.println("🔄 [BACKGROUND] Generating learning path...");
+                try {
+                    generateJobLearningPath(jobPosting, request);
+                    System.out.println("✅ [BACKGROUND] Learning path generated successfully");
+                } catch (Exception e) {
+                    System.err.println("❌ [BACKGROUND] Error generating learning path: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+
+            // Generate assessment if requested
+            if (request.getGenerateAssessment()) {
+                System.out.println("🔄 [BACKGROUND] Generating assessment...");
+                try {
+                    generateJobAssessment(jobPosting, request);
+                    System.out.println("✅ [BACKGROUND] Assessment generated successfully");
+                } catch (Exception e) {
+                    System.err.println("❌ [BACKGROUND] Error generating assessment: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+            
+            System.out.println("🎉 [BACKGROUND] AI generation completed for job " + jobPostingId);
+            
+        } catch (Exception e) {
+            System.err.println("❌ [BACKGROUND] Fatal error in background job: " + e.getMessage());
+            e.printStackTrace();
         }
     }
     
@@ -158,12 +195,15 @@ public class JobPostingService {
      */
     private AILearningPathResponse callAIJobLearningPathGeneration(JobPosting jobPosting, JobPostingRequest request) {
         try {
-            System.out.println("🤖 Calling Python AI service for job posting analysis and learning path generation...");
-            System.out.println("📝 Job title: " + jobPosting.getJobTitle());
-            System.out.println("📝 Company: " + jobPosting.getCompany());
+            System.out.println("🤖 [AI_CALL] Calling Python AI service for job posting analysis and learning path generation...");
+            System.out.println("📝 [AI_CALL] Job title: " + jobPosting.getJobTitle());
+            System.out.println("📝 [AI_CALL] Company: " + jobPosting.getCompany());
+            System.out.println("🌐 [AI_CALL] AI Service URL: " + aiServiceUrl);
+            System.out.println("🔗 [AI_CALL] Full endpoint: " + aiServiceUrl + "/api/v1/job-posting/extract-skills-and-generate");
 
             Map<String, Object> aiRequest = new HashMap<>();
             aiRequest.put("job_description", jobPosting.getJobDescription());
+            System.out.println("📤 [AI_CALL] Sending request to AI service...");
 
             JsonNode aiResponse = webClient.post()
                 .uri(aiServiceUrl + "/api/v1/job-posting/extract-skills-and-generate")
@@ -173,6 +213,8 @@ public class JobPostingService {
                 .bodyToMono(JsonNode.class)
                 .timeout(Duration.ofSeconds(60))
                 .block();
+            
+            System.out.println("📥 [AI_CALL] Received response from AI service");
             
             if (aiResponse != null && aiResponse.has("success") && aiResponse.get("success").asBoolean()) {
                 return parseJobPostingAIResponse(aiResponse);
@@ -674,76 +716,5 @@ public class JobPostingService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Update a job posting
-     */
-    public JobPostingResponse updateJobPosting(Long jobId, Long recruiterId, JobPostingRequest request) {
-        JobPosting jobPosting = jobPostingRepository.findById(jobId)
-                .orElseThrow(() -> new RuntimeException("Job posting not found with id: " + jobId));
-        
-        // Verify ownership
-        if (!jobPosting.getRecruiter().getId().equals(recruiterId)) {
-            throw new RuntimeException("You don't have permission to edit this job posting");
-        }
-        
-        // Update fields
-        jobPosting.setJobTitle(request.getJobTitle());
-        jobPosting.setCompany(request.getCompany());
-        jobPosting.setJobDescription(request.getJobDescription());
-        jobPosting.setRequiredSkills(request.getRequiredSkills());
-        jobPosting.setExperienceLevel(request.getExperienceLevel());
-        jobPosting.setLocation(request.getLocation());
-        jobPosting.setJobType(request.getJobType());
-        jobPosting.setSalaryRange(request.getSalaryRange());
-        jobPosting.setUpdatedAt(java.time.LocalDateTime.now());
-        
-        jobPosting = jobPostingRepository.save(jobPosting);
-        
-        // Refresh to get associations
-        jobPosting = jobPostingRepository.findByIdWithAssociations(jobPosting.getId()).orElse(jobPosting);
-        
-        return new JobPostingResponse(jobPosting);
-    }
 
-    /**
-     * Delete a job posting
-     */
-    public void deleteJobPosting(Long jobId, Long recruiterId) {
-        JobPosting jobPosting = jobPostingRepository.findById(jobId)
-                .orElseThrow(() -> new RuntimeException("Job posting not found with id: " + jobId));
-        
-        // Verify ownership
-        if (!jobPosting.getRecruiter().getId().equals(recruiterId)) {
-            throw new RuntimeException("You don't have permission to delete this job posting");
-        }
-        
-        // Check if there are any applications
-        if (jobPosting.getCandidateSubmissions() != null && !jobPosting.getCandidateSubmissions().isEmpty()) {
-            throw new RuntimeException("Cannot delete job posting with existing applications");
-        }
-        
-        jobPostingRepository.delete(jobPosting);
-    }
-
-    /**
-     * Toggle job posting active status
-     */
-    public JobPostingResponse toggleJobPostingStatus(Long jobId, Long recruiterId) {
-        JobPosting jobPosting = jobPostingRepository.findById(jobId)
-                .orElseThrow(() -> new RuntimeException("Job posting not found with id: " + jobId));
-        
-        // Verify ownership
-        if (!jobPosting.getRecruiter().getId().equals(recruiterId)) {
-            throw new RuntimeException("You don't have permission to modify this job posting");
-        }
-        
-        jobPosting.setIsActive(!jobPosting.getIsActive());
-        jobPosting.setUpdatedAt(java.time.LocalDateTime.now());
-        jobPosting = jobPostingRepository.save(jobPosting);
-        
-        // Refresh to get associations
-        jobPosting = jobPostingRepository.findByIdWithAssociations(jobPosting.getId()).orElse(jobPosting);
-        
-        return new JobPostingResponse(jobPosting);
-    }
 }

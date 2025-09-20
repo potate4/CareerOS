@@ -10,7 +10,11 @@ import {
   RecruiterDashboardStats,
   CandidateDashboardStats,
   JobPostingFilters,
-  ApplicationStatus
+  ApplicationStatus,
+  JobAssessmentSession,
+  JobAssessmentAnswer,
+  JobAssessmentResult,
+  JobAssessmentScores
 } from '../types/jobPosting';
 
 // Job Posting API
@@ -93,6 +97,29 @@ export const jobPostingAPI = {
 
   deleteJobPosting: async (jobId: number): Promise<{ message: string }> => {
     const response = await api.delete(`/jobs/recruiter/${jobId}`);
+    return response.data;
+  }
+};
+
+// Job Assessment API (Using stored job-specific assessment questions)
+export const jobAssessmentAPI = {
+  // Candidate endpoints - Use job assessment endpoints that return actual stored questions
+  createAssessment: async (jobId: number, options?: { num_questions?: number; difficulty?: string }): Promise<JobAssessmentSession> => {
+    const response = await api.post(`/job-assessments/create/${jobId}`, options || {});
+    return response.data;
+  },
+
+  submitAssessment: async (jobId: number, assessmentId: string, answers: JobAssessmentAnswer[]): Promise<JobAssessmentResult> => {
+    const response = await api.post(`/job-assessments/submit/${jobId}`, {
+      assessment_id: assessmentId,
+      assessment_answers: answers
+    });
+    return response.data;
+  },
+
+  // Recruiter endpoints
+  getAssessmentScores: async (jobId: number): Promise<JobAssessmentScores> => {
+    const response = await api.get(`/job-assessments/scores/${jobId}`);
     return response.data;
   }
 };

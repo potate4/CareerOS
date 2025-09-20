@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Briefcase, MapPin, DollarSign, Clock, Users, BookOpen, FileText, Edit, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { ArrowLeft, Briefcase, MapPin, DollarSign, Clock, Users, BookOpen, FileText, Edit, Trash2, ToggleLeft, ToggleRight, Award } from 'lucide-react';
 import { jobPostingAPI } from '../../services/jobPostingAPI';
 import { JobAssessmentSummary } from '../../types/jobPosting';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -223,6 +223,7 @@ export const JobDetails: React.FC = () => {
                 {job.isActive ? <ToggleRight className="h-4 w-4 mr-1" /> : <ToggleLeft className="h-4 w-4 mr-1" />}
                 {job.isActive ? 'Deactivate' : 'Activate'}
               </button>
+              
               
               <button
                 onClick={handleEdit}

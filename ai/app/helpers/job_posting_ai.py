@@ -283,6 +283,120 @@ class JobPostingAI:
         
         return questions[:num_questions]
     
+    async def create_job_candidate_assessment(self, job_id: int, candidate_id: int, assessment_type: str = "job_assessment", num_questions: int = 10, difficulty: str = "medium") -> Dict[str, Any]:
+        """Create assessment for candidate based on job posting requirements (reusing learning path system)"""
+        try:
+            logger.info(f"Creating job assessment for candidate {candidate_id} for job {job_id}")
+            
+            # For job assessments, we'll use a special approach:
+            # 1. Get the job assessment questions that were generated during job creation
+            # 2. Use those questions to create a candidate-specific assessment
+            
+            # In a real implementation, we'd fetch the stored job assessment questions
+            # For now, we'll generate them on-demand based on job requirements
+            
+            # Generate assessment questions using existing job posting analysis
+            # We'll simulate having job requirements by using a generic job description
+            job_context = f"Job assessment for position {job_id} - evaluating candidate skills and knowledge"
+            
+            prompt = f"""
+            Create {num_questions} assessment questions for a job candidate evaluation.
+            
+            **Context:**
+            {job_context}
+            
+            **Requirements:**
+            - Generate exactly {num_questions} questions
+            - Questions should be {difficulty} difficulty level
+            - Mix of question types: multiple choice, true/false, and short answer
+            - Questions should test job-relevant skills and knowledge
+            - Include correct answers and explanations
+            
+            **Question Types to Include:**
+            - Multiple choice questions (with 4 options)
+            - True/false questions  
+            - Short answer questions
+            
+            Return the questions in a structured format.
+            """
+            
+            from app.helpers.llm import get_structured_response_assessment_questions
+            questions = get_structured_response_assessment_questions(prompt)
+            
+            if questions and len(questions) > 0:
+                # Generate unique assessment ID for this candidate and job
+                assessment_id = f"job_assessment_{job_id}_{candidate_id}_{int(datetime.now().timestamp())}"
+                
+                return {
+                    "success": True,
+                    "message": f"Job assessment created successfully with {len(questions)} questions",
+                    "assessment_id": assessment_id,
+                    "questions": questions,
+                    "job_id": job_id,
+                    "candidate_id": candidate_id,
+                    "assessment_type": assessment_type,
+                    "difficulty": difficulty,
+                    "created_at": datetime.now().isoformat()
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": "Failed to generate assessment questions"
+                }
+                
+        except Exception as e:
+            logger.error(f"Error creating job candidate assessment: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def score_job_candidate_assessment(self, job_id: int, candidate_id: int, assessment_id: str, assessment_answers: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Score a job candidate's assessment submission (reusing learning path scoring system)"""
+        try:
+            logger.info(f"Scoring job assessment {assessment_id} for candidate {candidate_id}")
+            
+            # Convert assessment answers to the format expected by the scoring system
+            from app.schemas.learning_path import AssessmentAnswerScoreSubmissionRequest
+            
+            questions = []
+            for answer in assessment_answers:
+                questions.append(AssessmentAnswerScoreSubmissionRequest(
+                    question=answer.get('question', ''),
+                    correct_answer=answer.get('correct_answer', ''),
+                    provided_answer=answer.get('provided_answer', '')
+                ))
+            
+            # Use the existing learning path scoring system
+            from app.helpers.learning_path import LearningPathAI
+            learning_ai = LearningPathAI()
+            
+            # Score the assessment using the existing system
+            scoring_result = await learning_ai.score_assessment(
+                assessment_id=assessment_id,
+                user_id=candidate_id,  # Use candidate_id as user_id
+                module_id=job_id,      # Use job_id as module_id
+                questions=questions
+            )
+            
+            if scoring_result and scoring_result.get('success'):
+                # Enhance the result with job-specific information
+                scoring_result['job_id'] = job_id
+                scoring_result['candidate_id'] = candidate_id
+                return scoring_result
+            else:
+                return {
+                    "success": False,
+                    "error": scoring_result.get('error', 'Assessment scoring failed') if scoring_result else 'No scoring result'
+                }
+                
+        except Exception as e:
+            logger.error(f"Error scoring job candidate assessment: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
     async def extract_job_skills_and_requirements(self, job_description: str) -> Dict[str, Any]:
         """
         Extract structured information from job description for learning path and assessment generation

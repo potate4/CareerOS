@@ -15,7 +15,7 @@ import {
   PlayCircle,
   CheckCircle
 } from 'lucide-react';
-import { jobPostingAPI } from '../../services/jobPostingAPI';
+import { jobPostingAPI, candidateApplicationAPI } from '../../services/jobPostingAPI';
 import { JobPosting, JobLearningPath, JobAssessmentSummary } from '../../types/jobPosting';
 import LoadingSpinner from '../common/LoadingSpinner';
 import Alert from '../common/Alert';
@@ -30,6 +30,8 @@ export const JobDetailedView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'learning' | 'assessment'>('overview');
+  const [applying, setApplying] = useState(false);
+  const [applied, setApplied] = useState(false);
 
   useEffect(() => {
     if (jobId) {
@@ -79,6 +81,39 @@ export const JobDetailedView: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleApplyToJob = async () => {
+    if (!job || applying) return;
+    
+    try {
+      console.log('🔥 Applying to job:', job.id);
+      setApplying(true);
+      await candidateApplicationAPI.applyForJob({ jobPostingId: job.id });
+      setApplied(true);
+      console.log('✅ Application successful');
+      // Refresh job data to update application count
+      await loadJobDetails();
+    } catch (err: unknown) {
+      console.error('❌ Application failed:', err);
+      const errorMessage = err && typeof err === 'object' && 'response' in err 
+        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to apply to job'
+        : 'Failed to apply to job';
+      setError(errorMessage);
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  const handleSaveJob = () => {
+    // TODO: Implement save job functionality
+    alert('Save job functionality coming soon!');
+  };
+
+  const handleTakeAssessment = () => {
+    if (!job) return;
+    console.log('🔥 Navigating to assessment for job:', job.id);
+    navigate(`/job-assessment/${job.id}`);
   };
 
   const formatExperienceLevel = (level: string): string => {
@@ -468,8 +503,11 @@ export const JobDetailedView: React.FC = () => {
                           </div>
                         </div>
                         <div className="flex-shrink-0 ml-4">
-                          <button className="flex items-center px-4 py-2 text-sm font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
-                            <CheckCircle className="h-4 w-4 mr-2" />
+                          <button 
+                            onClick={handleTakeAssessment}
+                            className="flex items-center px-4 py-2 text-sm font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
+                          >
+                            <PlayCircle className="h-4 w-4 mr-2" />
                             Take Assessment
                           </button>
                         </div>
@@ -497,12 +535,26 @@ export const JobDetailedView: React.FC = () => {
               </p>
             </div>
             <div className="flex space-x-3">
-              <button className="px-6 py-3 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+              <button 
+                onClick={handleSaveJob}
+                className="px-6 py-3 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              >
                 Save Job
               </button>
-              <button className="px-6 py-3 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
-                Apply Now
-              </button>
+              {applied ? (
+                <div className="flex items-center px-6 py-3 text-sm font-medium text-green-800 bg-green-100 rounded-lg">
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Applied Successfully
+                </div>
+              ) : (
+                <button 
+                  onClick={handleApplyToJob}
+                  disabled={applying}
+                  className="px-6 py-3 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                >
+                  {applying ? 'Applying...' : 'Apply Now'}
+                </button>
+              )}
             </div>
           </div>
         </div>
