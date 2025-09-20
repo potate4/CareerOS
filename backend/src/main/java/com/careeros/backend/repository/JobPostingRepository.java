@@ -36,4 +36,10 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
     
     @Query("SELECT jp FROM JobPosting jp WHERE jp.jobType = :jobType AND jp.isActive = true ORDER BY jp.createdAt DESC")
     List<JobPosting> findByJobTypeAndIsActive(@Param("jobType") JobPosting.JobType jobType);
+
+    @Query("SELECT jp FROM JobPosting jp " +
+           "LEFT JOIN FETCH jp.jobLearningPath " +
+           "LEFT JOIN FETCH jp.jobAssessments " +
+           "WHERE jp.id = :id")
+    Optional<JobPosting> findByIdWithAssociations(@Param("id") Long id);
 }

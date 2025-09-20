@@ -3,7 +3,6 @@ import json
 import logging
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-import openai
 from sentence_transformers import SentenceTransformer
 from app.helpers.llm import (
     get_gemini_text_completion, 
@@ -110,9 +109,9 @@ class JobPostingAI:
                     modules_dict.append({
                         'module_name': module.module_name,
                         'module_description': module.module_description,
-                        'estimated_hours': module.estimated_hours,
-                        'difficulty_level': module.difficulty_level,
-                        'skills_covered': module.skills_covered,
+                        'estimated_hours': module.estimated_hours or 4,
+                        'difficulty_level': module.difficulty_level or 'INTERMEDIATE',
+                        'skills_covered': module.skills_covered or '',
                         'prerequisites': module.prerequisites
                     })
                 
@@ -220,8 +219,8 @@ class JobPostingAI:
                         'question_type': question.question_type,
                         'options': question.options,
                         'correct_answer': question.correct_answer,
-                        'explanation': question.explanation,
-                        'points': question.points
+                        'explanation': question.explanation or '',
+                        'points': question.points or 10.0
                     })
                 
                 return {
@@ -289,27 +288,48 @@ class JobPostingAI:
         Extract structured information from job description for learning path and assessment generation
         """
         try:
+            logger.info("🔥 [AI_HELPER] Starting extract_job_skills_and_requirements")
+            logger.info(f"🔥 [AI_HELPER] Job description length: {len(job_description)}")
+
+            logger.info("🔥 [AI_HELPER] Step 1: Analyzing job description")
             analysis = await self.analyze_job_description(job_description)
-            
-            if analysis['success']:
-                job_analysis = analysis['analysis']
-                
-                # Generate learning path
-                learning_path = await self.generate_job_learning_path(job_analysis, "Target Role")
-                
-                # Generate assessment
-                assessment = await self.generate_job_assessment(job_analysis, "Target Role")
-                
-                return {
-                    'success': True,
-                    'job_analysis': job_analysis,
-                    'learning_path': learning_path.get('modules', []) if learning_path['success'] else [],
-                    'assessment': assessment.get('questions', []) if assessment['success'] else [],
-                    'extracted_at': datetime.now().isoformat()
-                }
-            else:
+
+            logger.info(f"🔥 [AI_HELPER] Analysis result: {analysis.get('success', False)}")
+            if not analysis['success']:
+                logger.error(f"🔥 [AI_HELPER] Analysis failed: {analysis.get('error', 'Unknown error')}")
                 return {'success': False, 'error': analysis.get('error', 'Analysis failed')}
-                
+
+            job_analysis = analysis['analysis']
+            logger.info(f"🔥 [AI_HELPER] Job analysis keys: {list(job_analysis.keys())}")
+
+            # Generate learning path
+            logger.info("🔥 [AI_HELPER] Step 2: Generating learning path")
+            learning_path = await self.generate_job_learning_path(job_analysis, "Target Role")
+            logger.info(f"🔥 [AI_HELPER] Learning path result: {learning_path.get('success', False)}")
+            if learning_path.get('success'):
+                logger.info(f"🔥 [AI_HELPER] Learning path modules count: {len(learning_path.get('modules', []))}")
+
+            # Generate assessment
+            logger.info("🔥 [AI_HELPER] Step 3: Generating assessment")
+            assessment = await self.generate_job_assessment(job_analysis, "Target Role")
+            logger.info(f"🔥 [AI_HELPER] Assessment result: {assessment.get('success', False)}")
+            if assessment.get('success'):
+                logger.info(f"🔥 [AI_HELPER] Assessment questions count: {len(assessment.get('questions', []))}")
+
+            result = {
+                'success': True,
+                'job_analysis': job_analysis,
+                'learning_path': learning_path.get('modules', []) if learning_path['success'] else [],
+                'assessment': assessment.get('questions', []) if assessment['success'] else [],
+                'extracted_at': datetime.now().isoformat()
+            }
+
+            logger.info("🔥 [AI_HELPER] Successfully completed extract_job_skills_and_requirements")
+            return result
+
         except Exception as e:
-            logger.error(f"Error extracting job skills: {e}")
+            logger.error(f"❌ [AI_HELPER] Error extracting job skills: {e}")
+            logger.error(f"❌ [AI_HELPER] Error type: {type(e).__name__}")
+            import traceback
+            logger.error(f"❌ [AI_HELPER] Traceback: {traceback.format_exc()}")
             return {'success': False, 'error': str(e)}

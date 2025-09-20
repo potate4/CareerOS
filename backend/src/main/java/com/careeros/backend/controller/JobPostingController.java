@@ -4,6 +4,7 @@ import com.careeros.backend.payload.request.JobPostingRequest;
 import com.careeros.backend.payload.response.JobPostingResponse;
 import com.careeros.backend.payload.response.JobLearningPathResponse;
 import com.careeros.backend.payload.response.MessageResponse;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.careeros.backend.security.UserDetailsImpl;
 import com.careeros.backend.service.JobPostingService;
 import jakarta.validation.Valid;
@@ -162,6 +163,43 @@ public class JobPostingController {
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body(new MessageResponse("Error: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Analyze job description using AI (for recruiter job posting form)
+     */
+    @PostMapping("/ai-analyze")
+    @PreAuthorize("hasRole('USER') or hasRole('RECRUITER') or hasRole('ADMIN')")
+    public ResponseEntity<?> analyzeJobWithAI(
+            @RequestBody String jobDescription,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        try {
+            System.out.println("🔥 [CONTROLLER] AI analysis requested by: " + userDetails.getUsername());
+            System.out.println("🔥 [CONTROLLER] Request body length: " + (jobDescription != null ? jobDescription.length() : "null"));
+            System.out.println("🔥 [CONTROLLER] Request content preview: " + (jobDescription != null ? jobDescription.substring(0, Math.min(100, jobDescription.length())) : "null"));
+
+            if (jobDescription == null || jobDescription.trim().isEmpty()) {
+                System.err.println("❌ [CONTROLLER] Empty job description received");
+                return ResponseEntity.badRequest()
+                        .body(new MessageResponse("Job description cannot be empty"));
+            }
+
+            System.out.println("🔥 [CONTROLLER] Calling service layer...");
+            JsonNode aiResponse = jobPostingService.analyzeJobDescriptionWithAI(jobDescription);
+
+            System.out.println("🔥 [CONTROLLER] Service response received: " + (aiResponse != null ? "SUCCESS" : "NULL"));
+            if (aiResponse != null) {
+                System.out.println("🔥 [CONTROLLER] Response size: " + aiResponse.toString().length());
+                System.out.println("🔥 [CONTROLLER] Response preview: " + aiResponse.toString().substring(0, Math.min(200, aiResponse.toString().length())));
+            }
+
+            return ResponseEntity.ok(aiResponse);
+        } catch (Exception e) {
+            System.err.println("❌ [CONTROLLER] AI analysis error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("AI analysis failed: " + e.getMessage()));
         }
     }
 }

@@ -246,6 +246,9 @@ export const RecruiterDashboard: React.FC<RecruiterDashboardProps> = () => {
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    AI Features
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Created
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -271,6 +274,23 @@ export const RecruiterDashboard: React.FC<RecruiterDashboardProps> = () => {
                       }`}>
                         {job.isActive ? 'Active' : 'Inactive'}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="space-y-1">
+                        {job.hasLearningPath && (
+                          <span className="inline-flex items-center px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full">
+                            🧠 Learning Path
+                          </span>
+                        )}
+                        {job.hasAssessments && (
+                          <span className="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                            📝 Assessment
+                          </span>
+                        )}
+                        {!job.hasLearningPath && !job.hasAssessments && (
+                          <span className="text-xs text-gray-400">No AI features</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(job.createdAt).toLocaleDateString()}

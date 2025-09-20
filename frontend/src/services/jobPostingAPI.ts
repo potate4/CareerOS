@@ -219,47 +219,32 @@ export const dashboardAPI = {
   }
 };
 
-// AI Integration API (for job analysis)
+// AI Integration API (through backend)
 export const jobAIAPI = {
-  analyzeJobDescription: async (jobDescription: string, jobTitle: string, company: string) => {
-    const response = await api.post(`${import.meta.env.VITE_AI_API_URL}/api/v1/job-posting/analyze-job`, {
-      job_description: jobDescription,
-      job_title: jobTitle,
-      company: company
-    });
-    return response.data;
-  },
-
-  generateLearningPath: async (jobDescription: string, jobTitle: string, company: string) => {
-    const response = await api.post(`${import.meta.env.VITE_AI_API_URL}/api/v1/job-posting/generate-learning-path`, {
-      job_description: jobDescription,
-      job_title: jobTitle,
-      company: company
-    });
-    return response.data;
-  },
-
-  generateAssessment: async (
-    jobDescription: string, 
-    jobTitle: string, 
-    company: string,
-    numQuestions: number = 10,
-    difficulty: string = 'INTERMEDIATE'
-  ) => {
-    const response = await api.post(`${import.meta.env.VITE_AI_API_URL}/api/v1/job-posting/generate-assessment`, {
-      job_description: jobDescription,
-      job_title: jobTitle,
-      company: company,
-      num_questions: numQuestions,
-      difficulty: difficulty
-    });
-    return response.data;
-  },
-
   extractSkillsAndGenerate: async (jobDescription: string) => {
-    const response = await api.post(`${import.meta.env.VITE_AI_API_URL}/api/v1/job-posting/extract-skills-and-generate`, {
-      job_description: jobDescription
-    });
-    return response.data;
+    console.log('🔥 [FRONTEND] Starting AI analysis request');
+    console.log('🔥 [FRONTEND] Job description length:', jobDescription.length);
+    console.log('🔥 [FRONTEND] Making POST to /jobs/ai-analyze');
+
+    try {
+      const response = await api.post('/jobs/ai-analyze', jobDescription, {
+        headers: {
+          'Content-Type': 'text/plain'
+        }
+      });
+
+      console.log('🔥 [FRONTEND] Response received');
+      console.log('🔥 [FRONTEND] Response status:', response.status);
+      console.log('🔥 [FRONTEND] Response data:', response.data);
+
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ [FRONTEND] API call failed');
+      console.error('❌ [FRONTEND] Error:', error);
+      console.error('❌ [FRONTEND] Error response:', error.response);
+      console.error('❌ [FRONTEND] Error status:', error.response?.status);
+      console.error('❌ [FRONTEND] Error data:', error.response?.data);
+      throw error;
+    }
   }
 };

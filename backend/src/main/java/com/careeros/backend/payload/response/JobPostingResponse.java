@@ -24,7 +24,7 @@ public class JobPostingResponse {
     private Boolean hasLearningPath;
     private Boolean hasAssessments;
     private List<JobLearningPathResponse> learningPath;
-    private List<JobAssessmentSummaryResponse> assessments;
+    // private List<JobAssessmentSummaryResponse> assessments;
     
     // Constructors
     public JobPostingResponse() {}
@@ -42,20 +42,33 @@ public class JobPostingResponse {
         this.isActive = jobPosting.getIsActive();
         this.createdAt = jobPosting.getCreatedAt();
         this.updatedAt = jobPosting.getUpdatedAt();
-        
+
         if (jobPosting.getRecruiter() != null) {
             this.recruiterName = jobPosting.getRecruiter().getFirstName() + " " + jobPosting.getRecruiter().getLastName();
             this.recruiterEmail = jobPosting.getRecruiter().getEmail();
         }
-        
+
         this.hasLearningPath = jobPosting.getJobLearningPath() != null;
+
+        // Debug assessment detection
+        System.out.println("🔥 [RESPONSE DEBUG] JobAssessments: " + jobPosting.getJobAssessments());
+        if (jobPosting.getJobAssessments() != null) {
+            System.out.println("🔥 [RESPONSE DEBUG] Assessment count: " + jobPosting.getJobAssessments().size());
+        }
+
         this.hasAssessments = jobPosting.getJobAssessments() != null && !jobPosting.getJobAssessments().isEmpty();
-        
+
         if (jobPosting.getCandidateSubmissions() != null) {
             this.totalApplications = (long) jobPosting.getCandidateSubmissions().size();
         } else {
             this.totalApplications = 0L;
         }
+
+        System.out.println("🔥 [RESPONSE] JobPostingResponse created:");
+        System.out.println("🔥 [RESPONSE] ID: " + this.id);
+        System.out.println("🔥 [RESPONSE] Title: " + this.jobTitle);
+        System.out.println("🔥 [RESPONSE] Has Learning Path: " + this.hasLearningPath);
+        System.out.println("🔥 [RESPONSE] Has Assessments: " + this.hasAssessments);
     }
     
     // Getters and Setters
@@ -203,11 +216,11 @@ public class JobPostingResponse {
         this.learningPath = learningPath;
     }
     
-    public List<JobAssessmentSummaryResponse> getAssessments() {
-        return assessments;
-    }
-    
-    public void setAssessments(List<JobAssessmentSummaryResponse> assessments) {
-        this.assessments = assessments;
-    }
+    // public List<JobAssessmentSummaryResponse> getAssessments() {
+    //     return assessments;
+    // }
+    //
+    // public void setAssessments(List<JobAssessmentSummaryResponse> assessments) {
+    //     this.assessments = assessments;
+    // }
 }
