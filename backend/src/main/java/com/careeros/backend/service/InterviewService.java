@@ -5,7 +5,6 @@ import com.careeros.backend.model.FileUpload;
 import com.careeros.backend.payload.request.InterviewAnalysisRequest;
 import com.careeros.backend.payload.request.InterviewAnalysisAIRequest;
 import com.careeros.backend.payload.request.InterviewAnalysisCallbackRequest;
-import com.careeros.backend.payload.response.InterviewAnalysisResponse;
 import com.careeros.backend.payload.response.InterviewJobResponse;
 import com.careeros.backend.payload.response.InterviewJobDetailResponse;
 import com.careeros.backend.payload.response.FileAnalysisResponse;
@@ -18,7 +17,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.client.HttpClientErrorException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,7 +85,7 @@ public class InterviewService {
             HttpEntity<InterviewAnalysisAIRequest> entity = new HttpEntity<>(aiRequest, headers);
             
             // Send request to AI service (this should be async in production)
-            ResponseEntity<Map> response = restTemplate.exchange(
+            restTemplate.exchange(
                 url,
                 HttpMethod.POST,
                 entity,
@@ -116,23 +114,33 @@ public class InterviewService {
      */
     public InterviewJobResponse handleAnalysisCallback(InterviewAnalysisCallbackRequest callbackRequest) {
         try {
-            logger.info("Received analysis callback for job: {}", callbackRequest.getJobId());
+            logger.info("Received analysis callback for job: {} with status: {}", 
+                callbackRequest.getJobId(), callbackRequest.getStatus());
             
             // Find the interview job
             InterviewJob interviewJob = interviewJobRepository.findByJobId(callbackRequest.getJobId())
                 .orElseThrow(() -> new RuntimeException("Interview job not found: " + callbackRequest.getJobId()));
             
+            logger.info("Found interview job for fileId: {} with current status: {}", 
+                interviewJob.getFileId(), interviewJob.getStatus());
+            
             // Update job with analysis results
             interviewJob.setStatus(callbackRequest.getStatus());
             interviewJob.setDetailedAnalysis(callbackRequest.getAnalysisData());
+            interviewJob.setUpdatedAt(java.time.LocalDateTime.now());
             
             if (callbackRequest.getErrorMessage() != null) {
+                logger.error("Analysis failed with error: {}", callbackRequest.getErrorMessage());
                 interviewJob.setErrorMessage(callbackRequest.getErrorMessage());
+            } else {
+                logger.info("Analysis completed successfully with {} characters of data", 
+                    callbackRequest.getAnalysisData() != null ? callbackRequest.getAnalysisData().length() : 0);
             }
             
             interviewJobRepository.save(interviewJob);
             
-            logger.info("Interview job updated successfully: {}", callbackRequest.getJobId());
+            logger.info("Interview job updated successfully: {} -> status: {}", 
+                callbackRequest.getJobId(), callbackRequest.getStatus());
             
             return new InterviewJobResponse(
                 interviewJob.getJobId(),
@@ -227,9 +235,14 @@ public class InterviewService {
         try {
             logger.info("Getting file analysis data for user: {}", userId);
             
-            // Get all files for the user
+            // Get all files for the user with category 'interview-recording'
             java.util.List<FileUpload> files = fileUploadService.getUserFileUploads(userId);
-            logger.info("Found {} files for user {}", files.size(), userId);
+            // Filter for Interview files only (not MindFlow)
+            files = files.stream()
+                .filter(file -> file.getCategory() != null && 
+                    (file.getCategory().equals("interview-recording")))
+                .collect(java.util.stream.Collectors.toList());
+            logger.info("Found {} interview files for user {}", files.size(), userId);
             
             // Get most recent jobs for each file
             java.util.List<InterviewJob> mostRecentJobs = interviewJobRepository.findMostRecentJobsByUserId(userId);
@@ -237,9 +250,11 @@ public class InterviewService {
             
             // Create a map of fileId to most recent job for quick lookup
             java.util.Map<Long, InterviewJob> fileJobMap = mostRecentJobs.stream()
+                .filter(job -> job.getFileId() != null)
                 .collect(java.util.stream.Collectors.toMap(
                     InterviewJob::getFileId,
-                    job -> job
+                    job -> job,
+                    (existing, replacement) -> existing // Keep first occurrence in case of duplicates
                 ));
             
             // Build response list
@@ -250,6 +265,10 @@ public class InterviewService {
                 
                 if (job != null) {
                     // File has analysis job
+                    logger.info("Found job for file {}: status={}, analysisLength={}", 
+                        file.getId(), job.getStatus(), 
+                        job.getDetailedAnalysis() != null ? job.getDetailedAnalysis().length() : 0);
+                    
                     FileAnalysisResponse response = new FileAnalysisResponse(
                         file.getId(),
                         file.getFileName(),
@@ -268,6 +287,8 @@ public class InterviewService {
                     responses.add(response);
                 } else {
                     // File has no analysis job
+                    logger.info("No job found for file {}", file.getId());
+                    
                     FileAnalysisResponse response = new FileAnalysisResponse(
                         file.getId(),
                         file.getFileName(),
@@ -287,7 +308,7 @@ public class InterviewService {
                 }
             }
             
-            logger.info("Returning {} file analysis responses for user {}", responses.size(), userId);
+            logger.info("Built {} interview file analysis responses", responses.size());
             return responses;
             
         } catch (Exception e) {

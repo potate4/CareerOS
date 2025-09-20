@@ -1,0 +1,170 @@
+from pydantic import BaseModel, Field, validator
+from typing import List, Dict, Any, Optional, Union
+from datetime import datetime
+from enum import Enum
+
+#
+
+# File Upload Schema
+class FileUploadInfo(BaseModel):
+    user_id: Optional[int] = None
+    file_id: Optional[str] = None
+    file_name: Optional[str] = None
+    file_path: Optional[str] = None
+    file_type: Optional[str] = None
+    file_size: Optional[int] = None
+    file_url: Optional[str] = None
+    upload_date: Optional[datetime] = None
+    module_id: Optional[int] = None
+
+# Index File Endpoint Schemas
+class FileIndexingRequest(BaseModel):
+    user_id: int = Field(..., description="ID of the user uploading the file")
+    file_url: str = Field(..., description="URL of the file to be indexed")
+    file_id: str = Field(..., description="Unique identifier for the file")
+    file_name: str = Field(..., description="Name of the file")
+    file_type: str = Field(..., description="Type/extension of the file")
+    module_id: int = Field(..., description="ID of the module to which the file belongs")
+    
+
+class FileIndexingResult(BaseModel):
+    file_id: str
+    file_name: str
+    file_type: str
+    chunks_processed: int
+    chunks_indexed: int
+    processing_status: str
+    error_message: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default={})
+
+class FileIndexingResponse(BaseModel):
+    success: bool
+    message: str
+    result: FileIndexingResult
+    processing_time_seconds: float
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+# Search Endpoint Schemas
+class LearningMaterialsSearchRequest(BaseModel):
+    user_id: int = Field(..., description="ID of the user searching materials")
+    query: str = Field(..., min_length=1, max_length=500, description="Search query text")
+    limit: int = Field(default=10, ge=1, le=50, description="Maximum number of results to return")
+    module_id: int = Field(..., description="ID of the module to search within")
+    @validator('query')
+    def validate_query(cls, v):
+        if not v.strip():
+            raise ValueError('Query cannot be empty or whitespace only')
+        return v.strip()
+
+class LearningMaterialsSearchResponse(BaseModel):
+    success: bool
+    search_result: Dict[str, Any]
+    query: str
+    total_results: int
+    processing_time_seconds: Optional[float] = None
+    timestamp: datetime = Field(default_factory=datetime.now) 
+  
+  
+# Module creation
+
+
+class LearningModuleGenerateRequest(BaseModel):
+    user_id: int
+    learning_path_info : str
+    
+
+    
+class LearningModule(BaseModel):
+    module_name: str
+    module_description: str
+    
+    
+
+class LearningModuleGenerateResponse(BaseModel):
+    modules: List[LearningModule]
+
+# Chat Endpoint Schemas
+class ChatMessage(BaseModel):
+    speaker: str = Field(..., description="Role of the message sender (user/assistant)")
+    message: str = Field(..., description="Content of the message")
+    timestamp: datetime = Field(default_factory=datetime.now, description="Timestamp of the message")
+
+class ChatRequest(BaseModel):
+    user_id: int = Field(..., description="ID of the user making the chat request")
+    module_id: int = Field(..., description="ID of the module for context")
+    chat_history: List[ChatMessage] = Field(default=[], description="Previous chat messages")
+    user_query: str = Field(..., min_length=1, max_length=1000, description="User's current question or message")
+    
+    @validator('user_query')
+    def validate_user_query(cls, v):
+        if not v.strip():
+            raise ValueError('User query cannot be empty or whitespace only')
+        return v.strip()
+
+class ChatResponse(BaseModel):
+    success: bool
+    message: str
+    reply: str
+    user_id: int
+    module_id: int
+    timestamp: datetime = Field(default_factory=datetime.now)
+    processing_time_seconds: Optional[float] = None 
+  
+  
+    
+class AssessmentQuestion(BaseModel):
+    question: str
+    correct_answer: Optional[str] 
+    
+class AssessmentAnswerScoreSubmissionRequest(BaseModel):
+    question: str
+    correct_answer: str
+    provided_answer: str
+    
+class AssessmentAnswerScore(BaseModel):
+    question: str
+    correct_answer: str
+    provided_answer: str
+    score: float 
+    feedback: Optional[str] 
+    is_correct: bool 
+    
+# Assessment Request/Response Schemas
+class AssessmentRequest(BaseModel):
+    user_id: int = Field(..., description="ID of the user requesting assessment")
+    module_id: int = Field(..., description="ID of the module for assessment")
+    assessment_type: str = Field(default="quiz", description="Type of assessment: quiz, practice, test")
+    num_questions: int = Field(default=5, ge=1, le=20, description="Number of questions to generate")
+    difficulty: str = Field(default="medium", description="Difficulty level: easy, medium, hard")
+    
+class AssessmentResponse(BaseModel):
+    success: bool
+    message: str
+    assessment_id: str
+    questions: List[AssessmentQuestion]
+    user_id: int
+    module_id: int
+    assessment_type: str
+    difficulty: str
+    created_at: datetime = Field(default_factory=datetime.now)
+    
+class AssessmentSubmissionRequest(BaseModel):
+    assessment_id: str
+    user_id: int
+    module_id: int
+    assessment_answers: List[AssessmentAnswerScoreSubmissionRequest]
+    
+class AssessmentSubmissionResponse(BaseModel):
+    success: bool
+    message: str
+    assessment_id: str
+    user_id: int
+    module_id: int
+    total_score: float
+    max_score: float
+    percentage: float
+    answers_and_scores: List[AssessmentAnswerScore]
+    overall_feedback: str
+    completed_at: datetime = Field(default_factory=datetime.now)
+    
+    

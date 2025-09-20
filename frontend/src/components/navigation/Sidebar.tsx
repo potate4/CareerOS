@@ -9,7 +9,12 @@ import {
   Target,
   TrendingUp,
   FileText,
-  Users
+  Users,
+  BookOpen,
+  PlusCircle,
+  UserCheck,
+  ClipboardCheck,
+  MessageSquare
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -28,10 +33,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
       description: 'Overview and analytics'
     },
     {
-      name: 'LifeScript',
-      href: '/lifescript',
-      icon: Home,
-      description: 'AI Journaling and Reflection'
+      name: 'Learning Path',
+      href: '/learning-path',
+      icon: BookOpen,
+      description: 'AI Learning Path Generator'
     },
     {
       name: 'AI Services',
@@ -46,10 +51,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
       description: 'AI Interview Simulator'
     },
     {
-      name: 'Learning Flow',
-      href: '/learning',
-      icon: Briefcase,
-      description: 'AI Learning Path Generator'
+      name: 'LifeScript',
+      href: '/lifescript',
+      icon: Home,
+      description: 'AI Journaling and Reflection'
     },
     {
       name: 'FutureCast',
@@ -70,33 +75,39 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
       description: 'AI Softskill Development Coach'
     },
     {
-      name: 'Job Posting',
-      href: '/posting',
-      icon: FileText,
-      description: 'Gamified AI Skill Development'
+      name: 'Job Postings',
+      href: '/job-postings',
+      icon: Briefcase,
+      description: 'Create and manage job postings'
     },
     {
-      name: 'Candidate Matching',
-      href: '/matching',
-      icon: Users,
-      description: 'AI Softskill Development Coach'
+      name: 'Create Job Posting',
+      href: '/job-postings/create',
+      icon: PlusCircle,
+      description: 'Create new job posting with AI assistance'
     },
     {
-      name: 'Assesment Creator',
-      href: '/assesment',
-      icon: FileText,
-      description: 'Sets up interview questions and sends them to candidates'
+      name: 'Candidates',
+      href: '/candidates',
+      icon: UserCheck,
+      description: 'View and manage candidate applications'
+    },
+    {
+      name: 'Assessment Creator',
+      href: '/assessment',
+      icon: ClipboardCheck,
+      description: 'Create interview assessments and questions'
     },
     {
       name: 'Interview Evaluation',
       href: '/evaluation',
-      icon: Users,
-      description: 'Evaluates interview performance and provides feedback'
+      icon: MessageSquare,
+      description: 'Evaluate candidate performance and provide feedback'
     }
   ];
 
   const isActive = (href: string) => {
-    return location.pathname === href;
+    return location.pathname.startsWith(href);
   };
 
   return (
