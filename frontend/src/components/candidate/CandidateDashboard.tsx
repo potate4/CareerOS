@@ -4,6 +4,7 @@ import { candidateApplicationAPI, jobPostingAPI, dashboardAPI } from '../../serv
 import { CandidateSubmission, JobPosting, CandidateDashboardStats, ApplicationStatus } from '../../types/jobPosting';
 import  LoadingSpinner from '../common/LoadingSpinner';
 import  Alert  from '../common/Alert';
+import AuthenticatedLayout from '../layout/AuthenticatedLayout';
 
 export const CandidateDashboard: React.FC = () => {
   const [stats, setStats] = useState<CandidateDashboardStats | null>(null);
@@ -77,22 +78,27 @@ export const CandidateDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <LoadingSpinner />
-      </div>
+      <AuthenticatedLayout>
+        <div className="flex justify-center items-center h-64">
+          <LoadingSpinner />
+        </div>
+      </AuthenticatedLayout>
     );
   }
 
   if (error) {
     return (
-      <div className="max-w-6xl mx-auto p-6">
-        <Alert type="error" message={error} />
-      </div>
+      <AuthenticatedLayout>
+        <div className="max-w-6xl mx-auto p-6">
+          <Alert type="error" message={error} />
+        </div>
+      </AuthenticatedLayout>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <AuthenticatedLayout>
+      <div className="max-w-6xl mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -428,6 +434,7 @@ export const CandidateDashboard: React.FC = () => {
           })}
         </div>
       )}
-    </div>
+      </div>
+    </AuthenticatedLayout>
   );
 };

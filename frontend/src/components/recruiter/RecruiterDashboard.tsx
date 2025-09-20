@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Briefcase, Users, TrendingUp, Eye, Edit, ToggleLeft, ToggleRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { jobPostingAPI, candidateApplicationAPI, dashboardAPI } from '../../services/jobPostingAPI';
 import { JobPosting, CandidateSubmission, RecruiterDashboardStats, ApplicationStatus } from '../../types/jobPosting';
 import  LoadingSpinner  from '../common/LoadingSpinner';
 import  Alert  from '../common/Alert';
+import AuthenticatedLayout from '../layout/AuthenticatedLayout';
 
 interface RecruiterDashboardProps {
   jobId?: number; // Optional - if provided, show candidates for specific job
 }
 
 export const RecruiterDashboard: React.FC<RecruiterDashboardProps> = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState<RecruiterDashboardStats | null>(null);
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [recentCandidates, setRecentCandidates] = useState<CandidateSubmission[]>([]);
@@ -66,22 +69,27 @@ export const RecruiterDashboard: React.FC<RecruiterDashboardProps> = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <LoadingSpinner />
-      </div>
+      <AuthenticatedLayout>
+        <div className="flex justify-center items-center h-64">
+          <LoadingSpinner />
+        </div>
+      </AuthenticatedLayout>
     );
   }
 
   if (error) {
     return (
-      <div className="max-w-6xl mx-auto p-6">
-        <Alert type="error" message={error} />
-      </div>
+      <AuthenticatedLayout>
+        <div className="max-w-6xl mx-auto p-6">
+          <Alert type="error" message={error} />
+        </div>
+      </AuthenticatedLayout>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <AuthenticatedLayout>
+      <div className="max-w-6xl mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -89,7 +97,7 @@ export const RecruiterDashboard: React.FC<RecruiterDashboardProps> = () => {
           <p className="text-gray-600 mt-1">Manage your job postings and candidates</p>
         </div>
         <button
-          onClick={() => window.location.href = '/recruiter/jobs/new'}
+          onClick={() => navigate('/create-job-posting')}
           className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -269,14 +277,16 @@ export const RecruiterDashboard: React.FC<RecruiterDashboardProps> = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                       <button
-                        onClick={() => window.location.href = `/recruiter/jobs/${job.id}`}
+                        onClick={() => alert(`View job details for job ID: ${job.id} (Feature coming soon)`)}
                         className="text-blue-600 hover:text-blue-900"
+                        title="View job details"
                       >
                         <Eye className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => window.location.href = `/recruiter/jobs/${job.id}/edit`}
+                        onClick={() => alert(`Edit job posting for job ID: ${job.id} (Feature coming soon)`)}
                         className="text-green-600 hover:text-green-900"
+                        title="Edit job posting"
                       >
                         <Edit className="h-4 w-4" />
                       </button>
@@ -368,6 +378,7 @@ export const RecruiterDashboard: React.FC<RecruiterDashboardProps> = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </AuthenticatedLayout>
   );
 };

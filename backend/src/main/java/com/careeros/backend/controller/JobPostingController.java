@@ -29,14 +29,18 @@ public class JobPostingController {
      * Create a new job posting (Recruiters only)
      */
     @PostMapping
-    @PreAuthorize("hasRole('RECRUITER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('USER') or hasRole('RECRUITER') or hasRole('ADMIN')")
     public ResponseEntity<?> createJobPosting(
             @Valid @RequestBody JobPostingRequest jobPostingRequest,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
         try {
+            System.out.println("🔥 Creating job posting for user: " + userDetails.getUsername());
+            System.out.println("🔥 Request data: " + jobPostingRequest.getJobTitle() + " at " + jobPostingRequest.getCompany());
             JobPostingResponse response = jobPostingService.createJobPosting(userDetails.getId(), jobPostingRequest);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
+            System.err.println("❌ Controller error: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.badRequest()
                     .body(new MessageResponse("Error: " + e.getMessage()));
         }

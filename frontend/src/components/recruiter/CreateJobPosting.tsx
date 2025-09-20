@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Briefcase, MapPin, DollarSign, Clock, Sparkles } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { jobPostingAPI, jobAIAPI } from '../../services/jobPostingAPI';
 import { JobPostingRequest, ExperienceLevel, JobType } from '../../types/jobPosting';
 import  LoadingSpinner  from '../common/LoadingSpinner';
 import  Alert  from '../common/Alert';
+import AuthenticatedLayout from '../layout/AuthenticatedLayout';
 
 export const CreateJobPosting: React.FC = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState<JobPostingRequest>({
     jobTitle: '',
     company: '',
@@ -83,9 +86,9 @@ export const CreateJobPosting: React.FC = () => {
       const result = await jobPostingAPI.createJobPosting(formData);
       setSuccess(true);
       
-      // Redirect to job details after a delay
+      // Redirect to recruiter dashboard after a delay
       setTimeout(() => {
-        window.location.href = `/recruiter/jobs/${result.id}`;
+        navigate('/recruiter-dashboard');
       }, 2000);
       
     } catch (err: any) {
@@ -96,11 +99,12 @@ export const CreateJobPosting: React.FC = () => {
   };
 
   const goBack = () => {
-    window.location.href = '/recruiter/dashboard';
+    navigate('/recruiter-dashboard');
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <AuthenticatedLayout>
+      <div className="max-w-4xl mx-auto p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
@@ -390,6 +394,7 @@ export const CreateJobPosting: React.FC = () => {
           </button>
         </div>
       </form>
-    </div>
+      </div>
+    </AuthenticatedLayout>
   );
 };

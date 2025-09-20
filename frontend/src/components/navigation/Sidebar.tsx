@@ -51,22 +51,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
       description: 'AI Interview Simulator'
     },
     {
-      name: 'LifeScript',
-      href: '/lifescript',
-      icon: Home,
-      description: 'AI Journaling and Reflection'
-    },
-    {
       name: 'FutureCast',
       href: '/futurecast',
       icon: TrendingUp,
       description: 'AI Career Path Simulator'
-    },
-    {
-      name: 'SkillForge',
-      href: '/skillforge',
-      icon: FileText,
-      description: 'Gamified AI Skill Development'
     },
     {
       name: 'MindFlow',
@@ -75,34 +63,22 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
       description: 'AI Softskill Development Coach'
     },
     {
-      name: 'Job Postings',
-      href: '/job-postings',
+      name: 'Recruiter Dashboard',
+      href: '/recruiter-dashboard',
       icon: Briefcase,
-      description: 'Create and manage job postings'
+      description: 'Manage job postings and candidates'
     },
     {
       name: 'Create Job Posting',
-      href: '/job-postings/create',
+      href: '/create-job-posting',
       icon: PlusCircle,
       description: 'Create new job posting with AI assistance'
     },
     {
-      name: 'Candidates',
-      href: '/candidates',
+      name: 'Candidate Dashboard',
+      href: '/candidate-dashboard',
       icon: UserCheck,
-      description: 'View and manage candidate applications'
-    },
-    {
-      name: 'Assessment Creator',
-      href: '/assessment',
-      icon: ClipboardCheck,
-      description: 'Create interview assessments and questions'
-    },
-    {
-      name: 'Interview Evaluation',
-      href: '/evaluation',
-      icon: MessageSquare,
-      description: 'Evaluate candidate performance and provide feedback'
+      description: 'View job applications and learning progress'
     }
   ];
 

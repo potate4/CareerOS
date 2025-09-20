@@ -4,6 +4,7 @@ import { candidateApplicationAPI } from '../../services/jobPostingAPI';
 import { CandidateSubmission, ApplicationStatus } from '../../types/jobPosting';
 import  LoadingSpinner  from '../common/LoadingSpinner';
 import Alert from '../common/Alert';
+import AuthenticatedLayout from '../layout/AuthenticatedLayout';
 
 interface CandidateListViewProps {
   jobId?: number; // Optional - if provided, show candidates for specific job
@@ -158,14 +159,17 @@ export const CandidateListView: React.FC<CandidateListViewProps> = ({ jobId }) =
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <LoadingSpinner />
-      </div>
+      <AuthenticatedLayout>
+        <div className="flex justify-center items-center h-64">
+          <LoadingSpinner />
+        </div>
+      </AuthenticatedLayout>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <AuthenticatedLayout>
+      <div className="max-w-7xl mx-auto p-6">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
@@ -429,6 +433,7 @@ export const CandidateListView: React.FC<CandidateListViewProps> = ({ jobId }) =
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </AuthenticatedLayout>
   );
 };
