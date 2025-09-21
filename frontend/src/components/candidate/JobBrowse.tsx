@@ -170,7 +170,7 @@ export const JobBrowse: React.FC = () => {
             </button>
             <button
               type="submit"
-              className="px-6 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+              className="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 rounded-lg transition-all shadow-md"
             >
               Search
             </button>
@@ -307,7 +307,7 @@ export const JobBrowse: React.FC = () => {
             {(searchTerm || Object.keys(filters).length > 0) && (
               <button
                 onClick={clearFilters}
-                className="mt-4 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                className="mt-4 px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
               >
                 Clear Search and Filters
               </button>

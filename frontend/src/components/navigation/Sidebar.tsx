@@ -30,7 +30,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
 
   // Icon mapping for navigation items
   const iconMap: Record<string, any> = {
-    Dashboard: Home,
     'Learning Path': BookOpen,
     'AI Services': Brain,
     'Interview Simulator': Target,
@@ -54,12 +53,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
 
   return (
     <div 
-      className={`h-screen fixed left-0 top-0 z-50 transition-all duration-300 ease-in-out bg-slate-800 ${
+      className={`h-screen fixed left-0 top-0 z-50 transition-all duration-300 ease-in-out bg-gradient-to-b from-slate-800 to-slate-900 ${
         isCollapsed ? 'w-16' : 'w-64'
       }`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between h-16 px-4 bg-slate-600">
+      <div className="flex items-center justify-between h-16 px-4 bg-gradient-to-r from-indigo-600 to-purple-700">
         {!isCollapsed && (
           <h1 className="text-xl font-bold text-white">CareerOS</h1>
         )}
@@ -77,6 +76,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
           {navigationItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
+            const isAIFeature = ['Interview Simulator', 'MindFlow', 'AI Services', 'FutureCast'].includes(item.name);
             
             return (
               <Link
@@ -84,8 +84,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
                 to={item.href}
                 className={`group flex items-center px-3 py-3 text-sm font-medium rounded-md transition-all duration-200 ${
                   active
-                    ? 'text-white bg-slate-600'
-                    : 'text-gray-300 hover:text-white hover:bg-white hover:bg-opacity-10'
+                    ? isAIFeature 
+                      ? 'text-white bg-gradient-to-r from-indigo-500 to-purple-600 shadow-lg'
+                      : 'text-white bg-gradient-to-r from-slate-600 to-slate-700 shadow-lg'
+                    : isAIFeature
+                      ? 'text-gray-300 hover:text-white hover:bg-gradient-to-r hover:from-indigo-500 hover:to-purple-600 hover:bg-opacity-20'
+                      : 'text-gray-300 hover:text-white hover:bg-slate-600 hover:bg-opacity-20'
                 }`}
               >
                 <Icon 
@@ -96,7 +100,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
                 />
                 {!isCollapsed && (
                   <div className="flex-1">
-                    <div className="text-sm font-medium">{item.name}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{item.name}</span>
+                      {isAIFeature && (
+                        <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-indigo-400 to-purple-500 animate-pulse"></div>
+                      )}
+                    </div>
                     <div className="text-xs opacity-75">{item.description}</div>
                   </div>
                 )}

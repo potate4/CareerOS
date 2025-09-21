@@ -491,7 +491,7 @@ const AIServicesPage: React.FC = () => {
                   </label>
                   <div
                     className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-                      isDragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300'
+                      isDragOver ? 'border-slate-400 bg-slate-50' : 'border-gray-300'
                     }`}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}

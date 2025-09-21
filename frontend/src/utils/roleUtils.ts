@@ -14,7 +14,6 @@ export interface RolePermissions {
   canAccessCreateJobPosting: boolean;
   canAccessRecruiterDashboard: boolean;
   canAccessCandidateManagement: boolean;
-  canAccessDashboard: boolean;
   canAccessAIServices: boolean;
 }
 
@@ -61,8 +60,6 @@ export const getUserPermissions = (userRoles: string[]): RolePermissions => {
     canAccessRecruiterDashboard: isAdminUser || isRecruiter,
     canAccessCandidateManagement: isAdminUser || isRecruiter,
     
-    // Common features
-    canAccessDashboard: true, // Everyone can access dashboard
     
     // Admin-only features
     canAccessAIServices: isAdminUser, // Only admin can access AI services
@@ -76,12 +73,33 @@ export const getNavigationItems = (userRoles: string[]) => {
   const permissions = getUserPermissions(userRoles);
   
   const allItems = [
+    // Candidate features first
     {
-      name: 'Dashboard',
-      href: '/dashboard',
-      description: 'Overview and analytics',
-      permission: 'canAccessDashboard'
+      name: 'Candidate Dashboard',
+      href: '/candidate-dashboard',
+      description: 'View job applications and learning progress',
+      permission: 'canAccessCandidateDashboard'
     },
+    {
+      name: 'Browse Jobs',
+      href: '/jobs',
+      description: 'Browse available job opportunities',
+      permission: 'canAccessJobBrowse'
+    },
+    // Recruiter features
+    {
+      name: 'Recruiter Dashboard',
+      href: '/recruiter-dashboard',
+      description: 'Manage job postings and candidates',
+      permission: 'canAccessRecruiterDashboard'
+    },
+    {
+      name: 'Create Job Posting',
+      href: '/create-job-posting',
+      description: 'Create new job posting with AI assistance',
+      permission: 'canAccessCreateJobPosting'
+    },
+    // AI-powered learning features
     {
       name: 'Learning Path',
       href: '/learning-path',
@@ -106,30 +124,7 @@ export const getNavigationItems = (userRoles: string[]) => {
       description: 'AI Softskill Development Coach',
       permission: 'canAccessMindFlow'
     },
-    {
-      name: 'Candidate Dashboard',
-      href: '/candidate-dashboard',
-      description: 'View job applications and learning progress',
-      permission: 'canAccessCandidateDashboard'
-    },
-    {
-      name: 'Browse Jobs',
-      href: '/jobs',
-      description: 'Browse available job opportunities',
-      permission: 'canAccessJobBrowse'
-    },
-    {
-      name: 'Recruiter Dashboard',
-      href: '/recruiter-dashboard',
-      description: 'Manage job postings and candidates',
-      permission: 'canAccessRecruiterDashboard'
-    },
-    {
-      name: 'Create Job Posting',
-      href: '/create-job-posting',
-      description: 'Create new job posting with AI assistance',
-      permission: 'canAccessCreateJobPosting'
-    },
+    // Admin features
     {
       name: 'AI Services',
       href: '/ai-services',
@@ -152,7 +147,6 @@ export const canAccessRoute = (userRoles: string[], route: string): boolean => {
   
   // Route to permission mapping
   const routePermissions: Record<string, keyof RolePermissions> = {
-    '/dashboard': 'canAccessDashboard',
     '/learning-path': 'canAccessLearningPath',
     '/interview': 'canAccessInterviewSimulator',
     '/futurecast': 'canAccessFuturecast',

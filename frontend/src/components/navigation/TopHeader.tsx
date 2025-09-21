@@ -29,11 +29,11 @@ const TopHeader: React.FC = () => {
   }, []);
 
   return (
-<header className="h-16 flex items-center justify-end px-6 shadow-sm bg-slate-600">
+<header className="h-16 flex items-center justify-end px-6 shadow-sm bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
   {/* Right side - Notifications and Profile */}
   <div className="flex items-center space-x-4">
     {/* Notifications */}
-    <button className="p-2 text-white hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors">
+    <button className="p-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors">
       <Bell size={20} />
     </button>
 
@@ -41,22 +41,22 @@ const TopHeader: React.FC = () => {
         <div className="relative" ref={profileRef}>
           <button
             onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="flex items-center space-x-3 p-2 rounded-lg hover:bg-white hover:bg-opacity-20 transition-colors"
+            className="flex items-center space-x-3 p-2 rounded-lg hover:bg-slate-200 transition-colors"
           >
             <div 
-              className="h-8 w-8 rounded-full flex items-center justify-center text-white font-medium bg-slate-800"
+              className="h-8 w-8 rounded-full flex items-center justify-center text-white font-medium bg-gradient-to-r from-indigo-500 to-purple-600 shadow-lg"
             >
               {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
             </div>
             <div className="hidden md:block text-left">
-              <p className="text-sm font-medium text-white">
+              <p className="text-sm font-medium text-slate-800">
                 {user?.firstName} {user?.lastName}
               </p>
-              <p className="text-xs text-white text-opacity-80">{user?.email}</p>
+              <p className="text-xs text-slate-600">{user?.email}</p>
             </div>
             <ChevronDown 
               size={16} 
-              className={`text-white transition-transform ${
+              className={`text-slate-600 transition-transform ${
                 showProfileMenu ? 'rotate-180' : ''
               }`}
             />

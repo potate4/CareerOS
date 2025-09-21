@@ -42,6 +42,76 @@ api.interceptors.response.use(
 );
 
 export const learningPathAPI = {
+  // Generate assessment for a specific module
+  generateAssessment: async (request: {
+    moduleId: number;
+    userId: number;
+    assessmentType?: string;
+    numQuestions?: number;
+    difficulty?: string;
+  }) => {
+    try {
+      console.log('🎯 Generating module assessment:', request);
+      const payload = {
+        user_id: request.userId,
+        module_id: request.moduleId,
+        assessment_type: request.assessmentType || 'quiz',
+        num_questions: request.numQuestions || 5,
+        difficulty: request.difficulty || 'medium'
+      };
+      console.log('📤 Assessment payload:', payload);
+      
+      const response = await api.post('/path/create-assessment', payload);
+      console.log('✅ Assessment generated:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Failed to generate assessment:', error);
+      if (error.response) {
+        console.error('Response error:', error.response.data);
+        console.error('Response status:', error.response.status);
+      }
+      throw error;
+    }
+  },
+
+  // Submit and score assessment
+  submitAssessment: async (request: {
+    assessmentId: string;
+    userId: number;
+    moduleId: number;
+    assessmentAnswers: Array<{
+      question: string;
+      correct_answer?: string;
+      provided_answer: string;
+    }>;
+  }) => {
+    try {
+      console.log('📝 Submitting assessment:', request);
+      const payload = {
+        assessment_id: request.assessmentId,
+        user_id: request.userId,
+        module_id: request.moduleId,
+        assessment_answers: request.assessmentAnswers.map(answer => ({
+          question: answer.question,
+          correct_answer: answer.correct_answer || '',
+          provided_answer: answer.provided_answer
+        }))
+      };
+      console.log('📤 Submit payload:', payload);
+      
+      const response = await api.post('/path/score-assessment', payload);
+      console.log('✅ Assessment scored:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Failed to submit assessment:', error);
+      if (error.response) {
+        console.error('Response error:', error.response.data);
+        console.error('Response status:', error.response.status);
+      }
+      throw error;
+    }
+  },
+
   // Generate a new learning path
   generateLearningPath: async (request: LearningPathRequest): Promise<LearningPath> => {
     try {

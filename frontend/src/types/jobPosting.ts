@@ -281,7 +281,7 @@ export interface CandidateFilters {
 }
 
 // Job Assessment Types (Based on existing AI assessment system)
-export interface JobAssessmentQuestion {
+export interface AIJobAssessmentQuestion {
   question: string;
   correct_answer?: string;
   options?: string[];
@@ -294,7 +294,7 @@ export interface JobAssessmentSession {
   success: boolean;
   message: string;
   assessment_id: string;
-  questions: JobAssessmentQuestion[];
+  questions: AIJobAssessmentQuestion[];
   job_id: number;
   candidate_id: number;
   assessment_type: string;

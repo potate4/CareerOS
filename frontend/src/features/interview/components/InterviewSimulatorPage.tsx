@@ -220,7 +220,18 @@ const InterviewSimulatorPage: React.FC = () => {
       sessionRecorderRef.current = mime ? new MediaRecorder(sessionStreamRef.current, { mimeType: mime }) : new MediaRecorder(sessionStreamRef.current);
       sessionRecorderRef.current.ondataavailable = (e) => { if (e.data && e.data.size > 0) sessionChunksRef.current.push(e.data); };
       sessionRecorderRef.current.start();
-    } catch (e) { setError('Failed to start session recorder.'); }
+    } catch (e: any) { 
+      console.error('Error setting up session recording:', e);
+      if (e.name === 'NotReadableError') {
+        setError('Camera/microphone is currently in use by another application. Please close other applications and try again.');
+      } else if (e.name === 'NotAllowedError') {
+        setError('Camera/microphone access denied. Please allow permissions and refresh the page.');
+      } else if (e.name === 'NotFoundError') {
+        setError('No camera or microphone found. Please connect these devices and try again.');
+      } else {
+        setError('Failed to start session recorder. Please check your camera and microphone.');
+      }
+    }
   };
 
   const playTTSMixed = async (url?: string | null) => {
@@ -249,7 +260,18 @@ const InterviewSimulatorPage: React.FC = () => {
       recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data); };
       recorder.start();
       setIsMicRecording(true);
-    } catch { setError('Microphone unavailable. Please allow mic access.'); }
+    } catch (e: any) { 
+      console.error('Error starting microphone recording:', e);
+      if (e.name === 'NotReadableError') {
+        setError('Microphone is currently in use by another application. Please close other applications and try again.');
+      } else if (e.name === 'NotAllowedError') {
+        setError('Microphone access denied. Please allow permissions and refresh the page.');
+      } else if (e.name === 'NotFoundError') {
+        setError('No microphone found. Please connect a microphone and try again.');
+      } else {
+        setError('Microphone unavailable. Please check your microphone and try again.');
+      }
+    }
   };
 
   const stopMicRecordingAndGetBlob = async (): Promise<Blob | null> => {
@@ -397,39 +419,45 @@ const InterviewSimulatorPage: React.FC = () => {
 
   return (
     <AuthenticatedLayout>
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-blue-50">
         <div className="max-w-7xl mx-auto p-6">
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-start justify-between gap-4 mb-6">
               <div>
-                <h1 className="text-4xl font-bold flex items-center gap-3 text-slate-900">
-                  <div className="p-2 rounded-xl bg-slate-600">
+                <h1 className="text-4xl font-bold flex items-center gap-4 text-slate-900">
+                  <div className="p-3 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-700 shadow-lg">
                     <Video className="h-8 w-8 text-white" />
                   </div>
-                  Interview Simulator
+                  <div>
+                    <div className="text-4xl font-bold">Interview Simulator</div>
+                    <div className="text-sm font-normal text-slate-500 mt-1">AI-Powered Practice Platform</div>
+                  </div>
                 </h1>
-                <p className="mt-3 text-slate-600 text-lg">
-                  Practice realistic interviews with AI-powered voice interactions and instant feedback analysis.
+                <p className="mt-4 text-slate-600 text-lg leading-relaxed max-w-2xl">
+                  Master your interview skills with AI-powered voice interactions, real-time feedback, and comprehensive performance analysis.
                 </p>
               </div>
 
               {/* Session Status & Controls */}
-              <div className="flex flex-col items-end gap-3">
+              <div className="flex flex-col items-end gap-4">
                 <div className="flex items-center gap-3">
                   <button
                     onClick={async () => {
                       try { const result = await interviewAPI.checkInterviewHealth(); setResult({ message: 'Interview service health check', result }); }
                       catch (err: any) { setError(err.message || 'Health check failed'); }
                     }}
-                    className="px-4 py-2 rounded-lg text-sm font-medium bg-slate-200 text-slate-700 hover:bg-slate-300 transition-colors"
+                    className="px-4 py-2.5 rounded-xl text-sm font-medium bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 shadow-sm"
                   >
-                    Check Service
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                      Service Status
+                    </div>
                   </button>
                   {activeSession && activeSession.status === 'ACTIVE' && (
-                    <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-600">
-                      <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-                      <span className="text-sm font-medium text-white">Live Session</span>
+                    <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 shadow-lg">
+                      <div className="w-3 h-3 rounded-full bg-white animate-pulse"></div>
+                      <span className="text-sm font-semibold text-white">Live Interview Session</span>
                     </div>
                   )}
                 </div>
@@ -440,19 +468,19 @@ const InterviewSimulatorPage: React.FC = () => {
                     <button
                       onClick={createAndStartSession}
                       disabled={isSimStarting}
-                      className="px-6 py-3 rounded-lg text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-60 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
+                      className="px-8 py-3.5 rounded-xl text-sm font-bold bg-gradient-to-r from-indigo-600 to-purple-700 text-white hover:from-indigo-700 hover:to-purple-800 disabled:opacity-60 transition-all duration-200 shadow-xl hover:shadow-2xl hover:-translate-y-0.5 flex items-center gap-3"
                     >
-                      <Camera className="h-4 w-4" />
-                      {isSimStarting ? 'Starting Session...' : 'Start Interview'}
+                      <Camera className="h-5 w-5" />
+                      <span>{isSimStarting ? 'Initializing AI Interview...' : 'Begin Interview Session'}</span>
                     </button>
                   ) : (
                     <button
                       onClick={endCurrentSession}
                       disabled={isEndingSession}
-                      className="px-6 py-3 rounded-lg text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-60 transition-all duration-200 flex items-center gap-2"
+                      className="px-8 py-3.5 rounded-xl text-sm font-bold bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 disabled:opacity-60 transition-all duration-200 shadow-xl hover:shadow-2xl flex items-center gap-3"
                     >
-                      <Square className="h-4 w-4" />
-                      {isEndingSession ? 'Ending...' : 'End Session'}
+                      <Square className="h-5 w-5" />
+                      <span>{isEndingSession ? 'Finalizing Session...' : 'Complete Interview'}</span>
                     </button>
                   )}
                 </div>
@@ -460,113 +488,156 @@ const InterviewSimulatorPage: React.FC = () => {
             </div>
 
             {/* Interview Preferences */}
-            <div className="mb-6 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-900 mb-4">Interview preferences</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Target role</label>
-                  <input value={prefRole} onChange={(e)=>setPrefRole(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 text-slate-900" placeholder="e.g., Frontend Developer" />
+            <div className="mb-8 bg-white/80 backdrop-blur-sm border border-slate-200/50 rounded-2xl p-6 shadow-lg">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 rounded-lg bg-slate-100">
+                  <User className="h-5 w-5 text-slate-600" />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Seniority</label>
-                  <select value={prefSeniority} onChange={(e)=>setPrefSeniority(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 text-slate-900 bg-white">
-                    <option value="">Select...</option>
+                <h2 className="text-xl font-bold text-slate-900">Interview Preferences</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Target Role</label>
+                  <input
+                    value={prefRole}
+                    onChange={(e)=>setPrefRole(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent text-slate-900 bg-white/50 backdrop-blur-sm transition-all duration-200"
+                    placeholder="e.g., Senior Frontend Developer"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Experience Level</label>
+                  <select
+                    value={prefSeniority}
+                    onChange={(e)=>setPrefSeniority(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent text-slate-900 bg-white/50 backdrop-blur-sm transition-all duration-200"
+                  >
+                    <option value="">Choose level...</option>
                     <option>Intern</option>
-                    <option>Junior</option>
-                    <option>Mid</option>
-                    <option>Senior</option>
-                    <option>Staff</option>
-                    <option>Principal</option>
+                    <option>Junior (0-2 years)</option>
+                    <option>Mid-Level (2-5 years)</option>
+                    <option>Senior (5-8 years)</option>
+                    <option>Staff (8+ years)</option>
+                    <option>Principal/Lead</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Company / Industry</label>
-                  <input value={prefCompany} onChange={(e)=>setPrefCompany(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 text-slate-900" placeholder="e.g., Fintech, Shopify" />
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Target Company</label>
+                  <input
+                    value={prefCompany}
+                    onChange={(e)=>setPrefCompany(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent text-slate-900 bg-white/50 backdrop-blur-sm transition-all duration-200"
+                    placeholder="e.g., Google, Startup, FinTech"
+                  />
                 </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Focus areas (comma separated)</label>
-                  <input value={prefFocusAreas} onChange={(e)=>setPrefFocusAreas(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 text-slate-900" placeholder="e.g., React, System Design, Data Structures" />
+                <div className="md:col-span-2 space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Technical Focus Areas</label>
+                  <input
+                    value={prefFocusAreas}
+                    onChange={(e)=>setPrefFocusAreas(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent text-slate-900 bg-white/50 backdrop-blur-sm transition-all duration-200"
+                    placeholder="e.g., React, TypeScript, System Design, Algorithms"
+                  />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Language</label>
-                  <input value={prefLanguage} onChange={(e)=>setPrefLanguage(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 text-slate-900" placeholder="e.g., English" />
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Interview Language</label>
+                  <input
+                    value={prefLanguage}
+                    onChange={(e)=>setPrefLanguage(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent text-slate-900 bg-white/50 backdrop-blur-sm transition-all duration-200"
+                    placeholder="e.g., English, Spanish"
+                  />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Difficulty</label>
-                  <select value={prefDifficulty} onChange={(e)=>setPrefDifficulty(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 text-slate-900 bg-white">
-                    <option value="">Select...</option>
-                    <option>Easy</option>
-                    <option>Moderate</option>
-                    <option>Hard</option>
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Difficulty Level</label>
+                  <select
+                    value={prefDifficulty}
+                    onChange={(e)=>setPrefDifficulty(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent text-slate-900 bg-white/50 backdrop-blur-sm transition-all duration-200"
+                  >
+                    <option value="">Select difficulty...</option>
+                    <option>Easy - Basic concepts</option>
+                    <option>Moderate - Standard questions</option>
+                    <option>Hard - Advanced scenarios</option>
                   </select>
                 </div>
               </div>
-              <p className="mt-3 text-xs text-slate-500">These preferences are sent as initial context so the AI tailors questions for you.</p>
+              <div className="mt-4 p-4 bg-slate-50/50 rounded-xl border border-slate-200/50">
+                <p className="text-sm text-slate-600">💡 <strong>Pro tip:</strong> The more specific your preferences, the better the AI can tailor realistic interview scenarios to match your target role and experience level.</p>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Left Column - Video Recorder */}
-            <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Main Column - Video Recorder (2/3 width) */}
+            <div className="lg:col-span-2 space-y-6">
               {/* Video Recorder */}
-              <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+              <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200/50 overflow-hidden">
                 <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-slate-100">
-                        <Video className="h-5 w-5 text-slate-600" />
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg">
+                        <Video className="h-6 w-6 text-white" />
                       </div>
-                      <h2 className="text-xl font-semibold text-slate-900">Recording Studio</h2>
+                      <div>
+                        <h2 className="text-xl font-bold text-slate-900">Recording Studio</h2>
+                        <p className="text-sm text-slate-500">Capture your interview practice session</p>
+                      </div>
                     </div>
                     {isMicRecording && (
-                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-100">
-                        <div className="w-2 h-2 rounded-full animate-pulse bg-red-500"></div>
-                        <span className="text-xs font-medium text-red-700">Recording Audio</span>
+                      <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-500 to-red-600 shadow-lg">
+                        <div className="w-3 h-3 rounded-full animate-pulse bg-white"></div>
+                        <span className="text-sm font-bold text-white">Recording Audio</span>
                       </div>
                     )}
                   </div>
                   <VideoRecorder onRecordingComplete={handleRecordingComplete} onReset={handleReset} />
                 </div>
                 {currentRecording && (
-                  <div className="border-t border-slate-200 p-6 bg-slate-50">
-                    <h3 className="text-lg font-semibold mb-4 text-slate-900">Save Your Recording</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-2 text-slate-700">Session Title *</label>
+                  <div className="border-t border-slate-200/50 p-6 bg-gradient-to-r from-slate-50/80 to-slate-100/50">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 rounded-lg bg-slate-100">
+                        <Save className="h-5 w-5 text-slate-600" />
+                      </div>
+                      <h3 className="text-xl font-bold text-slate-900">Save Your Interview Recording</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold text-slate-700">Session Title *</label>
                         <input
                           type="text"
                           value={sessionTitle}
                           onChange={(e) => setSessionTitle(e.target.value)}
-                          className="w-full px-4 py-3 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all"
-                          placeholder="e.g., Frontend Developer Interview Practice"
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent transition-all duration-200 bg-white/70 backdrop-blur-sm"
+                          placeholder="e.g., Senior Frontend Developer Practice Session"
                           required
                         />
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2 text-slate-700">Description (Optional)</label>
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold text-slate-700">Description (Optional)</label>
                         <input
                           type="text"
                           value={description}
                           onChange={(e) => setDescription(e.target.value)}
-                          className="w-full px-4 py-3 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all"
-                          placeholder="Brief description of what you practiced..."
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent transition-all duration-200 bg-white/70 backdrop-blur-sm"
+                          placeholder="React interview with system design questions..."
                         />
                       </div>
                     </div>
                     <button
                       onClick={handleSaveRecording}
                       disabled={isLoading || !sessionTitle.trim()}
-                      className="px-6 py-3 rounded-lg font-semibold flex items-center gap-2 bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 transition-all duration-200 shadow-lg hover:shadow-xl"
+                      className="px-8 py-3.5 rounded-xl font-bold flex items-center gap-3 bg-gradient-to-r from-slate-600 to-slate-700 text-white hover:from-slate-700 hover:to-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-xl hover:shadow-2xl hover:-translate-y-0.5"
                     >
                       {isLoading ? (
                         <>
-                          <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                          Saving Recording...
+                          <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                          <span>Saving Recording...</span>
                         </>
                       ) : (
                         <>
-                          <Save className="h-4 w-4" />
-                          Save Recording
+                          <Save className="h-5 w-5" />
+                          <span>Save Interview Recording</span>
                         </>
                       )}
                     </button>
@@ -575,32 +646,35 @@ const InterviewSimulatorPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Right Column - Live Chat */}
+            {/* Right Column - Live Chat (1/3 width) */}
             <div className="space-y-6">
-              <div className="bg-white rounded-2xl shadow-lg border border-slate-200 sticky top-6">
-                <div className="p-4 border-b border-slate-200">
+              <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200/50 sticky top-6">
+                <div className="p-6 border-b border-slate-200/50">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 rounded-lg bg-slate-100">
-                        <MessageCircle className="h-4 w-4 text-slate-600" />
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg">
+                        <MessageCircle className="h-5 w-5 text-white" />
                       </div>
-                      <h3 className="font-semibold text-slate-900">Interview Conversation</h3>
+                      <div>
+                        <h3 className="text-lg font-bold text-slate-900">Interview Conversation</h3>
+                        <p className="text-sm text-slate-500">Real-time AI interview dialogue</p>
+                      </div>
                     </div>
                     {activeSession && activeSession.status === 'ACTIVE' && (
                       <button
                         onClick={submitCurrentAnswer}
                         disabled={isAnswering}
-                        className="px-4 py-2 rounded-lg text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 transition-colors flex items-center gap-2"
+                        className="px-6 py-3 rounded-xl text-sm font-bold bg-gradient-to-r from-indigo-600 to-purple-700 text-white hover:from-indigo-700 hover:to-purple-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-3"
                       >
                         {isAnswering ? (
                           <>
                             <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                            Processing...
+                            <span>Processing Response...</span>
                           </>
                         ) : (
                           <>
                             <Mic className="h-4 w-4" />
-                            Done Speaking
+                            <span>Submit Answer</span>
                           </>
                         )}
                       </button>
@@ -608,38 +682,41 @@ const InterviewSimulatorPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="p-4">
+                <div className="p-6">
                   {!activeSession ? (
-                    <div className="text-center py-8">
-                      <div className="p-3 rounded-lg bg-slate-100 inline-block mb-3">
-                        <MessageCircle className="h-6 w-6 text-slate-400" />
+                    <div className="text-center py-12">
+                      <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 inline-block mb-4 shadow-lg">
+                        <MessageCircle className="h-8 w-8 text-slate-400" />
                       </div>
-                      <p className="text-sm text-slate-500">Start an interview session to see the conversation here.</p>
+                      <h4 className="text-lg font-semibold text-slate-700 mb-2">Ready for Interview</h4>
+                      <p className="text-sm text-slate-500 max-w-sm mx-auto leading-relaxed">
+                        Start an interview session to begin your AI-powered practice conversation. Your dialogue will appear here in real-time.
+                      </p>
                     </div>
                   ) : (
-                    <div className="space-y-3 max-h-96 overflow-auto">
+                    <div className="space-y-4 max-h-96 overflow-auto scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
                       {conversation.map((m, idx) => {
                         const isAI = m.speaker === 'ai';
                         return (
                           <div key={idx} className={`flex ${isAI ? 'justify-start' : 'justify-end'}`}>
-                            <div className="flex items-start gap-2 max-w-[85%]">
+                            <div className="flex items-start gap-3 max-w-[85%]">
                               {isAI && (
-                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-600 text-white">
-                                  <Bot className="h-3 w-3" />
+                                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg flex-shrink-0">
+                                  <Bot className="h-4 w-4" />
                                 </div>
                               )}
-                              <div className={`rounded-lg p-3 ${isAI ? 'bg-slate-100' : 'bg-slate-900 text-white'}`}>
-                                <div className="text-xs mb-1 opacity-70">
-                                  {new Date(m.createdAt).toLocaleTimeString()}
+                              <div className={`rounded-2xl p-4 shadow-lg ${isAI ? 'bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200' : 'bg-gradient-to-br from-slate-600 to-slate-700 text-white'}`}>
+                                <div className={`text-xs mb-2 font-medium ${isAI ? 'text-slate-500' : 'text-slate-300'}`}>
+                                  {isAI ? 'AI Interviewer' : 'You'} • {new Date(m.createdAt).toLocaleTimeString()}
                                 </div>
-                                <div className="text-sm">{m.message}</div>
+                                <div className="text-sm leading-relaxed">{m.message}</div>
                                 {m.audioUrl && (
-                                  <audio src={m.audioUrl} controls className="mt-2 w-full" style={{ maxWidth: '200px', height: '30px' }} />
+                                  <audio src={m.audioUrl} controls className="mt-3 w-full rounded-lg" style={{ maxWidth: '200px', height: '35px' }} />
                                 )}
                               </div>
                               {!isAI && (
-                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-600 text-white">
-                                  <User className="h-3 w-3" />
+                                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-slate-600 to-slate-700 text-white shadow-lg flex-shrink-0">
+                                  <User className="h-4 w-4" />
                                 </div>
                               )}
                             </div>
@@ -647,8 +724,20 @@ const InterviewSimulatorPage: React.FC = () => {
                         );
                       })}
                       {activeSession.status === 'ACTIVE' && (
-                        <div className="text-xs text-slate-500 text-center py-2">
-                          {isAnswering ? 'Processing your response...' : 'Speak your answer, then click "Done Speaking"'}
+                        <div className="text-center py-4">
+                          <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium ${isAnswering ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700'}`}>
+                            {isAnswering ? (
+                              <>
+                                <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
+                                Processing your response...
+                              </>
+                            ) : (
+                              <>
+                                <Mic className="h-3 w-3" />
+                                Speak your answer, then click "Submit Answer"
+                              </>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -659,40 +748,50 @@ const InterviewSimulatorPage: React.FC = () => {
           </div>
 
           {/* Files List - Full Width Below */}
-          <div className="mt-6 bg-white rounded-2xl shadow-lg border border-slate-200">
-            <div className="p-4 border-b border-slate-200">
+          <div className="mt-8 bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200/50">
+            <div className="p-6 border-b border-slate-200/50">
               <button
                 onClick={() => setIsFilesCollapsed(!isFilesCollapsed)}
-                className="w-full flex items-center justify-between text-left"
+                className="w-full flex items-center justify-between text-left hover:bg-slate-50/50 rounded-xl p-2 -m-2 transition-colors duration-200"
               >
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-slate-100">
-                    <FileText className="h-4 w-4 text-slate-600" />
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg">
+                    <FileText className="h-5 w-5 text-white" />
                   </div>
-                  <h3 className="font-semibold text-slate-900">Interview Files</h3>
-                  <span className="text-xs text-slate-500">({fileAnalysisData.length})</span>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">Interview Recordings</h3>
+                    <p className="text-sm text-slate-500">{fileAnalysisData.length} recorded sessions with AI analysis</p>
+                  </div>
                 </div>
-                {isFilesCollapsed ? (
-                  <ChevronRight className="h-4 w-4 text-slate-400" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-slate-400" />
-                )}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-slate-600">
+                    {isFilesCollapsed ? 'Show' : 'Hide'}
+                  </span>
+                  {isFilesCollapsed ? (
+                    <ChevronRight className="h-5 w-5 text-slate-400" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-slate-400" />
+                  )}
+                </div>
               </button>
             </div>
 
             {!isFilesCollapsed && (
-              <div className="p-4">
+              <div className="p-6">
                 {fileAnalysisData.length === 0 ? (
-                  <div className="text-center py-8 px-4">
-                    <div className="p-3 rounded-lg bg-slate-100 inline-block mb-3">
-                      <Video className="h-6 w-6 text-slate-400" />
+                  <div className="text-center py-12 px-4">
+                    <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 inline-block mb-4 shadow-lg">
+                      <Video className="h-8 w-8 text-slate-400" />
                     </div>
-                    <p className="text-xs text-slate-500">No recordings yet</p>
+                    <h4 className="text-lg font-semibold text-slate-700 mb-2">No Recordings Yet</h4>
+                    <p className="text-sm text-slate-500 max-w-sm mx-auto leading-relaxed">
+                      Start practicing interviews to build your recording library. Each session will be saved here with detailed AI analysis.
+                    </p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-4">
                     {fileAnalysisData.map((file) => (
-                      <div key={file.fileId} className="border border-slate-200 rounded-lg overflow-hidden">
+                      <div key={file.fileId} className="border border-slate-200/50 rounded-2xl overflow-hidden bg-white/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-200">
                         {/* File Item Header */}
                         <button
                           onClick={() => toggleFileExpanded(file.fileId)}

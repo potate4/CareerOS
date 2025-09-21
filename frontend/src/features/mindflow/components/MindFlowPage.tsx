@@ -230,7 +230,18 @@ const MindFlowPage: React.FC = () => {
       sessionRecorderRef.current = mime ? new MediaRecorder(sessionStreamRef.current, { mimeType: mime }) : new MediaRecorder(sessionStreamRef.current);
       sessionRecorderRef.current.ondataavailable = (e) => { if (e.data && e.data.size > 0) sessionChunksRef.current.push(e.data); };
       sessionRecorderRef.current.start();
-    } catch (e) { setError('Failed to start MindFlow session recorder.'); }
+    } catch (e: any) { 
+      console.error('Error setting up MindFlow session recording:', e);
+      if (e.name === 'NotReadableError') {
+        setError('Camera/microphone is currently in use by another application. Please close other applications and try again.');
+      } else if (e.name === 'NotAllowedError') {
+        setError('Camera/microphone access denied. Please allow permissions and refresh the page.');
+      } else if (e.name === 'NotFoundError') {
+        setError('No camera or microphone found. Please connect these devices and try again.');
+      } else {
+        setError('Failed to start MindFlow session recorder. Please check your camera and microphone.');
+      }
+    }
   };
 
   const playTTSMixed = async (url?: string | null) => {
@@ -259,7 +270,18 @@ const MindFlowPage: React.FC = () => {
       recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data); };
       recorder.start();
       setIsMicRecording(true);
-    } catch { setError('Microphone unavailable. Please allow mic access for MindFlow.'); }
+    } catch (e: any) { 
+      console.error('Error starting MindFlow microphone recording:', e);
+      if (e.name === 'NotReadableError') {
+        setError('Microphone is currently in use by another application. Please close other applications and try again.');
+      } else if (e.name === 'NotAllowedError') {
+        setError('Microphone access denied. Please allow permissions and refresh the page.');
+      } else if (e.name === 'NotFoundError') {
+        setError('No microphone found. Please connect a microphone and try again.');
+      } else {
+        setError('Microphone unavailable. Please check your microphone and try again.');
+      }
+    }
   };
 
   const stopMicRecordingAndGetBlob = async (): Promise<Blob | null> => {
@@ -348,7 +370,7 @@ const MindFlowPage: React.FC = () => {
       const lastAi = [...conversation].filter(c => c.speaker === 'ai').pop();
       const lastAiTime = lastAi?.createdAt;
       const res = await mindflowAPI.processAnswer(activeSession.sessionId, fileUrl);
-      if (res && res.status === 'PENDING') {
+      if (res && (res as any).status === 'PENDING') {
         const ok = await pollForNextAIMessage(activeSession.sessionId, lastAiTime);
         if (!ok) throw new Error('Processing timed out, please try again');
         return;
@@ -411,39 +433,45 @@ const MindFlowPage: React.FC = () => {
 
   return (
     <AuthenticatedLayout>
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-50">
         <div className="max-w-7xl mx-auto p-6">
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-start justify-between gap-4 mb-6">
               <div>
-                <h1 className="text-4xl font-bold flex items-center gap-3 text-slate-900">
-                  <div className="p-2 rounded-xl bg-purple-600">
+                <h1 className="text-4xl font-bold flex items-center gap-4 text-slate-900">
+                  <div className="p-3 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-700 shadow-lg">
                     <Brain className="h-8 w-8 text-white" />
                   </div>
-                  MindFlow: Soft Skills Training
+                  <div>
+                    <div className="text-4xl font-bold">MindFlow</div>
+                    <div className="text-sm font-normal text-purple-600 mt-1">Soft Skills Development Platform</div>
+                  </div>
                 </h1>
-                <p className="mt-3 text-slate-600 text-lg">
-                  Practice workplace communication scenarios with AI-powered roleplay for developing negotiation, leadership, and interpersonal skills.
+                <p className="mt-4 text-slate-600 text-lg leading-relaxed max-w-2xl">
+                  Develop critical soft skills through immersive AI-powered roleplay scenarios. Master communication, negotiation, leadership, and interpersonal dynamics.
                 </p>
               </div>
 
               {/* Session Status & Controls */}
-              <div className="flex flex-col items-end gap-3">
+              <div className="flex flex-col items-end gap-4">
                 <div className="flex items-center gap-3">
                   <button
                     onClick={async () => {
                       try { const result = await mindflowAPI.checkMindFlowHealth(); setResult({ message: 'MindFlow service health check', result }); }
                       catch (err: any) { setError(err.message || 'MindFlow health check failed'); }
                     }}
-                    className="px-4 py-2 rounded-lg text-sm font-medium bg-slate-200 text-slate-700 hover:bg-slate-300 transition-colors"
+                    className="px-4 py-2.5 rounded-xl text-sm font-medium bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 shadow-sm"
                   >
-                    Check Service
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                      MindFlow Status
+                    </div>
                   </button>
                   {activeSession && activeSession.status === 'ACTIVE' && (
-                    <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600">
-                      <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-                      <span className="text-sm font-medium text-white">Live MindFlow</span>
+                    <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 shadow-lg">
+                      <div className="w-3 h-3 rounded-full bg-white animate-pulse"></div>
+                      <span className="text-sm font-semibold text-white">Live Soft Skills Session</span>
                     </div>
                   )}
                 </div>
@@ -454,19 +482,19 @@ const MindFlowPage: React.FC = () => {
                     <button
                       onClick={createAndStartSession}
                       disabled={isSimStarting}
-                      className="px-6 py-3 rounded-lg text-sm font-semibold bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-60 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
+                      className="px-8 py-3.5 rounded-xl text-sm font-bold bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700 disabled:opacity-60 transition-all duration-200 shadow-xl hover:shadow-2xl hover:-translate-y-0.5 flex items-center gap-3"
                     >
-                      <Users className="h-4 w-4" />
-                      {isSimStarting ? 'Starting MindFlow...' : 'Start Roleplay'}
+                      <Users className="h-5 w-5" />
+                      <span>{isSimStarting ? 'Initializing MindFlow Session...' : 'Begin Soft Skills Training'}</span>
                     </button>
                   ) : (
                     <button
                       onClick={endCurrentSession}
                       disabled={isEndingSession}
-                      className="px-6 py-3 rounded-lg text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-60 transition-all duration-200 flex items-center gap-2"
+                      className="px-8 py-3.5 rounded-xl text-sm font-bold bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 disabled:opacity-60 transition-all duration-200 shadow-xl hover:shadow-2xl flex items-center gap-3"
                     >
-                      <Square className="h-4 w-4" />
-                      {isEndingSession ? 'Ending...' : 'End Session'}
+                      <Square className="h-5 w-5" />
+                      <span>{isEndingSession ? 'Finalizing Session...' : 'Complete Training'}</span>
                     </button>
                   )}
                 </div>
@@ -474,139 +502,160 @@ const MindFlowPage: React.FC = () => {
             </div>
 
             {/* Scenario Preferences */}
-            <div className="mb-6 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-900 mb-4">Scenario Preferences</h2>
+            <div className="mb-8 bg-white/80 backdrop-blur-sm border border-slate-200/50 rounded-2xl p-6 shadow-lg">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 rounded-lg bg-purple-100">
+                  <Brain className="h-5 w-5 text-purple-600" />
+                </div>
+                <h2 className="text-xl font-bold text-slate-900">Scenario Preferences</h2>
+              </div>
               
               {/* Scenario Type Selection */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-slate-700 mb-3">Scenario Type</label>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="mb-8">
+                <label className="block text-sm font-bold text-slate-700 mb-4">Choose Your Training Scenario</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {SCENARIO_OPTIONS.map((scenario) => (
                     <button
                       key={scenario.value}
                       onClick={() => setSelectedScenario(scenario.value)}
-                      className={`p-4 rounded-lg border-2 text-left transition-all ${
+                      className={`p-5 rounded-2xl border-2 text-left transition-all duration-200 hover:shadow-lg ${
                         selectedScenario === scenario.value
-                          ? 'border-purple-500 bg-purple-50'
-                          : 'border-slate-200 bg-white hover:border-slate-300'
+                          ? 'border-purple-400 bg-gradient-to-br from-purple-50 to-indigo-50 shadow-lg'
+                          : 'border-slate-200 bg-white/70 backdrop-blur-sm hover:border-purple-200 hover:bg-purple-50/30'
                       }`}
                     >
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-2xl">{scenario.icon}</span>
-                        <span className="font-medium text-slate-900">{scenario.label}</span>
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className={`p-2 rounded-xl ${
+                          selectedScenario === scenario.value
+                            ? 'bg-purple-100'
+                            : 'bg-slate-100'
+                        }`}>
+                          <span className="text-xl">{scenario.icon}</span>
+                        </div>
+                        <span className="font-bold text-slate-900">{scenario.label}</span>
                       </div>
-                      <p className="text-xs text-slate-600">{scenario.description}</p>
+                      <p className="text-sm text-slate-600 leading-relaxed">{scenario.description}</p>
                     </button>
                   ))}
                 </div>
               </div>
 
               {/* Additional Preferences */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Communication Style</label>
-                  <select 
-                    value={communicationStyle} 
-                    onChange={(e)=>setCommunicationStyle(e.target.value)} 
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-900 bg-white"
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Communication Style</label>
+                  <select
+                    value={communicationStyle}
+                    onChange={(e)=>setCommunicationStyle(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent text-slate-900 bg-white/50 backdrop-blur-sm transition-all duration-200"
                   >
-                    <option value="">Select...</option>
-                    <option>Direct</option>
-                    <option>Diplomatic</option>
-                    <option>Collaborative</option>
-                    <option>Assertive</option>
+                    <option value="">Choose style...</option>
+                    <option>Direct & Clear</option>
+                    <option>Diplomatic & Tactful</option>
+                    <option>Collaborative & Inclusive</option>
+                    <option>Assertive & Confident</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Difficulty Level</label>
-                  <select 
-                    value={difficultyLevel} 
-                    onChange={(e)=>setDifficultyLevel(e.target.value)} 
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-900 bg-white"
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Difficulty Level</label>
+                  <select
+                    value={difficultyLevel}
+                    onChange={(e)=>setDifficultyLevel(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent text-slate-900 bg-white/50 backdrop-blur-sm transition-all duration-200"
                   >
-                    <option value="">Select...</option>
-                    <option>Beginner</option>
-                    <option>Intermediate</option>
-                    <option>Advanced</option>
-                    <option>Expert</option>
+                    <option value="">Select challenge level...</option>
+                    <option>Beginner - Basic interactions</option>
+                    <option>Intermediate - Real scenarios</option>
+                    <option>Advanced - Complex situations</option>
+                    <option>Expert - High-stakes roleplay</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Focus Areas (comma separated)</label>
-                  <input 
-                    value={focusAreas} 
-                    onChange={(e)=>setFocusAreas(e.target.value)} 
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-900" 
-                    placeholder="e.g., Empathy, Persuasion, Active Listening" 
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Focus Skills</label>
+                  <input
+                    value={focusAreas}
+                    onChange={(e)=>setFocusAreas(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent text-slate-900 bg-white/50 backdrop-blur-sm transition-all duration-200"
+                    placeholder="e.g., Empathy, Persuasion, Leadership"
                   />
                 </div>
               </div>
-              <p className="mt-3 text-xs text-slate-500">These preferences help the AI create realistic scenarios tailored to your soft skills development goals.</p>
+              <div className="mt-4 p-4 bg-purple-50/50 rounded-xl border border-purple-200/50">
+                <p className="text-sm text-slate-600">🎯 <strong>Training Focus:</strong> These preferences help our AI create immersive roleplay scenarios specifically designed to develop your chosen soft skills in realistic workplace situations.</p>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Left Column - Video Recorder */}
-            <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Main Column - Video Recorder (2/3 width) */}
+            <div className="lg:col-span-2 space-y-6">
               {/* Video Recorder */}
-              <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+              <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200/50 overflow-hidden">
                 <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-slate-100">
-                        <Video className="h-5 w-5 text-slate-600" />
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-xl bg-gradient-to-br from-slate-600 to-slate-700 shadow-lg">
+                        <Video className="h-6 w-6 text-white" />
                       </div>
-                      <h2 className="text-xl font-semibold text-slate-900">Recording Studio</h2>
+                      <div>
+                        <h2 className="text-xl font-bold text-slate-900">MindFlow Studio</h2>
+                        <p className="text-sm text-slate-500">Record your soft skills practice</p>
+                      </div>
                     </div>
                     {isMicRecording && (
-                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-100">
-                        <div className="w-2 h-2 rounded-full animate-pulse bg-red-500"></div>
-                        <span className="text-xs font-medium text-red-700">Recording Audio</span>
+                      <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-500 to-red-600 shadow-lg">
+                        <div className="w-3 h-3 rounded-full animate-pulse bg-white"></div>
+                        <span className="text-sm font-bold text-white">Recording Audio</span>
                       </div>
                     )}
                   </div>
                   <VideoRecorder onRecordingComplete={handleRecordingComplete} onReset={handleReset} />
                 </div>
                 {currentRecording && (
-                  <div className="border-t border-slate-200 p-6 bg-slate-50">
-                    <h3 className="text-lg font-semibold mb-4 text-slate-900">Save Your MindFlow Recording</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-2 text-slate-700">Session Title *</label>
+                  <div className="border-t border-slate-200/50 p-6 bg-gradient-to-r from-slate-50/80 to-slate-100/50">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 rounded-lg bg-slate-100">
+                        <Save className="h-5 w-5 text-slate-600" />
+                      </div>
+                      <h3 className="text-xl font-bold text-slate-900">Save Your MindFlow Recording</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold text-slate-700">Session Title *</label>
                         <input
                           type="text"
                           value={sessionTitle}
                           onChange={(e) => setSessionTitle(e.target.value)}
-                          className="w-full px-4 py-3 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                          placeholder="e.g., Salary Negotiation Practice"
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent transition-all duration-200 bg-white/70 backdrop-blur-sm"
+                          placeholder="e.g., Leadership Communication Practice"
                           required
                         />
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2 text-slate-700">Description (Optional)</label>
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold text-slate-700">Description (Optional)</label>
                         <input
                           type="text"
                           value={description}
                           onChange={(e) => setDescription(e.target.value)}
-                          className="w-full px-4 py-3 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                          placeholder="Brief description of the scenario practiced..."
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent transition-all duration-200 bg-white/70 backdrop-blur-sm"
+                          placeholder="Conflict resolution with team member scenario..."
                         />
                       </div>
                     </div>
                     <button
                       onClick={handleSaveRecording}
                       disabled={isLoading || !sessionTitle.trim()}
-                      className="px-6 py-3 rounded-lg font-semibold flex items-center gap-2 bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-all duration-200 shadow-lg hover:shadow-xl"
+                      className="px-8 py-3.5 rounded-xl font-bold flex items-center gap-3 bg-gradient-to-r from-slate-600 to-slate-700 text-white hover:from-slate-700 hover:to-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-xl hover:shadow-2xl hover:-translate-y-0.5"
                     >
                       {isLoading ? (
                         <>
-                          <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                          Saving Recording...
+                          <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                          <span>Saving MindFlow Session...</span>
                         </>
                       ) : (
                         <>
-                          <Save className="h-4 w-4" />
-                          Save MindFlow Recording
+                          <Save className="h-5 w-5" />
+                          <span>Save Soft Skills Recording</span>
                         </>
                       )}
                     </button>
@@ -615,32 +664,35 @@ const MindFlowPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Right Column - Live Chat */}
+            {/* Right Column - Live Chat (1/3 width) */}
             <div className="space-y-6">
-              <div className="bg-white rounded-2xl shadow-lg border border-slate-200 sticky top-6">
-                <div className="p-4 border-b border-slate-200">
+              <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200/50 sticky top-6">
+                <div className="p-6 border-b border-slate-200/50">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 rounded-lg bg-slate-100">
-                        <MessageCircle className="h-4 w-4 text-slate-600" />
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 shadow-lg">
+                        <MessageCircle className="h-5 w-5 text-white" />
                       </div>
-                      <h3 className="font-semibold text-slate-900">MindFlow Conversation</h3>
+                      <div>
+                        <h3 className="text-lg font-bold text-slate-900">MindFlow Roleplay</h3>
+                        <p className="text-sm text-slate-500">AI-powered soft skills training</p>
+                      </div>
                     </div>
                     {activeSession && activeSession.status === 'ACTIVE' && (
                       <button
                         onClick={submitCurrentAnswer}
                         disabled={isAnswering}
-                        className="px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+                        className="px-6 py-3 rounded-xl text-sm font-bold bg-gradient-to-r from-slate-600 to-slate-700 text-white hover:from-slate-700 hover:to-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-3"
                       >
                         {isAnswering ? (
                           <>
                             <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                            Processing...
+                            <span>Processing Response...</span>
                           </>
                         ) : (
                           <>
                             <Mic className="h-4 w-4" />
-                            Done Speaking
+                            <span>Submit Response</span>
                           </>
                         )}
                       </button>
@@ -648,38 +700,41 @@ const MindFlowPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="p-4">
+                <div className="p-6">
                   {!activeSession ? (
-                    <div className="text-center py-8">
-                      <div className="p-3 rounded-lg bg-slate-100 inline-block mb-3">
-                        <Users className="h-6 w-6 text-slate-400" />
+                    <div className="text-center py-12">
+                      <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-100 to-indigo-200 inline-block mb-4 shadow-lg">
+                        <Users className="h-8 w-8 text-purple-600" />
                       </div>
-                      <p className="text-sm text-slate-500">Start a MindFlow session to begin your soft skills roleplay scenario.</p>
+                      <h4 className="text-lg font-semibold text-slate-700 mb-2">Ready for Soft Skills Training</h4>
+                      <p className="text-sm text-slate-500 max-w-sm mx-auto leading-relaxed">
+                        Begin a MindFlow session to practice workplace scenarios with AI-powered roleplay. Develop leadership, communication, and interpersonal skills.
+                      </p>
                     </div>
                   ) : (
-                    <div className="space-y-3 max-h-96 overflow-auto">
+                    <div className="space-y-4 max-h-96 overflow-auto scrollbar-thin scrollbar-thumb-purple-300 scrollbar-track-purple-100">
                       {conversation.map((m, idx) => {
                         const isAI = m.speaker === 'ai';
                         return (
                           <div key={idx} className={`flex ${isAI ? 'justify-start' : 'justify-end'}`}>
-                            <div className="flex items-start gap-2 max-w-[85%]">
+                            <div className="flex items-start gap-3 max-w-[85%]">
                               {isAI && (
-                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-purple-600 text-white">
-                                  <Bot className="h-3 w-3" />
+                                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 text-white shadow-lg flex-shrink-0">
+                                  <Bot className="h-4 w-4" />
                                 </div>
                               )}
-                              <div className={`rounded-lg p-3 ${isAI ? 'bg-slate-100' : 'bg-purple-600 text-white'}`}>
-                                <div className="text-xs mb-1 opacity-70">
-                                  {new Date(m.createdAt).toLocaleTimeString()}
+                              <div className={`rounded-2xl p-4 shadow-lg ${isAI ? 'bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200' : 'bg-gradient-to-br from-slate-600 to-slate-700 text-white'}`}>
+                                <div className={`text-xs mb-2 font-medium ${isAI ? 'text-slate-600' : 'text-slate-200'}`}>
+                                  {isAI ? 'AI Roleplay Partner' : 'You'} • {new Date(m.createdAt).toLocaleTimeString()}
                                 </div>
-                                <div className="text-sm">{m.message}</div>
+                                <div className="text-sm leading-relaxed">{m.message}</div>
                                 {m.audioUrl && (
-                                  <audio src={m.audioUrl} controls className="mt-2 w-full" style={{ maxWidth: '200px', height: '30px' }} />
+                                  <audio src={m.audioUrl} controls className="mt-3 w-full rounded-lg" style={{ maxWidth: '200px', height: '35px' }} />
                                 )}
                               </div>
                               {!isAI && (
-                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-purple-600 text-white">
-                                  <User className="h-3 w-3" />
+                                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-slate-600 to-slate-700 text-white shadow-lg flex-shrink-0">
+                                  <User className="h-4 w-4" />
                                 </div>
                               )}
                             </div>
@@ -687,8 +742,20 @@ const MindFlowPage: React.FC = () => {
                         );
                       })}
                       {activeSession.status === 'ACTIVE' && (
-                        <div className="text-xs text-slate-500 text-center py-2">
-                          {isAnswering ? 'Processing your response...' : 'Speak your response, then click "Done Speaking"'}
+                        <div className="text-center py-4">
+                          <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium ${isAnswering ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700'}`}>
+                            {isAnswering ? (
+                              <>
+                                <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
+                                Analyzing your soft skills response...
+                              </>
+                            ) : (
+                              <>
+                                <Mic className="h-3 w-3" />
+                                Share your response, then click "Submit Response"
+                              </>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -699,102 +766,133 @@ const MindFlowPage: React.FC = () => {
           </div>
 
           {/* Files List - Full Width Below */}
-          <div className="mt-6 bg-white rounded-2xl shadow-lg border border-slate-200">
-            <div className="p-4 border-b border-slate-200">
+          <div className="mt-8 bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200/50">
+            <div className="p-6 border-b border-slate-200/50">
               <button
                 onClick={() => setIsFilesCollapsed(!isFilesCollapsed)}
-                className="w-full flex items-center justify-between text-left"
+                className="w-full flex items-center justify-between text-left hover:bg-purple-50/50 rounded-xl p-2 -m-2 transition-colors duration-200"
               >
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-slate-100">
-                    <FileText className="h-4 w-4 text-slate-600" />
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 shadow-lg">
+                    <FileText className="h-5 w-5 text-white" />
                   </div>
-                  <h3 className="font-semibold text-slate-900">MindFlow Files</h3>
-                  <span className="text-xs text-slate-500">({fileAnalysisData.length})</span>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">MindFlow Training Library</h3>
+                    <p className="text-sm text-slate-500">{fileAnalysisData.length} soft skills training sessions with AI analysis</p>
+                  </div>
                 </div>
-                {isFilesCollapsed ? (
-                  <ChevronRight className="h-4 w-4 text-slate-400" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-slate-400" />
-                )}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-slate-600">
+                    {isFilesCollapsed ? 'Show' : 'Hide'}
+                  </span>
+                  {isFilesCollapsed ? (
+                    <ChevronRight className="h-5 w-5 text-slate-400" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-slate-400" />
+                  )}
+                </div>
               </button>
             </div>
 
             {!isFilesCollapsed && (
-              <div className="p-4">
+              <div className="p-6">
                 {fileAnalysisData.length === 0 ? (
-                  <div className="text-center py-8 px-4">
-                    <div className="p-3 rounded-lg bg-slate-100 inline-block mb-3">
-                      <Video className="h-6 w-6 text-slate-400" />
+                  <div className="text-center py-12 px-4">
+                    <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-100 to-indigo-200 inline-block mb-4 shadow-lg">
+                      <Video className="h-8 w-8 text-purple-600" />
                     </div>
-                    <p className="text-xs text-slate-500">No MindFlow recordings yet</p>
+                    <h4 className="text-lg font-semibold text-slate-700 mb-2">No Training Sessions Yet</h4>
+                    <p className="text-sm text-slate-500 max-w-sm mx-auto leading-relaxed">
+                      Start practicing soft skills scenarios to build your training library. Each session will be saved here with detailed AI analysis.
+                    </p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-4">
                     {fileAnalysisData.map((file) => (
-                      <div key={file.fileId} className="border border-slate-200 rounded-lg overflow-hidden">
+                      <div key={file.fileId} className="border border-slate-200/50 rounded-2xl overflow-hidden bg-white/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-200">
                         {/* File Item Header */}
                         <button
                           onClick={() => toggleFileExpanded(file.fileId)}
-                          className="w-full p-4 text-left hover:bg-slate-50 transition-colors"
+                          className="w-full p-6 text-left hover:bg-white/80 transition-all duration-200 rounded-2xl"
                         >
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-3">
-                              <Video className="h-5 w-5 text-slate-600" />
-                              <span className="text-sm font-medium text-slate-900">
-                                {file.originalFileName}
-                              </span>
-                              {file.scenarioType && (
-                                <span className="text-xs px-2 py-1 rounded bg-purple-100 text-purple-700">
-                                  {SCENARIO_OPTIONS.find(s => s.value === file.scenarioType)?.label || file.scenarioType}
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-4">
+                              <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 shadow-lg">
+                                <Video className="h-5 w-5 text-white" />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-3 mb-1">
+                                  <span className="text-base font-semibold text-slate-900">
+                                    {file.originalFileName}
+                                  </span>
+                                  {file.scenarioType && (
+                                    <span className="text-xs px-3 py-1 rounded-xl bg-gradient-to-r from-purple-100 to-indigo-100 border border-purple-200 text-purple-700 font-medium">
+                                      {SCENARIO_OPTIONS.find(s => s.value === file.scenarioType)?.label || file.scenarioType}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-sm text-slate-500">
+                                  {new Date(file.uploadedAt).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
                                 </span>
-                              )}
+                              </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                              <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-2">
                                 {file.analysisStatus === 'COMPLETED' && (
-                                  <div className="flex items-center gap-1 px-2 py-1 rounded bg-slate-100 text-slate-700">
-                                    <CheckCircle2 className="h-3 w-3" />
-                                    <span className="text-xs">Ready</span>
+                                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-100 to-green-100 border border-emerald-200">
+                                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                    <span className="text-sm font-medium text-emerald-700">Analysis Complete</span>
                                   </div>
                                 )}
                                 {file.analysisStatus === 'PENDING' && (
-                                  <div className="flex items-center gap-1 px-2 py-1 rounded bg-yellow-100 text-yellow-700">
-                                    <Clock className="h-3 w-3" />
-                                    <span className="text-xs">Processing</span>
+                                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-100 to-yellow-100 border border-amber-200">
+                                    <Clock className="h-4 w-4 text-amber-600 animate-spin" />
+                                    <span className="text-sm font-medium text-amber-700">Processing</span>
                                   </div>
                                 )}
                                 {file.analysisStatus === 'FAILED' && (
-                                  <div className="flex items-center gap-1 px-2 py-1 rounded bg-red-100 text-red-700">
-                                    <XCircle className="h-3 w-3" />
-                                    <span className="text-xs">Failed</span>
+                                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-red-100 to-rose-100 border border-red-200">
+                                    <XCircle className="h-4 w-4 text-red-600" />
+                                    <span className="text-sm font-medium text-red-700">Analysis Failed</span>
                                   </div>
                                 )}
                                 {file.analysisStatus === 'NO_ANALYSIS' && (
-                                  <div className="flex items-center gap-1 px-2 py-1 rounded bg-slate-200 text-slate-600">
-                                    <AlertCircle className="h-3 w-3" />
-                                    <span className="text-xs">No Analysis</span>
+                                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-slate-100 to-gray-100 border border-slate-200">
+                                    <AlertCircle className="h-4 w-4 text-slate-600" />
+                                    <span className="text-sm font-medium text-slate-700">Ready to Analyze</span>
                                   </div>
                                 )}
                               </div>
-                              {expandedFileId === file.fileId ? (
-                                <ChevronDown className="h-4 w-4 text-slate-400" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4 text-slate-400" />
-                              )}
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs font-medium text-slate-500">
+                                  {expandedFileId === file.fileId ? 'Collapse' : 'Expand'}
+                                </span>
+                                {expandedFileId === file.fileId ? (
+                                  <ChevronDown className="h-5 w-5 text-slate-400" />
+                                ) : (
+                                  <ChevronRight className="h-5 w-5 text-slate-400" />
+                                )}
+                              </div>
                             </div>
-                          </div>
-                          <div className="text-xs text-slate-500 text-left">
-                            {new Date(file.uploadedAt).toLocaleDateString()}
                           </div>
                         </button>
 
                         {/* Expanded File Content */}
                         {expandedFileId === file.fileId && (
-                          <div className="border-t border-slate-200 p-4 bg-slate-50 space-y-4">
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          <div className="border-t border-slate-200/50 p-6 bg-gradient-to-r from-purple-50/80 to-indigo-50/30 space-y-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                               {/* Media Player */}
-                              <div>
+                              <div className="space-y-3">
+                                <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                  <Play className="h-4 w-4" />
+                                  Training Session Playback
+                                </h4>
                                 {isLikelyVideo(file.fileUrl, file.category) ? (
                                   <video
                                     src={file.fileUrl}
@@ -803,65 +901,75 @@ const MindFlowPage: React.FC = () => {
                                     crossOrigin="anonymous"
                                     controlsList="nodownload"
                                     preload="metadata"
-                                    className="w-full rounded-lg aspect-video bg-slate-900"
+                                    className="w-full rounded-xl aspect-video bg-slate-900 shadow-lg border border-slate-200"
                                   />
                                 ) : (
-                                  <audio src={file.fileUrl} controls className="w-full" />
+                                  <audio src={file.fileUrl} controls className="w-full rounded-xl shadow-lg" />
                                 )}
                               </div>
 
                               {/* Analysis */}
-                              <div>
+                              <div className="space-y-3">
+                                <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                  <Brain className="h-4 w-4" />
+                                  AI Soft Skills Analysis
+                                </h4>
                                 {file.analysisStatus === 'COMPLETED' && file.detailedAnalysis ? (
-                                  <div className="space-y-2">
-                                    <h4 className="text-sm font-semibold text-slate-900">Soft Skills Analysis</h4>
-                                    <div className="prose prose-slate prose-sm max-w-none text-xs max-h-64 overflow-auto">
+                                  <div className="bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-purple-200 shadow-sm">
+                                    <div className="prose prose-slate prose-sm max-w-none text-sm max-h-64 overflow-auto scrollbar-thin scrollbar-thumb-purple-300 scrollbar-track-purple-100">
                                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                         {file.detailedAnalysis}
                                       </ReactMarkdown>
                                     </div>
                                   </div>
                                 ) : (
-                                  <div className="text-center py-8">
-                                    <p className="text-sm text-slate-500">No soft skills analysis available</p>
+                                  <div className="text-center py-8 bg-white/50 rounded-xl border border-purple-200">
+                                    <div className="p-3 rounded-lg bg-purple-100 inline-block mb-3">
+                                      <Brain className="h-6 w-6 text-purple-600" />
+                                    </div>
+                                    <p className="text-sm text-slate-500 font-medium">No soft skills analysis available yet</p>
+                                    <p className="text-xs text-slate-400 mt-1">Click "Analyze" to get AI feedback on your communication skills</p>
                                   </div>
                                 )}
                               </div>
                             </div>
 
                             {/* Action Buttons */}
-                            <div className="flex items-center gap-2 pt-2 border-t border-slate-200">
-                              {file.analysisStatus === 'NO_ANALYSIS' && (
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); handleAnalyzeRecording(file); }}
-                                  disabled={isAnalyzing}
-                                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-colors"
+                            <div className="flex items-center justify-between pt-4 border-t border-slate-200/50">
+                              <div className="flex items-center gap-3">
+                                {file.analysisStatus === 'NO_ANALYSIS' && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleAnalyzeRecording(file); }}
+                                    disabled={isAnalyzing}
+                                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
+                                  >
+                                    {isAnalyzing ? (
+                                      <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                                    ) : (
+                                      <Play className="h-4 w-4" />
+                                    )}
+                                    <span>{isAnalyzing ? 'Analyzing Soft Skills...' : 'Generate Skills Analysis'}</span>
+                                  </button>
+                                )}
+
+                                <a
+                                  href={file.fileUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 shadow-sm hover:shadow-md"
                                 >
-                                  {isAnalyzing ? (
-                                    <div className="animate-spin h-3 w-3 border border-white border-t-transparent rounded-full" />
-                                  ) : (
-                                    <Play className="h-3 w-3" />
-                                  )}
-                                  {isAnalyzing ? 'Analyzing...' : 'Analyze'}
-                                </button>
-                              )}
-                              
-                              <a
-                                href={file.fileUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-600 text-white hover:bg-slate-700 transition-colors"
-                              >
-                                <Download className="h-3 w-3" />
-                                Download
-                              </a>
-                              
+                                  <Download className="h-4 w-4" />
+                                  <span>Download</span>
+                                </a>
+                              </div>
+
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleDeleteRecording(file.fileId); }}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                className="p-2.5 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all duration-200 border border-transparent hover:border-red-200"
+                                title="Delete recording"
                               >
-                                <Trash2 className="h-3 w-3" />
+                                <Trash2 className="h-4 w-4" />
                               </button>
                             </div>
                           </div>
@@ -876,10 +984,18 @@ const MindFlowPage: React.FC = () => {
 
           {(uploadProgress > 0) && (
             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[90%] max-w-xl">
-              <div className="bg-white border border-slate-200 rounded-xl shadow-lg p-4">
-                <div className="text-sm font-medium text-slate-800 mb-2">Uploading MindFlow session recording... {uploadProgress}%</div>
-                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-purple-600" style={{ width: `${uploadProgress}%` }} />
+              <div className="bg-white/95 backdrop-blur-sm border border-slate-200/50 rounded-2xl shadow-2xl p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 rounded-lg bg-purple-100">
+                    <Brain className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-slate-900">Uploading MindFlow Session</div>
+                    <div className="text-xs text-slate-500">{uploadProgress}% complete</div>
+                  </div>
+                </div>
+                <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full transition-all duration-300 ease-out" style={{ width: `${uploadProgress}%` }} />
                 </div>
               </div>
             </div>
@@ -889,24 +1005,34 @@ const MindFlowPage: React.FC = () => {
           {(error || success) && (
             <div className="fixed bottom-6 right-6 z-40 space-y-3">
               {error && (
-                <div className="flex items-center gap-3 p-4 rounded-lg bg-red-50 border border-red-200 shadow-lg max-w-md">
-                  <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
-                  <span className="font-medium text-red-800">{error}</span>
+                <div className="flex items-center gap-4 p-5 rounded-2xl bg-red-50/95 backdrop-blur-sm border border-red-200/50 shadow-2xl max-w-md">
+                  <div className="p-1 rounded-lg bg-red-100">
+                    <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-bold text-red-900">MindFlow Error</div>
+                    <div className="text-sm text-red-800">{error}</div>
+                  </div>
                   <button
                     onClick={() => setError(null)}
-                    className="p-1 rounded text-red-400 hover:text-red-600"
+                    className="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-100 transition-colors"
                   >
                     <XCircle className="h-4 w-4" />
                   </button>
                 </div>
               )}
               {success && (
-                <div className="flex items-center gap-3 p-4 rounded-lg bg-green-50 border border-green-200 shadow-lg max-w-md">
-                  <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
-                  <span className="font-medium text-green-800">{success}</span>
+                <div className="flex items-center gap-4 p-5 rounded-2xl bg-emerald-50/95 backdrop-blur-sm border border-emerald-200/50 shadow-2xl max-w-md">
+                  <div className="p-1 rounded-lg bg-emerald-100">
+                    <CheckCircle className="h-5 w-5 text-emerald-600 flex-shrink-0" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-bold text-emerald-900">MindFlow Success</div>
+                    <div className="text-sm text-emerald-800">{success}</div>
+                  </div>
                   <button
                     onClick={() => setSuccess(null)}
-                    className="p-1 rounded text-green-400 hover:text-green-600"
+                    className="p-1.5 rounded-lg text-emerald-400 hover:text-emerald-600 hover:bg-emerald-100 transition-colors"
                   >
                     <XCircle className="h-4 w-4" />
                   </button>

@@ -61,92 +61,86 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
       setIsCameraOn(true);
       
       return stream;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error accessing camera/microphone:', error);
       setHasPermission(false);
-      alert('Unable to access camera and microphone. Please check permissions.');
+      
+      if (error.name === 'NotReadableError') {
+        alert('Camera/microphone is currently in use by another application. Please close other applications using these devices and try again.');
+      } else if (error.name === 'NotAllowedError') {
+        alert('Camera/microphone access denied. Please allow permissions and refresh the page.');
+      } else if (error.name === 'NotFoundError') {
+        alert('No camera or microphone found. Please connect these devices and try again.');
+      } else {
+        alert('Unable to access camera and microphone. Please check permissions and try again.');
+      }
       return null;
     }
   };
 
   const startRecording = async () => {
-    if (!hasPermission) {
-      const stream = await requestPermissions();
+    let stream = recordingState.stream;
+    if (!stream) {
+      stream = await requestPermissions();
       if (!stream) return;
     }
 
-    try {
-      const stream = recordingState.stream || await requestPermissions();
-      if (!stream) return;
+    const mimeType = getBestSupportedMime();
+    const mediaRecorder = mimeType 
+      ? new MediaRecorder(stream, { mimeType })
+      : new MediaRecorder(stream);
 
-      const mime = getBestSupportedMime();
-      const mediaRecorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
-      const videoChunks: Blob[] = [];
+    const videoChunks: Blob[] = [];
 
-      mediaRecorder.ondataavailable = (event) => {
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
         videoChunks.push(event.data);
-      };
+      }
+    };
 
-      mediaRecorder.onstop = () => {
-        const type = mime || 'video/webm';
-        const videoBlob = new Blob(videoChunks, { type });
-        const videoUrl = URL.createObjectURL(videoBlob);
-        
-        setRecordingState(prev => ({
-          ...prev,
-          videoBlob,
-          videoUrl,
-          isRecording: false,
-          isPaused: false,
-        }));
-
-        onRecordingComplete(videoBlob);
-      };
-
-      mediaRecorder.start();
+    mediaRecorder.onstop = () => {
+      const videoBlob = new Blob(videoChunks, { type: 'video/webm' });
+      const videoUrl = URL.createObjectURL(videoBlob);
       
       setRecordingState(prev => ({
         ...prev,
-        isRecording: true,
+        videoBlob,
+        videoUrl,
+        isRecording: false,
         isPaused: false,
-        mediaRecorder,
-        videoChunks,
-        duration: 0,
+        mediaRecorder: null,
+        videoChunks: []
       }));
 
-      // Start timer
-      intervalRef.current = setInterval(() => {
-        setRecordingState(prev => ({
-          ...prev,
-          duration: prev.duration + 1,
-        }));
-      }, 1000);
+      onRecordingComplete(videoBlob);
+    };
 
-    } catch (error) {
-      console.error('Error starting recording:', error);
-      alert('Failed to start recording. Please check your camera and microphone permissions.');
-    }
-  };
-
-  const stopRecording = () => {
-    if (recordingState.mediaRecorder && recordingState.isRecording) {
-      recordingState.mediaRecorder.stop();
-    }
+    mediaRecorder.start();
     
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
+    setRecordingState(prev => ({
+      ...prev,
+      mediaRecorder,
+      videoChunks,
+      isRecording: true,
+      isPaused: false,
+      duration: 0
+    }));
+
+    // Start timer
+    intervalRef.current = setInterval(() => {
+      setRecordingState(prev => ({
+        ...prev,
+        duration: prev.duration + 1
+      }));
+    }, 1000);
   };
 
   const pauseRecording = () => {
     if (recordingState.mediaRecorder && recordingState.isRecording) {
       recordingState.mediaRecorder.pause();
       setRecordingState(prev => ({ ...prev, isPaused: true }));
-      
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
-        intervalRef.current = null;
       }
     }
   };
@@ -156,73 +150,61 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
       recordingState.mediaRecorder.resume();
       setRecordingState(prev => ({ ...prev, isPaused: false }));
       
-      // Restart timer
       intervalRef.current = setInterval(() => {
         setRecordingState(prev => ({
           ...prev,
-          duration: prev.duration + 1,
+          duration: prev.duration + 1
         }));
       }, 1000);
     }
   };
 
-  const resetRecording = () => {
+  const stopRecording = () => {
     if (recordingState.mediaRecorder) {
-      (recordingState.mediaRecorder.stream as MediaStream).getTracks().forEach(track => track.stop());
+      recordingState.mediaRecorder.stop();
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
     }
-    
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
+  };
 
+  const resetRecording = () => {
     if (recordingState.videoUrl) {
       URL.revokeObjectURL(recordingState.videoUrl);
     }
-
-    if (videoRef.current) {
-      (videoRef.current as any).srcObject = null;
-    }
-
-    setRecordingState({
-      isRecording: false,
-      isPaused: false,
-      duration: 0,
-      mediaRecorder: null,
-      videoChunks: [],
+    
+    setRecordingState(prev => ({
+      ...prev,
       videoBlob: null,
       videoUrl: null,
-      stream: null,
-    });
-
-    setHasPermission(null);
-    setIsCameraOn(false);
-
+      duration: 0,
+      videoChunks: []
+    }));
+    
     onReset();
   };
 
   const toggleCamera = async () => {
     if (isCameraOn) {
+      // Turn off camera
       if (recordingState.stream) {
-        (recordingState.stream as MediaStream).getTracks().forEach(track => track.stop());
-      }
-      if (videoRef.current) {
-        (videoRef.current as any).srcObject = null;
+        recordingState.stream.getTracks().forEach(track => track.stop());
+        setRecordingState(prev => ({ ...prev, stream: null }));
       }
       setIsCameraOn(false);
-      setHasPermission(null);
     } else {
+      // Turn on camera
       await requestPermissions();
     }
   };
 
   useEffect(() => {
+    // Auto-request permissions on mount
+    requestPermissions();
+    
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
-      }
-      if (recordingState.videoUrl) {
-        URL.revokeObjectURL(recordingState.videoUrl);
       }
       if (recordingState.stream) {
         (recordingState.stream as MediaStream).getTracks().forEach(track => track.stop());
@@ -231,16 +213,9 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
   }, []);
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-200">
-      <div className="text-center mb-6">
-        <h3 className="text-xl font-semibold mb-2 text-slate-900">Video Recorder</h3>
-        <div className="text-3xl font-mono font-bold text-slate-600">
-          {formatTime(recordingState.duration)}
-        </div>
-      </div>
-
-      {/* Video Preview */}
-      <div className="mb-6">
+    <div className="bg-white rounded-2xl p-4 shadow-lg border border-slate-200">
+      {/* Video Preview - Main Focus */}
+      <div className="mb-4">
         <div className="relative bg-slate-900 rounded-xl overflow-hidden aspect-video">
           <video
             ref={videoRef}
@@ -257,38 +232,44 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
               </div>
             </div>
           )}
+          {/* Timer Overlay */}
+          <div className="absolute top-4 right-4 bg-slate-900/80 backdrop-blur-sm rounded-lg px-3 py-2">
+            <div className="text-white font-mono font-bold text-lg">
+              {formatTime(recordingState.duration)}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Camera Controls */}
-      <div className="flex justify-center mb-4">
+      {/* Compact Controls Row */}
+      <div className="flex items-center justify-between mb-4">
+        {/* Camera Toggle */}
         <button
           onClick={toggleCamera}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors text-white ${
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-white ${
             isCameraOn ? 'bg-slate-600 hover:bg-slate-700' : 'bg-slate-900 hover:bg-slate-800'
           }`}
         >
           {isCameraOn ? (
             <>
               <VideoOff className="h-4 w-4" />
-              Turn Off Camera
+              Camera Off
             </>
           ) : (
             <>
               <VideoIcon className="h-4 w-4" />
-              Turn On Camera
+              Camera On
             </>
           )}
         </button>
-      </div>
 
-      {/* Recording Controls */}
-      <div className="flex justify-center space-x-4 mb-6">
+        {/* Recording Controls */}
+        <div className="flex items-center space-x-3">
         {!recordingState.isRecording && !recordingState.videoBlob && (
           <button
             onClick={startRecording}
             disabled={!isCameraOn}
-            className="flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-slate-900 hover:bg-slate-800"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-slate-900 hover:bg-slate-800 text-white"
           >
             <Video className="h-5 w-5" />
             Start Recording
@@ -299,14 +280,14 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
           <>
             <button
               onClick={pauseRecording}
-              className="flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium transition-colors bg-slate-600 hover:bg-slate-700"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-slate-600 hover:bg-slate-700 text-white"
             >
               <Pause className="h-5 w-5" />
               Pause
             </button>
             <button
               onClick={stopRecording}
-              className="flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium transition-colors bg-slate-800 hover:bg-slate-900"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-slate-800 hover:bg-slate-900 text-white"
             >
               <Square className="h-5 w-5" />
               Stop
@@ -318,14 +299,14 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
           <>
             <button
               onClick={resumeRecording}
-              className="flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium transition-colors bg-slate-900 hover:bg-slate-800"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-slate-900 hover:bg-slate-800 text-white"
             >
               <Play className="h-5 w-5" />
               Resume
             </button>
             <button
               onClick={stopRecording}
-              className="flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium transition-colors bg-slate-800 hover:bg-slate-900"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-slate-800 hover:bg-slate-900 text-white"
             >
               <Square className="h-5 w-5" />
               Stop
@@ -337,20 +318,21 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
           <>
             <button
               onClick={resetRecording}
-              className="flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium transition-colors bg-slate-600 hover:bg-slate-700"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-slate-600 hover:bg-slate-700 text-white"
             >
               <Trash2 className="h-5 w-5" />
               Reset
             </button>
           </>
         )}
+        </div>
       </div>
 
       {/* Recording Preview */}
       {recordingState.videoUrl && (
         <div className="mt-4">
-          <h4 className="text-lg font-medium mb-2 text-slate-900">Recording Preview</h4>
-          <video controls className="w-full rounded-xl">
+          <h4 className="text-base font-medium mb-2 text-slate-900">Recording Preview</h4>
+          <video controls className="w-full rounded-xl aspect-video">
             <source src={recordingState.videoUrl} type="video/webm" />
             Your browser does not support the video element.
           </video>
@@ -382,4 +364,4 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onRecordingComplete, onRe
   );
 };
 
-export default VideoRecorder; 
+export default VideoRecorder;

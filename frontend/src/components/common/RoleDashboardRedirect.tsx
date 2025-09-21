@@ -14,9 +14,9 @@ const RoleDashboardRedirect: React.FC = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  // Admin can access general dashboard
-  if (isAdmin(user.roles)) {
-    return <Navigate to="/dashboard" replace />;
+  // Candidate gets candidate dashboard (prioritized first)
+  if (hasRole(user.roles, 'candidate')) {
+    return <Navigate to="/candidate-dashboard" replace />;
   }
 
   // Recruiter gets recruiter dashboard
@@ -24,13 +24,13 @@ const RoleDashboardRedirect: React.FC = () => {
     return <Navigate to="/recruiter-dashboard" replace />;
   }
 
-  // Candidate gets candidate dashboard
-  if (hasRole(user.roles, 'candidate')) {
-    return <Navigate to="/candidate-dashboard" replace />;
+  // Admin gets AI services as their primary dashboard
+  if (isAdmin(user.roles)) {
+    return <Navigate to="/ai-services" replace />;
   }
 
-  // Default fallback to general dashboard
-  return <Navigate to="/dashboard" replace />;
+  // Default fallback to candidate dashboard
+  return <Navigate to="/candidate-dashboard" replace />;
 };
 
 export default RoleDashboardRedirect;
